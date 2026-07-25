@@ -6075,8 +6075,9 @@ button {
 }
 
 .appeal-workbench {
+  align-items: start;
   display: grid;
-  gap: 14px;
+  gap: 18px;
   grid-template-columns: minmax(0, 1.35fr) minmax(300px, 0.65fr);
 }
 
@@ -6085,12 +6086,14 @@ button {
   background: #fff;
   border: 1px solid #d6dfdc;
   border-radius: 10px;
-  padding: 18px;
+  min-width: 0;
+  padding: 22px;
 }
 
 .appeal-editor-panel label {
   display: block;
-  margin-top: 12px;
+  margin-top: 18px;
+  min-width: 0;
 }
 
 .appeal-editor-panel label > span {
@@ -6100,12 +6103,39 @@ button {
   margin-bottom: 6px;
 }
 
+.appeal-editor-panel input,
+.appeal-editor-panel textarea {
+  background: #fbfcfb;
+  border: 1px solid #cfd9d6;
+  border-radius: 8px;
+  box-sizing: border-box;
+  color: #173941;
+  display: block;
+  font: inherit;
+  max-width: 100%;
+  min-width: 0;
+  outline: none;
+  padding: 12px 14px;
+  width: 100%;
+}
+
+.appeal-editor-panel input {
+  min-height: 48px;
+}
+
+.appeal-editor-panel input:focus,
+.appeal-editor-panel textarea:focus {
+  border-color: var(--module-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--module-accent) 18%, transparent);
+}
+
 .appeal-letter-textarea {
   font-family: Georgia, "Times New Roman", serif;
   line-height: 1.7 !important;
-  min-height: 390px !important;
-  padding: 18px !important;
+  min-height: 480px !important;
+  padding: 20px !important;
   resize: vertical;
+  white-space: pre-wrap;
 }
 
 .deadline-badge {
@@ -6128,7 +6158,7 @@ button {
   display: grid;
   gap: 1px;
   grid-template-columns: repeat(3, 1fr);
-  margin: 14px 0;
+  margin: 18px 0 22px;
   overflow: hidden;
 }
 
@@ -6136,7 +6166,8 @@ button {
   background: #f7f9f8;
   display: flex;
   flex-direction: column;
-  padding: 12px;
+  min-width: 0;
+  padding: 15px 16px;
 }
 
 .denial-fact-strip span {

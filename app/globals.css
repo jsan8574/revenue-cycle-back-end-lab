@@ -2201,6 +2201,144 @@ button {
   }
 }
 
+/* Readability pass: keep the simulated-system density without tiny text. */
+.nav-item {
+  font-size: 13px !important;
+  min-height: 48px;
+}
+
+.nav-marker,
+.nav-arrow,
+.nav-section-label,
+.eyebrow,
+.section-kicker,
+.mini-label,
+.module-eyebrow {
+  font-size: 11px !important;
+}
+
+.sidebar-card p,
+.sidebar-card strong,
+.profile-card strong,
+.profile-card span,
+.topbar-copy strong,
+.data-pill,
+.icon-button {
+  font-size: 12px !important;
+  line-height: 1.45;
+}
+
+.dashboard-page :where(p, button, label, input, select, textarea) {
+  font-size: 14px !important;
+  line-height: 1.55;
+}
+
+.dashboard-page :where(small, .section-caption, .activity-time) {
+  font-size: 12px !important;
+  line-height: 1.45;
+}
+
+.dashboard-page :where(.module-card-meta span, .activity-row span) {
+  font-size: 12px !important;
+}
+
+.dashboard-page .module-card h3 {
+  font-size: 24px;
+}
+
+.module-page :where(p, button, label, input, select, textarea, td, dd) {
+  font-size: 13px !important;
+  line-height: 1.55;
+}
+
+.module-page :where(span, small, th, dt) {
+  font-size: 12px !important;
+  line-height: 1.45;
+}
+
+.module-page :where(.scenario-card strong, .step-copy strong, .fact-card strong) {
+  font-size: 14px !important;
+}
+
+.module-page .score-orbit span {
+  font-size: 17px !important;
+}
+
+.module-page .case-amount strong {
+  font-size: 23px !important;
+}
+
+.exploration-page .exploration-header p {
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.exploration-page .scenario-card strong {
+  font-size: 14px !important;
+  line-height: 1.35;
+}
+
+.exploration-page .scenario-card small,
+.exploration-page .priority-tag,
+.exploration-page .scenario-number,
+.exploration-page .mode-chip {
+  font-size: 11px !important;
+  line-height: 1.35;
+}
+
+.system-frame,
+.ar-system-frame {
+  font-size: 13px;
+}
+
+.system-body
+  :where(p, span, strong, small, button, label, input, select, textarea, td, dd),
+.ar-system-body
+  :where(p, span, strong, small, button, label, input, select, textarea, td, dd) {
+  font-size: 13px !important;
+  line-height: 1.5;
+}
+
+.system-body :where(th, dt, .system-kicker, .system-nav-label),
+.ar-system-body :where(th, dt, .system-kicker, .ar-check-number) {
+  font-size: 11px !important;
+  line-height: 1.4;
+}
+
+.system-body :where(input, select, textarea, button),
+.ar-system-body :where(input, select, textarea, button) {
+  min-height: 42px;
+}
+
+.system-body .system-empty-state > span,
+.ar-system-body .system-empty-state > span {
+  font-size: 16px !important;
+}
+
+.system-body .bank-amount {
+  font-size: clamp(42px, 7vw, 68px);
+}
+
+.system-body .patient-banner > div:last-child strong,
+.ar-system-body .ar-balance-callout strong {
+  font-size: 18px !important;
+}
+
+.ar-system-body .calculated-values .variance strong {
+  font-size: 20px !important;
+}
+
+@media (max-width: 760px) {
+  .dashboard-page :where(p, button, label, input, select, textarea),
+  .module-page :where(p, button, label, input, select, textarea, td, dd),
+  .system-body
+    :where(p, span, strong, small, button, label, input, select, textarea, td, dd),
+  .ar-system-body
+    :where(p, span, strong, small, button, label, input, select, textarea, td, dd) {
+    font-size: 12px !important;
+  }
+}
+
 @media (max-width: 480px) {
   .hero-copy h1 {
     font-size: 38px;

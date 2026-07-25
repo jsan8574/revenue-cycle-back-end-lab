@@ -18,10 +18,12 @@ reconciliation, and an in-system glossary of posting terms.
 
 The AR Collections / Insurance Follow-up workstation includes five accounts, a
 ranked priority queue, a nine-step investigation checklist, realistic billing
-history, prior-agent notes, PDF-style EOBs and correspondence, detailed
+history, prior-agent notes, a compact document center with PDF-style EOBs,
+claim records and relevant payer/provider letters, detailed
 transactions, related accounts, insurance and authorization records,
-credential-based payer portal claim research, a complete payer-call flow,
-expected-reimbursement calculation, resolution routing, and structured
+patient-name or member-ID payer website research, full provider identifiers, a
+complete payer-call flow, claim-service contract reimbursement calculation,
+resolution routing, and structured
 issue/findings/resolution notation.
 
 Denial Management uses the same account-investigation workstation with five
@@ -30,9 +32,9 @@ service-line adjudication, editable appeal-letter templates, attachment
 checklists, electronic or mail submission requests, success confirmations,
 resolution validation, and completion scoring.
 
-Every learner session begins with name capture. Each of the three modules
-offers three printable PDF reports containing the learner name and current
-work.
+Every learner session begins with name capture. Each module offers device-local
+progress saving and one consolidated printable PDF output containing the
+learner name and current work.
 
 ## Run locally
 

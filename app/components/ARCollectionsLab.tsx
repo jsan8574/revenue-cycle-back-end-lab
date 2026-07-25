@@ -37,7 +37,7 @@ const arTabs: { id: ArDeskTab; label: string }[] = [
   { id: "account", label: "Account" },
   { id: "eobs", label: "EOBs & correspondence" },
   { id: "transactions", label: "Transactions" },
-  { id: "coverage", label: "Coverage & auth" },
+  { id: "coverage", label: "Insurance" },
   { id: "investigate", label: "Payer investigation" },
   { id: "reimbursement", label: "Reimbursement" },
   { id: "resolve", label: "Resolution" },
@@ -140,6 +140,7 @@ export function ARCollectionsLab({
   const [balanceReviewed, setBalanceReviewed] = useState(false);
   const [portalOpened, setPortalOpened] = useState(false);
   const [portalCredentials, setPortalCredentials] = useState({
+    patientName: "",
     memberId: "",
     providerId: "",
     dob: "",
@@ -252,9 +253,14 @@ export function ARCollectionsLab({
     const normalize = (value: string) =>
       value.toLowerCase().replace(/[^a-z0-9]/g, "");
     const providerEntered = normalize(portalCredentials.providerId);
-    const correct =
+    const patientMatch =
+      normalize(portalCredentials.patientName) ===
+      normalize(scenario.patient.name);
+    const memberMatch =
       normalize(portalCredentials.memberId) ===
-        normalize(scenario.patient.memberId) &&
+      normalize(scenario.patient.memberId);
+    const correct =
+      (patientMatch || memberMatch) &&
       (providerEntered === normalize(scenario.patient.providerNpi) ||
         providerEntered === normalize(scenario.patient.providerTaxId)) &&
       normalize(portalCredentials.dob) === normalize(scenario.patient.dob) &&
@@ -263,7 +269,7 @@ export function ARCollectionsLab({
     setPortalFeedback(
       correct
         ? "Claim located. The adjudication detail is available below."
-        : "Claim not found. Verify the member ID, provider NPI or tax ID, patient DOB, and date of service.",
+        : "Claim not found. Verify the patient name or member ID, provider NPI or tax ID, patient DOB, and date of service.",
     );
   };
 
@@ -854,6 +860,40 @@ function AccountView({
         ))}
       </div>
 
+      <div className="provider-information-panel">
+        <div>
+          <span className="system-kicker">Billing provider information</span>
+          <h3>{scenario.patient.provider}</h3>
+          <p>Evergreen Medical Group · {scenario.patient.location}</p>
+        </div>
+        <dl>
+          <div>
+            <dt>Rendering / billing provider</dt>
+            <dd>{scenario.patient.provider}</dd>
+          </div>
+          <div>
+            <dt>Practice</dt>
+            <dd>Evergreen Medical Group</dd>
+          </div>
+          <div>
+            <dt>National Provider Identifier</dt>
+            <dd>{scenario.patient.providerNpi}</dd>
+          </div>
+          <div>
+            <dt>Tax identification number</dt>
+            <dd>{scenario.patient.providerTaxId}</dd>
+          </div>
+          <div>
+            <dt>Service location</dt>
+            <dd>{scenario.patient.location}</dd>
+          </div>
+          <div>
+            <dt>Payer network status</dt>
+            <dd>{scenario.insurance.network}</dd>
+          </div>
+        </dl>
+      </div>
+
       <div className="balance-strip">
         {[
           ["Billed", scenario.claim.billed],
@@ -955,7 +995,28 @@ function AccountView({
 
 function DocumentsView({ scenario }: { scenario: ArScenario }) {
   const [selectedDocument, setSelectedDocument] = useState(0);
-  const document = scenario.documents[selectedDocument];
+  const supplementalLetters = [
+    {
+      type: "Payer determination letter",
+      date: scenario.portal.finalized,
+      reference: `LTR-${scenario.portal.icn}`,
+      summary:
+        "Written payer determination with the claim status, response rights, and submission deadline.",
+      codes: "Payer correspondence · Action required",
+      body: `Dear Provider: We completed our review of claim ${scenario.portal.icn} for ${scenario.patient.name}, date of service ${scenario.patient.dos}. ${scenario.portal.reason} ${scenario.portal.nextStep} Keep this letter with the EOB and include the payer claim number on any follow-up submission.`,
+    },
+    {
+      type: "Provider follow-up letter",
+      date: "Jul 25, 2026",
+      reference: `EVG-${scenario.claim.claimId}-FUP`,
+      summary:
+        "Provider request for reconsideration, reprocessing, or written clarification.",
+      codes: "Provider correspondence · Draft evidence",
+      body: `To ${scenario.patient.payer} Provider Services: Evergreen Medical Group requests detailed review of claim ${scenario.portal.icn} for ${scenario.patient.name}, DOS ${scenario.patient.dos}. The account reflects ${money(scenario.claim.openAr)} in open insurance receivables. Please review the attached claim history, remittance, and supporting account records, then issue a written determination or reprocess the claim as supported. Direct correspondence to Evergreen Medical Group, Revenue Cycle Back End Operations.`,
+    },
+  ];
+  const documents = [...scenario.documents, ...supplementalLetters];
+  const document = documents[selectedDocument];
   const isEob =
     document.type.toLowerCase().includes("eob") ||
     document.type.toLowerCase().includes("era");
@@ -965,33 +1026,48 @@ function DocumentsView({ scenario }: { scenario: ArScenario }) {
       <div className="system-section-heading">
         <div>
           <span className="system-kicker">Document center</span>
-          <h3>EOBs, acknowledgments & correspondence</h3>
-          <p>Read each record and decide which evidence changes the account story.</p>
+          <h3>EOBs, acknowledgments, letters & correspondence</h3>
+          <p>
+            Select a document from the compact file list, then read the full
+            EOB or letter in the preview.
+          </p>
         </div>
       </div>
       <div className="document-review-layout">
-        <div className="ar-document-grid document-index">
-          {scenario.documents.map((item, index) => (
+        <aside className="ar-document-grid document-index document-list">
+          <div className="document-list-heading">
+            <div>
+              <span>Account documents</span>
+              <strong>{documents.length} files</strong>
+            </div>
+            <small>EOB · letters · claim records</small>
+          </div>
+          {documents.map((item, index) => (
             <button
               type="button"
               key={item.reference}
               className={selectedDocument === index ? "selected" : ""}
               onClick={() => setSelectedDocument(index)}
             >
-              <div>
-                <span>{item.type}</span>
-                <small>{item.date}</small>
+              <span className="document-type-icon" aria-hidden="true">
+                {item.type.toLowerCase().includes("letter") ? "LTR" : isDocumentEob(item.type) ? "EOB" : "DOC"}
+              </span>
+              <div className="document-list-copy">
+                <div>
+                  <span>{item.type}</span>
+                  <small>{item.date}</small>
+                </div>
+                <h4>{item.reference}</h4>
+                <p>{item.summary}</p>
               </div>
-              <h4>{item.reference}</h4>
-              <p>{item.summary}</p>
-              <strong>{item.codes}</strong>
+              <span className="document-open-arrow" aria-hidden="true">›</span>
             </button>
           ))}
-        </div>
+        </aside>
 
         <article className="pdf-document-page">
           <div className="pdf-document-toolbar">
-            <span>PDF preview · Page 1 of 1</span>
+            <span>Document preview · Page 1 of 1</span>
             <strong>{document.reference}</strong>
           </div>
           <div className="pdf-document-sheet">
@@ -1077,16 +1153,31 @@ function DocumentsView({ scenario }: { scenario: ArScenario }) {
               </>
             ) : (
               <div className="pdf-letter-body">
-                <p>Re: {document.reference}</p>
+                <p className="letter-date">{document.date}</p>
+                <p>
+                  <strong>Re: {document.reference}</strong>
+                </p>
                 <p>{document.body}</p>
+                <p>
+                  Sincerely,
+                  <br />
+                  Provider Correspondence Team
+                </p>
               </div>
             )}
 
-            <div className="pdf-document-explanation">
-              <span>Explanation / correspondence detail</span>
-              <p>{document.body}</p>
-              <strong>{document.codes}</strong>
-            </div>
+            {isEob ? (
+              <div className="pdf-document-explanation">
+                <span>Explanation / correspondence detail</span>
+                <p>{document.body}</p>
+                <strong>{document.codes}</strong>
+              </div>
+            ) : (
+              <div className="pdf-document-explanation letter-record-detail">
+                <span>Document classification</span>
+                <strong>{document.codes}</strong>
+              </div>
+            )}
             <footer>
               Fictional training document · Not a real payer communication
             </footer>
@@ -1095,6 +1186,11 @@ function DocumentsView({ scenario }: { scenario: ArScenario }) {
       </div>
     </div>
   );
+}
+
+function isDocumentEob(type: string) {
+  const normalized = type.toLowerCase();
+  return normalized.includes("eob") || normalized.includes("era");
 }
 
 function TransactionsView({ scenario }: { scenario: ArScenario }) {
@@ -1228,6 +1324,7 @@ function InvestigationView({
   scenario: ArScenario;
   portalOpened: boolean;
   portalCredentials: {
+    patientName: string;
     memberId: string;
     providerId: string;
     dob: string;
@@ -1238,7 +1335,7 @@ function InvestigationView({
   callAnswers: number[];
   callClosed: boolean;
   onPortalCredential: (
-    key: "memberId" | "providerId" | "dob" | "dos",
+    key: "patientName" | "memberId" | "providerId" | "dob" | "dos",
     value: string,
   ) => void;
   onPortal: () => void;
@@ -1279,18 +1376,28 @@ function InvestigationView({
           <div className="coverage-icon">WEB</div>
           <div>
             <span className="system-kicker">External simulation</span>
-            <h3>Multi-payer provider portal</h3>
+            <h3>Payer website</h3>
           </div>
         </div>
 
         <div className="portal-search-form">
           <div className="portal-search-banner">
-            <span>Claims & payments inquiry</span>
+            <span>Provider claim search</span>
             <strong>{scenario.patient.payer}</strong>
           </div>
           <div className="portal-credential-grid">
             <label>
-              <span>Member ID</span>
+              <span>Patient name</span>
+              <input
+                value={portalCredentials.patientName}
+                onChange={(event) =>
+                  onPortalCredential("patientName", event.target.value)
+                }
+                placeholder="First and last name"
+              />
+            </label>
+            <label>
+              <span>Member ID (or use patient name)</span>
               <input
                 value={portalCredentials.memberId}
                 onChange={(event) =>
@@ -1557,6 +1664,48 @@ function ReimbursementView({
           elsewhere in the account. The calculator will compute and validate the
           expected plan payment and variance.
         </p>
+        <section className="reimbursement-evidence-card">
+          <div className="reimbursement-evidence-heading">
+            <div>
+              <span className="system-kicker">Claim-specific contract evidence</span>
+              <h4>{scenario.contract.name}</h4>
+            </div>
+            <strong>
+              {scenario.contract.method === "case-rate"
+                ? "Case-rate reimbursement"
+                : scenario.contract.method === "percent-charge"
+                  ? "Percentage-of-charge reimbursement"
+                  : "Fee-schedule reimbursement"}
+            </strong>
+          </div>
+          <p>{scenario.contract.terms}</p>
+          <div className="system-table-wrap">
+            <table className="system-table reimbursement-service-table">
+              <thead>
+                <tr>
+                  <th>CPT</th>
+                  <th>Service</th>
+                  <th>Units</th>
+                  <th>Billed charge</th>
+                </tr>
+              </thead>
+              <tbody>
+                {scenario.claim.services.map((service) => (
+                  <tr key={service.cpt}>
+                    <td>{service.cpt}</td>
+                    <td>{service.description}</td>
+                    <td>{service.units}</td>
+                    <td>{money(service.charge)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <small>
+            Contract effective {scenario.contract.effective}. Use only the
+            stipulation that applies to the billed services and units above.
+          </small>
+        </section>
         <label>
           <span>Contract methodology</span>
           <select
@@ -1615,9 +1764,37 @@ function ReimbursementView({
             <strong>{calculation ? money(calculation.variance) : "—"}</strong>
           </div>
         </div>
+        {calculation ? (
+          <div className="allowed-comparison">
+            <div>
+              <span>Insurance allowed amount</span>
+              <strong>{money(scenario.portal.claimAllowed)}</strong>
+            </div>
+            <div>
+              <span>Provider expected reimbursement</span>
+              <strong>{money(calculation.allowed)}</strong>
+            </div>
+            <div>
+              <span>Allowed discrepancy</span>
+              <strong>
+                {money(calculation.allowed - scenario.portal.claimAllowed)}
+              </strong>
+            </div>
+          </div>
+        ) : null}
         <p className={valid ? "calculator-feedback valid" : "calculator-feedback"}>
           {feedback || "Enter the account evidence and calculate when ready."}
         </p>
+        {valid ? (
+          <div className="reimbursement-reminder" role="status">
+            <strong>Before closing any account</strong>
+            <p>
+              Always compare the insurance allowed amount with the provider’s
+              expected reimbursement. Investigate and document every discrepancy
+              before deciding the next action.
+            </p>
+          </div>
+        ) : null}
         <small>
           Account reference: {scenario.claim.claimId} · DOS {scenario.patient.dos}
         </small>

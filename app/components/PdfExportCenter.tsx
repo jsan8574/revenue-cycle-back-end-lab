@@ -1,5 +1,7 @@
 "use client";
 
+import { useMemo, useState } from "react";
+
 export type PdfReport = {
   label: string;
   description: string;
@@ -29,6 +31,39 @@ export function PdfExportCenter({
   scenarioName: string;
   reports: PdfReport[];
 }) {
+  const [savedMessage, setSavedMessage] = useState("");
+  const combinedReport = useMemo<PdfReport>(
+    () => ({
+      label: "Complete learner output",
+      description:
+        "One consolidated PDF with the evidence, entries, decisions, and completion status for this module.",
+      title: `${moduleName} Learner Output`,
+      sections: reports.flatMap((report) => [
+        {
+          heading: report.title,
+          lines: [report.description],
+        },
+        ...report.sections,
+      ]),
+    }),
+    [moduleName, reports],
+  );
+
+  const saveWork = () => {
+    const storageKey = `rcm-back-end:${moduleName}:${scenarioName}`;
+    window.localStorage.setItem(
+      storageKey,
+      JSON.stringify({
+        learnerName,
+        moduleName,
+        scenarioName,
+        reports,
+        savedAt: new Date().toISOString(),
+      }),
+    );
+    setSavedMessage("Work saved on this device ✓");
+  };
+
   const printReport = (report: PdfReport) => {
     const reportWindow = window.open("", "_blank", "width=960,height=760");
     if (!reportWindow) return;
@@ -125,7 +160,7 @@ export function PdfExportCenter({
         <body>
           <header>
             <div>
-              <span>Revenue Cycle Training Lab</span>
+              <span>Revenue Cycle Back End Training Lab</span>
               <h1>${escapeHtml(report.title)}</h1>
             </div>
             <div>
@@ -159,24 +194,24 @@ export function PdfExportCenter({
     <section className="pdf-export-center" aria-label="Save learner work as PDF">
       <div>
         <span className="section-kicker">Learner evidence</span>
-        <h2>Save your work as PDF</h2>
+        <h2>Save your work</h2>
         <p>
-          Each report includes learner name, module, scenario, and the work
-          entered so far. Choose “Save as PDF” in the print window.
+          Save your current work on this device, then create one complete PDF
+          output for this module. Choose “Save as PDF” in the print window.
         </p>
+        {savedMessage ? <strong className="work-saved-message">{savedMessage}</strong> : null}
       </div>
       <div className="pdf-export-options">
-        {reports.slice(0, 3).map((report, index) => (
-          <button
-            type="button"
-            key={report.label}
-            onClick={() => printReport(report)}
-          >
-            <span>PDF {index + 1}</span>
-            <strong>{report.label}</strong>
-            <small>{report.description}</small>
-          </button>
-        ))}
+        <button type="button" onClick={saveWork}>
+          <span>PROGRESS</span>
+          <strong>Save work on this device</strong>
+          <small>Stores the current module output so it can be preserved locally.</small>
+        </button>
+        <button type="button" onClick={() => printReport(combinedReport)}>
+          <span>ONE PDF OUTPUT</span>
+          <strong>{combinedReport.label}</strong>
+          <small>{combinedReport.description}</small>
+        </button>
       </div>
     </section>
   );

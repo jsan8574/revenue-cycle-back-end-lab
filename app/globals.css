@@ -2318,7 +2318,7 @@ button {
 .pdf-export-options {
   display: grid;
   gap: 8px;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
 }
 
 .pdf-export-options button {
@@ -2355,6 +2355,13 @@ button {
   color: #a8c0c2;
   font-size: 11px;
   line-height: 1.35;
+}
+
+.work-saved-message {
+  color: #7ad2ba;
+  display: block;
+  font-size: 12px;
+  margin-top: 9px;
 }
 
 .line-posting-wrap {
@@ -2910,7 +2917,7 @@ button {
   }
 
   .pdf-export-options {
-    grid-template-columns: repeat(3, minmax(150px, 1fr));
+    grid-template-columns: repeat(2, minmax(210px, 1fr));
     overflow-x: auto;
   }
 }
@@ -5719,6 +5726,268 @@ button {
   position: absolute;
 }
 
+.provider-information-panel {
+  align-items: start;
+  background: #edf4f2;
+  border: 1px solid #d5e0dd;
+  border-radius: 9px;
+  display: grid;
+  gap: 18px;
+  grid-template-columns: minmax(220px, 0.65fr) minmax(0, 1.35fr);
+  margin: 12px 0;
+  padding: 15px;
+}
+
+.provider-information-panel h3 {
+  font-size: 18px;
+  margin: 5px 0 3px;
+}
+
+.provider-information-panel p {
+  color: #667979;
+  margin: 0;
+}
+
+.provider-information-panel dl {
+  display: grid;
+  gap: 1px;
+  grid-template-columns: repeat(3, 1fr);
+  margin: 0;
+}
+
+.provider-information-panel dl > div {
+  background: rgba(255, 255, 255, 0.72);
+  min-height: 62px;
+  padding: 9px 10px;
+}
+
+.provider-information-panel dt {
+  color: #6e8080;
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.provider-information-panel dd {
+  color: #203e43;
+  font-weight: 750;
+  margin: 5px 0 0;
+}
+
+.document-review-layout {
+  align-items: start;
+  grid-template-columns: minmax(300px, 0.72fr) minmax(0, 1.58fr);
+}
+
+.document-index.document-list {
+  align-self: start;
+  background: #f2f6f4;
+  border: 1px solid #d3ddda;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  max-height: 760px;
+  overflow-y: auto;
+  padding: 10px;
+}
+
+.document-list-heading {
+  align-items: center;
+  border-bottom: 1px solid #d5dfdc;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 2px;
+  padding: 5px 3px 11px;
+}
+
+.document-list-heading > div {
+  display: flex;
+  flex-direction: column;
+}
+
+.document-list-heading span {
+  color: #6f8080;
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.document-list-heading strong {
+  font-size: 15px;
+  margin-top: 2px;
+}
+
+.document-list-heading small {
+  color: #788787;
+  font-size: 10px;
+}
+
+.document-index.document-list > button {
+  align-items: start;
+  background: #fff;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 38px minmax(0, 1fr) 14px;
+  min-height: 104px;
+  padding: 11px;
+}
+
+.document-index.document-list > button.selected {
+  background: color-mix(in srgb, var(--module-soft) 55%, white);
+  border-color: var(--module-accent);
+  box-shadow: none;
+}
+
+.document-type-icon {
+  align-items: center;
+  background: #e8efed;
+  border-radius: 7px;
+  color: #385b5e;
+  display: flex;
+  font-size: 10px !important;
+  font-weight: 850;
+  height: 38px;
+  justify-content: center;
+  width: 38px;
+}
+
+.document-index.document-list > button.selected .document-type-icon {
+  background: var(--module-accent);
+  color: #fff;
+}
+
+.document-list-copy {
+  min-width: 0;
+}
+
+.document-list-copy > div {
+  align-items: center;
+  display: flex;
+  gap: 9px;
+  justify-content: space-between;
+}
+
+.document-list-copy h4 {
+  font-size: 13px;
+  margin: 5px 0 3px;
+}
+
+.document-list-copy p {
+  color: #637575;
+  font-size: 11px;
+  line-height: 1.4;
+  margin: 0;
+  min-height: 0;
+}
+
+.document-open-arrow {
+  align-self: center;
+  color: #82908f;
+  font-size: 21px !important;
+}
+
+.pdf-letter-body {
+  color: #354c4f;
+  font-family: Georgia, "Times New Roman", serif;
+  min-height: 280px;
+  padding: 18px 12px;
+}
+
+.pdf-letter-body .letter-date {
+  color: #738283;
+  text-align: right;
+}
+
+.pdf-letter-body p {
+  font-size: 13px !important;
+  line-height: 1.75 !important;
+  white-space: pre-line;
+}
+
+.letter-record-detail {
+  background: #f7f9f8;
+}
+
+.reimbursement-evidence-card {
+  background: #f2f6f4;
+  border: 1px solid #d6e0dd;
+  border-radius: 9px;
+  margin: 14px 0;
+  padding: 14px;
+}
+
+.reimbursement-evidence-heading {
+  align-items: start;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.reimbursement-evidence-heading h4 {
+  font-size: 16px;
+  margin: 4px 0;
+}
+
+.reimbursement-evidence-heading > strong {
+  background: var(--module-soft);
+  border-radius: 999px;
+  color: var(--module-accent);
+  font-size: 11px;
+  padding: 7px 9px;
+  white-space: nowrap;
+}
+
+.reimbursement-evidence-card > p {
+  color: #405a5b;
+  font-weight: 650;
+  line-height: 1.6;
+}
+
+.reimbursement-evidence-card > small {
+  color: #6d7f7f;
+  display: block;
+  margin-top: 9px;
+}
+
+.reimbursement-service-table {
+  min-width: 600px;
+}
+
+.allowed-comparison {
+  display: grid;
+  gap: 6px;
+  grid-template-columns: repeat(3, 1fr);
+  margin-top: 10px;
+}
+
+.allowed-comparison > div {
+  background: #edf2f0;
+  border-radius: 7px;
+  display: flex;
+  flex-direction: column;
+  padding: 10px;
+}
+
+.allowed-comparison span {
+  color: #6f7f7f;
+}
+
+.allowed-comparison strong {
+  margin-top: 4px;
+}
+
+.reimbursement-reminder {
+  background: #e5f5ee;
+  border-left: 4px solid #2e8b69;
+  color: #285e4b;
+  margin-top: 12px;
+  padding: 12px 13px;
+}
+
+.reimbursement-reminder p {
+  line-height: 1.55;
+  margin: 4px 0 0;
+}
+
 .priority-queue-panel {
   background: rgba(255, 255, 255, 0.66);
   border: 1px solid var(--line);
@@ -6057,6 +6326,14 @@ button {
   .ar-document-grid {
     grid-template-columns: 1fr;
   }
+
+  .provider-information-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .provider-information-panel dl {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 @media (max-width: 760px) {
@@ -6117,8 +6394,18 @@ button {
   .coverage-layout,
   .calculator-grid,
   .action-choice-grid,
-  .denial-fact-strip {
+  .denial-fact-strip,
+  .provider-information-panel dl,
+  .allowed-comparison {
     grid-template-columns: 1fr;
+  }
+
+  .document-index.document-list {
+    max-height: 440px;
+  }
+
+  .reimbursement-evidence-heading {
+    flex-direction: column;
   }
 
   .priority-queue-heading {

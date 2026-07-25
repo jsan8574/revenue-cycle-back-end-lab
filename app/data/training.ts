@@ -534,9 +534,9 @@ export const modules: TrainingModule[] = [
     id: "payment-posting",
     navLabel: "Payment Posting",
     title: "Payment Posting",
-    eyebrow: "Reconciliation lab",
+    eyebrow: "Independent workstation",
     description:
-      "Practice ERA interpretation, service-line posting, variance control, and audit-ready batch closure.",
+      "Explore raw payment evidence, find the correct account and DOS, enter line-level transactions, and reconcile the batch.",
     accent: "#36a6a3",
     soft: "#e5f6f4",
     metric: "99.2%",
@@ -716,9 +716,9 @@ export const modules: TrainingModule[] = [
     id: "ar-collections",
     navLabel: "AR Collections",
     title: "AR Collections",
-    eyebrow: "Payer follow-up desk",
+    eyebrow: "Account investigation",
     description:
-      "Practice prioritization, payer research, decisive follow-up, escalation, and next-action control.",
+      "Navigate the full account, investigate with the payer, validate expected reimbursement, and defend the next action.",
     accent: "#d79a35",
     soft: "#fff5dd",
     metric: "18.4",

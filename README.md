@@ -7,8 +7,20 @@ A responsive, fictional training simulator for:
 - AR Collections
 - Denial Management
 
-Each module includes three realistic practice scenarios, guided workflow steps,
-trainer prompts, a live scorecard, history, notes, and completion logs.
+Each module includes three realistic practice scenarios. Patient Collections
+and Denial Management use guided learner workflows; Payment Posting and AR
+Collections use independent system workstations where answers are validated
+only after the learner submits a decision.
+
+The Payment Posting workstation includes source ERA/835 records, bank evidence,
+patient search, encounter matching, line-level posting, denial/reversal
+handling, patient-responsibility allocation, and batch reconciliation.
+
+The AR Collections workstation includes a nine-step investigation checklist,
+account balance and history, EOBs and correspondence, prior transactions,
+related accounts, insurance and authorization records, payer portal and payer
+call simulations, expected-reimbursement calculation, resolution routing, and
+structured issue/findings/resolution notation.
 
 ## Run locally
 
@@ -37,7 +49,10 @@ npm run build
 
 ```text
 app/
+  components/ARCollectionsLab.tsx      AR investigation system
+  components/PaymentPostingLab.tsx     Payment posting system
   components/TrainingWorkspace.tsx  Main interactive training experience
+  data/exploration.ts                Posting and AR simulation records
   data/training.ts                  Fictional modules and scenarios
   globals.css                       Responsive visual system
   layout.tsx                        Site metadata and social preview

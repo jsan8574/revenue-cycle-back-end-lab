@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { ARCollectionsLab } from "./ARCollectionsLab";
+import { PaymentPostingLab } from "./PaymentPostingLab";
 import {
   modules,
   startingLogs,
@@ -141,6 +143,22 @@ export function TrainingWorkspace() {
     );
   };
 
+  const saveExplorationCompletion = (
+    moduleName: string,
+    scenarioName: string,
+    completionScore: number,
+  ) => {
+    const newLog: CompletionLog = {
+      id: `LOG-${8822 + logs.length}`,
+      module: moduleName,
+      scenario: scenarioName,
+      learner: "Current trainee",
+      score: completionScore,
+      time: "Just now",
+    };
+    setLogs((current) => [newLog, ...current]);
+  };
+
   return (
     <div className="app-shell">
       <aside className={`sidebar ${mobileMenu ? "sidebar-open" : ""}`}>
@@ -222,6 +240,34 @@ export function TrainingWorkspace() {
             logs={logs}
             scenarioCount={scenarioCount}
             onOpenModule={(id) => selectScreen(id)}
+          />
+        ) : activeModule?.id === "payment-posting" ? (
+          <PaymentPostingLab
+            key={`payment-${activeScenario["payment-posting"]}`}
+            module={activeModule}
+            scenarioIndex={activeScenario["payment-posting"]}
+            onSelectScenario={(index) => selectScenario(activeModule, index)}
+            onComplete={(scenarioName, completionScore) =>
+              saveExplorationCompletion(
+                activeModule.title,
+                scenarioName,
+                completionScore,
+              )
+            }
+          />
+        ) : activeModule?.id === "ar-collections" ? (
+          <ARCollectionsLab
+            key={`ar-${activeScenario["ar-collections"]}`}
+            module={activeModule}
+            scenarioIndex={activeScenario["ar-collections"]}
+            onSelectScenario={(index) => selectScenario(activeModule, index)}
+            onComplete={(scenarioName, completionScore) =>
+              saveExplorationCompletion(
+                activeModule.title,
+                scenarioName,
+                completionScore,
+              )
+            }
           />
         ) : activeModule && scenario ? (
           <ModuleWorkspace

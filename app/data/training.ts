@@ -1096,14 +1096,6 @@ export const startingLogs = [
     time: "Today · 9:18 AM",
   },
   {
-    id: "LOG-8814",
-    module: "Patient Collections",
-    scenario: "Deductible balance",
-    learner: "J. Lim",
-    score: 94,
-    time: "Yesterday · 4:26 PM",
-  },
-  {
     id: "LOG-8808",
     module: "AR Collections",
     scenario: "Contract underpayment",

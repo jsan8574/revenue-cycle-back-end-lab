@@ -2,19 +2,20 @@
 
 A responsive, fictional training simulator for:
 
-- Patient Collections
 - Payment Posting
 - AR Collections
 - Denial Management
 
-Each module includes three realistic practice scenarios. Patient Collections
-and Denial Management use guided learner workflows; Payment Posting and AR
-Collections use independent system workstations where answers are validated
-only after the learner submits a decision.
+Each module includes three realistic practice scenarios. Denial Management uses
+a guided learner workflow; Payment Posting and AR Collections use independent
+system workstations where answers are validated only after the learner submits
+a decision.
 
-The Payment Posting workstation includes source ERA/835 records, bank evidence,
-patient search, encounter matching, line-level posting, denial/reversal
-handling, patient-responsibility allocation, and batch reconciliation.
+The Payment Posting workstation includes realistic claim- and service-level
+ERA/835 records, bank evidence, account search with true no-match handling,
+encounter matching, line-level posting, reversal/recoupment handling,
+patient-responsibility allocation, batch reconciliation, and an in-system
+glossary of payment-posting terms.
 
 The AR Collections workstation includes a nine-step investigation checklist,
 account balance and history, EOBs and correspondence, prior transactions,

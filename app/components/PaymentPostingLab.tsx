@@ -1,13 +1,19 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import {
   postingScenarios,
   type PostingScenario,
 } from "../data/exploration";
 import type { TrainingModule } from "../data/training";
 
-type PostingDeskTab = "source" | "search" | "account" | "post" | "reconcile";
+type PostingDeskTab =
+  | "source"
+  | "search"
+  | "account"
+  | "post"
+  | "reconcile"
+  | "glossary";
 type SourceDocument = "era" | "bank" | "proof";
 
 type PostingForm = {
@@ -33,6 +39,7 @@ const postingTabs: { id: PostingDeskTab; label: string; marker: string }[] = [
   { id: "account", label: "Account ledger", marker: "03" },
   { id: "post", label: "Post transaction", marker: "04" },
   { id: "reconcile", label: "Batch control", marker: "05" },
+  { id: "glossary", label: "Terms & codes", marker: "06" },
 ];
 
 const emptyPostingForm = (): PostingForm => ({
@@ -151,6 +158,7 @@ export function PaymentPostingLab({
   const validatePosting = () => {
     setAttempts((count) => count + 1);
     const expected = scenario.expected;
+    const reversalToAr = expected.action === "reverse-to-ar";
     const checks: FieldFeedback[] = [
       {
         label: "Patient account",
@@ -196,22 +204,28 @@ export function PaymentPostingLab({
             : "Separate deductible, coinsurance, and copay using the PR reason codes.",
       },
       {
-        label: "Denial / reversal",
+        label: reversalToAr ? "Reversal reason" : "Denial / reversal",
         ok:
           closeEnough(numeric(form.denial), expected.denial) &&
           form.denialCode.trim().toUpperCase() === expected.denialCode,
         message:
           closeEnough(numeric(form.denial), expected.denial) &&
           form.denialCode.trim().toUpperCase() === expected.denialCode
-            ? "Denial and reversal treatment is correct."
-            : "Recheck the reversal amount and CARC group/reason code.",
+            ? reversalToAr
+              ? "Payer reason captured without creating a patient-liability amount."
+              : "Denial and reversal treatment is correct."
+            : reversalToAr
+              ? "Record the payer reason, but do not add a denial or patient-responsibility amount."
+              : "Recheck the reversal amount and CARC group/reason code.",
       },
       {
         label: "Posting action",
         ok: form.action === expected.action,
         message:
           form.action === expected.action
-            ? "The transaction path is appropriate."
+            ? reversalToAr
+              ? "The negative payment restores insurance AR for follow-up."
+              : "The transaction path is appropriate."
             : "The selected action does not fit the remittance evidence.",
       },
     ];
@@ -357,7 +371,11 @@ export function PaymentPostingLab({
                 searched={searched}
                 selectedAccountId={selectedAccountId}
                 onSearchTerm={setSearchTerm}
-                onSearch={() => setSearched(true)}
+                onSearch={() => {
+                  setSearched(true);
+                  setSelectedAccountId("");
+                  setSelectedEncounterId("");
+                }}
                 onChoose={chooseAccount}
                 onOpen={() => setTab("account")}
               />
@@ -402,6 +420,7 @@ export function PaymentPostingLab({
                 onClose={closeBatch}
               />
             ) : null}
+            {tab === "glossary" ? <PostingGlossary /> : null}
           </div>
 
           <aside className="independent-rail">
@@ -508,6 +527,29 @@ function SourceDesk({
   document: SourceDocument;
   onOpenDocument: (document: SourceDocument) => void;
 }) {
+  const claimTotals = scenario.era.serviceLines.reduce(
+    (totals, line) => ({
+      billed: totals.billed + line.billed,
+      allowed: totals.allowed + line.allowed,
+      priorPaid: totals.priorPaid + line.priorPayerPaid,
+      paid: totals.paid + line.paid,
+      patient: totals.patient + line.patientResponsibility,
+      contractual:
+        totals.contractual +
+        line.adjustments
+          .filter((adjustment) => adjustment.group === "CO")
+          .reduce((sum, adjustment) => sum + adjustment.amount, 0),
+    }),
+    {
+      billed: 0,
+      allowed: 0,
+      priorPaid: 0,
+      paid: 0,
+      patient: 0,
+      contractual: 0,
+    },
+  );
+
   return (
     <div className="source-desk">
       <div className="document-switcher" role="tablist" aria-label="Payment source documents">
@@ -531,60 +573,156 @@ function SourceDesk({
       </div>
 
       {document === "era" ? (
-        <div className="document-paper">
-          <div className="document-heading">
+        <div className="document-paper era-paper">
+          <div className="era-form-banner">
             <div>
-              <span>Electronic Remittance Advice</span>
-              <h3>{scenario.era.payer}</h3>
-              <p>{scenario.era.payee}</p>
+              <span>HIPAA 835 · Electronic Remittance Advice</span>
+              <h3>Provider Remittance Detail</h3>
             </div>
             <div>
-              <span>ERA total</span>
+              <span>Payment amount (BPR)</span>
               <strong>{money(scenario.era.eraTotal)}</strong>
             </div>
           </div>
-          <div className="document-meta-grid">
-            <DocumentMeta label="Trace number" value={scenario.era.trace} />
-            <DocumentMeta label="Remittance date" value={scenario.era.eraDate} />
-            <DocumentMeta label="Patient control" value={scenario.era.patientControl} />
-            <DocumentMeta label="Payer claim ID" value={scenario.era.payerClaim} />
-            <DocumentMeta label="Patient" value={scenario.era.patient} />
-            <DocumentMeta label="Member ID" value={scenario.era.memberId} />
+
+          <div className="era-party-grid">
+            <div>
+              <span>Payer</span>
+              <strong>{scenario.era.payer}</strong>
+              <small>Claim payment / remittance issuer</small>
+            </div>
+            <div>
+              <span>Payee</span>
+              <strong>{scenario.era.payee}</strong>
+              <small>Rendering / billing entity</small>
+            </div>
           </div>
+
+          <div className="document-meta-grid era-control-grid">
+            <DocumentMeta label="TRN trace number" value={scenario.era.trace} />
+            <DocumentMeta label="Remittance date" value={scenario.era.eraDate} />
+            <DocumentMeta label="Transaction type" value="ACH / CCD+" />
+            <DocumentMeta label="Version" value="005010X221A1" />
+          </div>
+
+          <div className="era-claim-header">
+            <div>
+              <span>Claim payment information (CLP)</span>
+              <strong>{scenario.era.patient}</strong>
+              <small>Member {scenario.era.memberId}</small>
+            </div>
+            <div>
+              <span>Patient control number</span>
+              <strong>{scenario.era.patientControl}</strong>
+            </div>
+            <div>
+              <span>Payer claim control</span>
+              <strong>{scenario.era.payerClaim}</strong>
+            </div>
+            <div>
+              <span>Claim status</span>
+              <strong>
+                {scenario.id === "PP-2407"
+                  ? "22 · Reversal of previous payment"
+                  : scenario.id === "PP-2412"
+                    ? "2 · Processed as secondary"
+                    : "1 · Processed as primary"}
+              </strong>
+            </div>
+          </div>
+
           <div className="system-table-wrap">
-            <table className="system-table">
+            <table className="system-table era-service-table">
               <thead>
                 <tr>
+                  <th>Line</th>
                   <th>DOS</th>
-                  <th>CPT</th>
-                  <th>Billed</th>
+                  <th>Procedure</th>
+                  <th>Units</th>
+                  <th>Charge</th>
                   <th>Allowed</th>
-                  <th>Paid</th>
-                  <th>Group / reason</th>
-                  <th>Adjustment</th>
+                  <th>Prior paid</th>
+                  <th>Line payment</th>
                   <th>Patient resp.</th>
                 </tr>
               </thead>
               <tbody>
-                {scenario.era.serviceLines.map((line) => (
-                  <tr key={`${line.dos}-${line.cpt}`}>
-                    <td>{line.dos}</td>
-                    <td>{line.cpt}</td>
-                    <td>{money(line.billed)}</td>
-                    <td>{money(line.allowed)}</td>
-                    <td>{money(line.paid)}</td>
-                    <td>
-                      {line.group}-{line.reason}
-                    </td>
-                    <td>{money(line.adjustment)}</td>
-                    <td>{money(line.patientResponsibility)}</td>
-                  </tr>
+                {scenario.era.serviceLines.map((line, index) => (
+                  <Fragment key={`${line.dos}-${line.cpt}`}>
+                    <tr className="era-service-row">
+                      <td>{String(index + 1).padStart(2, "0")}</td>
+                      <td>{line.dos}</td>
+                      <td>
+                        <strong>{line.cpt}</strong>
+                        {line.modifier ? <small> Mod {line.modifier}</small> : null}
+                      </td>
+                      <td>{line.units}</td>
+                      <td>{money(line.billed)}</td>
+                      <td>{money(line.allowed)}</td>
+                      <td>{money(line.priorPayerPaid)}</td>
+                      <td>{money(line.paid)}</td>
+                      <td>{money(line.patientResponsibility)}</td>
+                    </tr>
+                    <tr className="era-adjustment-row">
+                      <td aria-hidden="true" />
+                      <td colSpan={8}>
+                        <span>CAS adjustments</span>
+                        <div>
+                          {line.adjustments.map((adjustment) => (
+                            <span
+                              className={`era-cas-tag era-cas-${adjustment.group.toLowerCase()}`}
+                              key={`${adjustment.group}-${adjustment.reason}-${adjustment.amount}`}
+                            >
+                              <strong>
+                                {adjustment.group}-{adjustment.reason}
+                              </strong>
+                              {money(adjustment.amount)} · {adjustment.description}
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+                    </tr>
+                  </Fragment>
                 ))}
               </tbody>
+              <tfoot>
+                <tr>
+                  <th colSpan={4}>Claim totals</th>
+                  <th>{money(claimTotals.billed)}</th>
+                  <th>{money(claimTotals.allowed)}</th>
+                  <th>{money(claimTotals.priorPaid)}</th>
+                  <th>{money(claimTotals.paid)}</th>
+                  <th>{money(claimTotals.patient)}</th>
+                </tr>
+              </tfoot>
             </table>
           </div>
+
+          <div className="era-claim-summary">
+            <div>
+              <span>Total claim charge</span>
+              <strong>{money(claimTotals.billed)}</strong>
+              <small>CLP03</small>
+            </div>
+            <div>
+              <span>Claim payment</span>
+              <strong>{money(claimTotals.paid)}</strong>
+              <small>CLP04</small>
+            </div>
+            <div>
+              <span>Contractual (CO)</span>
+              <strong>{money(claimTotals.contractual)}</strong>
+              <small>CAS group CO</small>
+            </div>
+            <div>
+              <span>Patient responsibility</span>
+              <strong>{money(claimTotals.patient)}</strong>
+              <small>CLP05 / CAS group PR</small>
+            </div>
+          </div>
+
           <div className="remark-block">
-            <span>Remittance remarks</span>
+            <span>Claim and provider-level remarks</span>
             {scenario.era.remarks.map((remark) => (
               <p key={remark}>{remark}</p>
             ))}
@@ -664,6 +802,33 @@ function AccountSearch({
   onChoose: (accountId: string) => void;
   onOpen: () => void;
 }) {
+  const normalizedSearch = searchTerm.trim().toLowerCase();
+  const matchingAccounts = normalizedSearch
+    ? scenario.accounts.filter((account) =>
+        [
+          account.id,
+          account.patient,
+          account.dob,
+          account.memberId,
+          account.address,
+          ...account.encounters.flatMap((encounter) => [
+            encounter.id,
+            encounter.dos,
+            encounter.service,
+            encounter.cpt,
+            encounter.claimId,
+          ]),
+        ].some((value) => {
+          const normalizedValue = value.toLowerCase();
+          return (
+            normalizedValue.includes(normalizedSearch) ||
+            (normalizedSearch.length >= 6 &&
+              normalizedSearch.includes(normalizedValue))
+          );
+        }),
+      )
+    : [];
+
   return (
     <div className="search-workspace">
       <div className="system-section-heading">
@@ -695,53 +860,72 @@ function AccountSearch({
       </form>
 
       {searched ? (
-        <div className="search-results">
-          <div className="results-heading">
-            <span>{scenario.accounts.length} possible matches</span>
-            <small>Confirm multiple identifiers before opening an account.</small>
-          </div>
-          {scenario.accounts.map((account) => (
+        matchingAccounts.length ? (
+          <div className="search-results">
+            <div className="results-heading">
+              <span>
+                {matchingAccounts.length}{" "}
+                {matchingAccounts.length === 1 ? "match" : "possible matches"}
+              </span>
+              <small>Confirm multiple identifiers before opening an account.</small>
+            </div>
+            {matchingAccounts.map((account) => (
+              <button
+                type="button"
+                key={account.id}
+                className={
+                  selectedAccountId === account.id
+                    ? "account-result selected"
+                    : "account-result"
+                }
+                onClick={() => onChoose(account.id)}
+              >
+                <span className="account-result-avatar">
+                  {account.patient
+                    .split(" ")
+                    .map((part) => part[0])
+                    .join("")}
+                </span>
+                <span>
+                  <strong>{account.patient}</strong>
+                  <small>
+                    {account.id} · DOB {account.dob}
+                  </small>
+                </span>
+                <span>
+                  <small>Member ID</small>
+                  <strong>{account.memberId}</strong>
+                </span>
+                <span>
+                  <small>Open balance</small>
+                  <strong>{money(account.balance)}</strong>
+                </span>
+              </button>
+            ))}
             <button
               type="button"
-              key={account.id}
-              className={
-                selectedAccountId === account.id
-                  ? "account-result selected"
-                  : "account-result"
+              className="system-primary-button"
+              disabled={
+                !selectedAccountId ||
+                !matchingAccounts.some(
+                  (account) => account.id === selectedAccountId,
+                )
               }
-              onClick={() => onChoose(account.id)}
+              onClick={onOpen}
             >
-              <span className="account-result-avatar">
-                {account.patient
-                  .split(" ")
-                  .map((part) => part[0])
-                  .join("")}
-              </span>
-              <span>
-                <strong>{account.patient}</strong>
-                <small>
-                  {account.id} · DOB {account.dob}
-                </small>
-              </span>
-              <span>
-                <small>Member ID</small>
-                <strong>{account.memberId}</strong>
-              </span>
-              <span>
-                <small>Open balance</small>
-                <strong>{money(account.balance)}</strong>
-              </span>
+              Open selected account <span>→</span>
             </button>
-          ))}
-          <button
-            type="button"
-            className="system-primary-button"
-            disabled={!selectedAccountId}
-            onClick={onOpen}
-          >
-            Open selected account <span>→</span>
-          </button>
-        </div>
+          </div>
+        ) : (
+          <div className="system-empty-state search-not-found">
+            <span>404</span>
+            <strong>Not found</strong>
+            <p>
+              No account matches “{searchTerm}”. Check the remittance
+              identifiers and try again.
+            </p>
+          </div>
+        )
       ) : (
         <div className="system-empty-state">
           <span>⌕</span>
@@ -803,6 +987,17 @@ function AccountLedger({
           <strong>{money(selectedAccount.balance)}</strong>
         </div>
       </div>
+
+      {selectedAccount.balance === 0 ? (
+        <div className="zero-balance-notice">
+          <span>Previously settled account</span>
+          <p>
+            A zero balance can be the correct match for a negative remittance.
+            Verify the original transaction, DOS, service, and claim ID before
+            posting a reversal.
+          </p>
+        </div>
+      ) : null}
 
       <div className="system-section-heading compact-system-heading">
         <div>
@@ -909,8 +1104,16 @@ function PostTransaction({
     { key: "deductible", label: "Deductible" },
     { key: "coinsurance", label: "Coinsurance" },
     { key: "copay", label: "Copay" },
-    { key: "denial", label: "Denial / reversal amount" },
+    {
+      key: "denial",
+      label:
+        scenario.expected.action === "reverse-to-ar"
+          ? "Additional denial amount (if any)"
+          : "Denial / reversal amount",
+    },
   ];
+  const postingApproved =
+    feedback.length > 0 && feedback.every((item) => item.ok);
 
   return (
     <div className="posting-entry">
@@ -975,7 +1178,9 @@ function PostTransaction({
               >
                 <option value="">Choose an action…</option>
                 <option value="standard-posting">Post payment and adjustments</option>
-                <option value="reverse-and-deny">Reverse payment and post denial</option>
+                <option value="reverse-to-ar">
+                  Reverse payment and return balance to insurance AR
+                </option>
                 <option value="hold-unapplied">Hold funds to unapplied research</option>
                 <option value="write-off">Post administrative write-off</option>
                 <option value="patient-transfer">Transfer full balance to patient</option>
@@ -1014,6 +1219,204 @@ function PostTransaction({
             </div>
           )}
         </div>
+      </div>
+
+      {postingApproved && scenario.expected.action === "reverse-to-ar" ? (
+        <div className="posting-outcome-card">
+          <span>Projected account outcome</span>
+          <div>
+            <strong>$1,275.00 restored to insurance AR</strong>
+            <p>
+              The account leaves its prior $0.00 status and routes to the AR
+              team for payer follow-up. Patient responsibility remains $0.00.
+            </p>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function PostingGlossary() {
+  const groups = [
+    {
+      title: "Payment files & control",
+      terms: [
+        {
+          term: "ERA / 835",
+          definition:
+            "Electronic Remittance Advice. The HIPAA 835 file explains how a payer adjudicated claims and supports an EFT or check.",
+        },
+        {
+          term: "EFT",
+          definition:
+            "Electronic Funds Transfer. The actual movement of payer money into or out of the provider bank account.",
+        },
+        {
+          term: "TRN trace",
+          definition:
+            "The payment trace used to connect the bank transaction to the ERA. Amount, payer, date, and trace should align.",
+        },
+        {
+          term: "BPR",
+          definition:
+            "The 835 payment segment containing the total payment amount and payment method information.",
+        },
+        {
+          term: "PLB",
+          definition:
+            "Provider-Level Balance adjustment. An amount outside a specific claim, such as interest, recoupment, or other provider-level activity.",
+        },
+        {
+          term: "Batch control",
+          definition:
+            "The comparison of the posting total, ERA total, bank amount, and documented exceptions before the batch is released.",
+        },
+      ],
+    },
+    {
+      title: "Claim & service detail",
+      terms: [
+        {
+          term: "CLP",
+          definition:
+            "The claim payment loop in an 835. It identifies the patient control number, claim status, charge, payment, and patient responsibility.",
+        },
+        {
+          term: "SVC",
+          definition:
+            "The service payment loop. It shows adjudication for an individual procedure or revenue-code line.",
+        },
+        {
+          term: "CAS",
+          definition:
+            "Claim Adjustment segment. It reports the adjustment group, reason code, and amount at claim or service level.",
+        },
+        {
+          term: "CARC",
+          definition:
+            "Claim Adjustment Reason Code. The numeric reason explaining why an amount was reduced, denied, or assigned.",
+        },
+        {
+          term: "RARC",
+          definition:
+            "Remittance Advice Remark Code. Extra information that clarifies a CARC or payer decision.",
+        },
+        {
+          term: "Allowed amount",
+          definition:
+            "The amount recognized under payer processing or contract terms before plan payment and patient responsibility are allocated.",
+        },
+      ],
+    },
+    {
+      title: "Adjustment groups & liability",
+      terms: [
+        {
+          term: "CO",
+          definition:
+            "Contractual obligation. The provider is generally responsible under contract; it is not automatically billable to the patient.",
+        },
+        {
+          term: "PR",
+          definition:
+            "Patient responsibility. Amount assigned to the patient, such as deductible, coinsurance, or copay, subject to billing rules.",
+        },
+        {
+          term: "OA",
+          definition:
+            "Other adjustment. Used when the amount does not fit contractual, patient, or payer-initiated responsibility groups.",
+        },
+        {
+          term: "PI",
+          definition:
+            "Payer-initiated reduction. The payer assigns the adjustment, but the correct follow-up depends on contract and remittance details.",
+        },
+        {
+          term: "Deductible",
+          definition:
+            "The amount a member must pay for covered services before the plan begins paying under the benefit design.",
+        },
+        {
+          term: "Coinsurance / copay",
+          definition:
+            "Coinsurance is usually a percentage of allowed charges; a copay is usually a fixed amount for a service.",
+        },
+      ],
+    },
+    {
+      title: "Exceptions & negative payments",
+      terms: [
+        {
+          term: "Reversal",
+          definition:
+            "A negative transaction that unwinds a previously posted payer payment. The matching account may correctly be at $0 before posting; the reversal restores insurance AR.",
+        },
+        {
+          term: "Recoupment / takeback",
+          definition:
+            "The payer actually recovers money, often by offsetting a current EFT or using a PLB. The cash-side takeback must reconcile to the reversal.",
+        },
+        {
+          term: "Insurance AR",
+          definition:
+            "The balance assigned to payer follow-up. A reversal should route here for AR review unless separate evidence supports patient liability.",
+        },
+        {
+          term: "Unapplied cash",
+          definition:
+            "Funds received but not safely matched to an account or claim. Hold and research rather than forcing a patient posting.",
+        },
+        {
+          term: "Zero-pay remit",
+          definition:
+            "An ERA with no payer payment. It can still carry denial, adjustment, or patient-responsibility information that requires review.",
+        },
+        {
+          term: "Reconciliation variance",
+          definition:
+            "A difference between bank, ERA, and posting totals that must be supported and routed before batch close.",
+        },
+      ],
+    },
+  ];
+
+  return (
+    <div className="glossary-workspace">
+      <div className="system-section-heading">
+        <div>
+          <span className="system-kicker">Payment posting reference</span>
+          <h3>Terms, segments, and adjustment groups</h3>
+          <p>
+            Use this reference when the source documents contain unfamiliar
+            language. Definitions explain the term without solving the case.
+          </p>
+        </div>
+      </div>
+
+      <div className="glossary-callout">
+        <span>Reversal ≠ patient transfer</span>
+        <p>
+          A reversal removes a prior payer payment and normally restores the
+          amount to insurance AR. A recoupment is the related recovery of cash.
+          Patient liability requires separate support.
+        </p>
+      </div>
+
+      <div className="glossary-grid">
+        {groups.map((group) => (
+          <section className="glossary-group" key={group.title}>
+            <h4>{group.title}</h4>
+            <dl>
+              {group.terms.map((item) => (
+                <div key={item.term}>
+                  <dt>{item.term}</dt>
+                  <dd>{item.definition}</dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+        ))}
       </div>
     </div>
   );

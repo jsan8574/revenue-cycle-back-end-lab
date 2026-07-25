@@ -29,7 +29,7 @@ export async function generateMetadata(): Promise<Metadata> {
     metadataBase: base,
     title: "Revenue Cycle Lab | Healthcare RCM Training",
     description:
-      "A hands-on fictional system simulator for patient collections, payment posting, AR collections, and denial management.",
+      "A hands-on fictional system simulator for payment posting, AR collections, and denial management.",
     icons: {
       icon: "/og.png",
       shortcut: "/og.png",

@@ -37,13 +37,19 @@ export type PostingScenario = {
     serviceLines: {
       dos: string;
       cpt: string;
+      modifier: string;
+      units: number;
       billed: number;
       allowed: number;
+      priorPayerPaid: number;
       paid: number;
-      group: string;
-      reason: string;
-      adjustment: number;
       patientResponsibility: number;
+      adjustments: {
+        group: string;
+        reason: string;
+        amount: number;
+        description: string;
+      }[];
     }[];
     remarks: string[];
   };
@@ -102,13 +108,64 @@ export const postingScenarios: PostingScenario[] = [
         {
           dos: "May 14, 2026",
           cpt: "70551",
-          billed: 2480,
-          allowed: 1550,
-          paid: 707.85,
-          group: "CO",
-          reason: "45",
-          adjustment: 930,
-          patientResponsibility: 842.15,
+          modifier: "26",
+          units: 1,
+          billed: 2200,
+          allowed: 1450,
+          priorPayerPaid: 0,
+          paid: 657.85,
+          patientResponsibility: 792.15,
+          adjustments: [
+            {
+              group: "CO",
+              reason: "45",
+              amount: 750,
+              description: "Charge exceeds contracted fee schedule",
+            },
+            {
+              group: "PR",
+              reason: "1",
+              amount: 700,
+              description: "Deductible",
+            },
+            {
+              group: "PR",
+              reason: "2",
+              amount: 92.15,
+              description: "Coinsurance",
+            },
+          ],
+        },
+        {
+          dos: "May 14, 2026",
+          cpt: "76376",
+          modifier: "",
+          units: 1,
+          billed: 280,
+          allowed: 100,
+          priorPayerPaid: 0,
+          paid: 50,
+          patientResponsibility: 50,
+          adjustments: [
+            {
+              group: "CO",
+              reason: "45",
+              amount: 180,
+              description: "Charge exceeds contracted fee schedule",
+            },
+            {
+              group: "PR",
+              reason: "1",
+              amount: 30,
+              description: "Deductible",
+            },
+            {
+              group: "PR",
+              reason: "2",
+              amount: 20,
+              description: "Coinsurance",
+            },
+          ],
         },
       ],
       remarks: [
@@ -151,8 +208,8 @@ export const postingScenarios: PostingScenario[] = [
           {
             id: "ENC-551408",
             dos: "May 14, 2026",
-            service: "MRI brain without contrast",
-            cpt: "70551",
+            service: "MRI brain with 3-D rendering",
+            cpt: "70551 + 76376",
             billed: 2480,
             openBalance: 2480,
             claimId: "HB-44011829",
@@ -230,7 +287,7 @@ export const postingScenarios: PostingScenario[] = [
     status: "Takeback review",
     amount: "−$1,275.00",
     objective:
-      "Trace the reversal to the original account and claim before recording the negative transaction and denial.",
+      "Locate the previously paid zero-balance account, reverse the payer payment, restore the balance to insurance AR, and route it for AR follow-up.",
     era: {
       payer: "Crescent Choice",
       payee: "Evergreen Medical Group · NPI 1992881044",
@@ -245,19 +302,27 @@ export const postingScenarios: PostingScenario[] = [
         {
           dos: "Mar 11, 2026",
           cpt: "45378",
+          modifier: "",
+          units: 1,
           billed: 2850,
           allowed: 1275,
+          priorPayerPaid: 1275,
           paid: -1275,
-          group: "CO",
-          reason: "18",
-          adjustment: 0,
           patientResponsibility: 0,
+          adjustments: [
+            {
+              group: "CO",
+              reason: "18",
+              amount: 0,
+              description: "Exact duplicate claim/service reversal reason",
+            },
+          ],
         },
       ],
       remarks: [
-        "Reversal of original payment from batch BAT-0516-088",
-        "CO-18: exact duplicate claim/service",
-        "Do not transfer contractual or patient responsibility from the original version",
+        "Negative payment references original batch BAT-0516-088 and transaction TXN-660184",
+        "Posting the reversal restores $1,275.00 to insurance AR for account follow-up",
+        "CO-18 is the payer reason; do not move the balance to patient solely because of this reversal",
       ],
     },
     bank: {
@@ -273,7 +338,8 @@ export const postingScenarios: PostingScenario[] = [
         label: "Original posting",
         reference: "BAT-0516-088 · TXN-660184",
         amount: 1275,
-        detail: "Payment posted May 16 to claim CC-91944206.",
+        detail:
+          "Payment posted May 16 to claim CC-91944206; the account settled to a $0.00 balance.",
       },
       {
         label: "Payer takeback",
@@ -358,9 +424,9 @@ export const postingScenarios: PostingScenario[] = [
       deductible: 0,
       coinsurance: 0,
       copay: 0,
-      denial: 1275,
+      denial: 0,
       denialCode: "CO-18",
-      action: "reverse-and-deny",
+      action: "reverse-to-ar",
       batchTotal: -1275,
       varianceReason: "recoupment",
     },
@@ -388,13 +454,52 @@ export const postingScenarios: PostingScenario[] = [
         {
           dos: "Jun 11, 2026",
           cpt: "93306",
-          billed: 920,
-          allowed: 790,
-          paid: 155,
-          group: "CO",
-          reason: "45",
-          adjustment: 130,
-          patientResponsibility: 60,
+          modifier: "",
+          units: 1,
+          billed: 800,
+          allowed: 700,
+          priorPayerPaid: 525,
+          paid: 135,
+          patientResponsibility: 40,
+          adjustments: [
+            {
+              group: "CO",
+              reason: "45",
+              amount: 100,
+              description: "Charge exceeds contracted fee schedule",
+            },
+            {
+              group: "PR",
+              reason: "2",
+              amount: 40,
+              description: "Coinsurance",
+            },
+          ],
+        },
+        {
+          dos: "Jun 11, 2026",
+          cpt: "93325",
+          modifier: "",
+          units: 1,
+          billed: 120,
+          allowed: 90,
+          priorPayerPaid: 50,
+          paid: 20,
+          patientResponsibility: 20,
+          adjustments: [
+            {
+              group: "CO",
+              reason: "45",
+              amount: 30,
+              description: "Charge exceeds contracted fee schedule",
+            },
+            {
+              group: "PR",
+              reason: "2",
+              amount: 20,
+              description: "Coinsurance",
+            },
+          ],
         },
       ],
       remarks: [
@@ -438,7 +543,7 @@ export const postingScenarios: PostingScenario[] = [
             id: "ENC-610611",
             dos: "Jun 11, 2026",
             service: "Complete echocardiogram",
-            cpt: "93306",
+            cpt: "93306 + 93325",
             billed: 920,
             openBalance: 345,
             claimId: "NS-55120428",

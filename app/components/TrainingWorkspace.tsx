@@ -25,11 +25,14 @@ type CompletionLog = (typeof startingLogs)[number];
 
 const navItems: { id: Screen; label: string; marker: string }[] = [
   { id: "dashboard", label: "Overview", marker: "01" },
-  { id: "patient-collections", label: "Patient Collections", marker: "PC" },
   { id: "payment-posting", label: "Payment Posting", marker: "PP" },
   { id: "ar-collections", label: "AR Collections", marker: "AR" },
   { id: "denial-management", label: "Denial Management", marker: "DM" },
 ];
+
+const workspaceModules = modules.filter(
+  (module) => module.id !== "patient-collections",
+);
 
 const coachCriteria = [
   "Accurate workflow",
@@ -84,7 +87,7 @@ export function TrainingWorkspace() {
     : defaultProgress();
   const score = calculateScore(progress);
 
-  const scenarioCount = modules.reduce(
+  const scenarioCount = workspaceModules.reduce(
     (count, module) => count + module.scenarios.length,
     0,
   );
@@ -325,19 +328,20 @@ function Dashboard({
           <span className="section-kicker">One connected practice floor</span>
           <h1>Train the decisions behind every dollar.</h1>
           <p>
-            Move from patient conversation to payer recovery with realistic
-            scenarios, guided coaching, and a score that makes progress visible.
+            Move from payment evidence to payer recovery with realistic
+            scenarios, independent investigation, and a score that makes
+            progress visible.
           </p>
           <div className="hero-actions">
             <button
               className="primary-button"
               type="button"
-              onClick={() => onOpenModule("patient-collections")}
+              onClick={() => onOpenModule("payment-posting")}
             >
               Start a practice case <span aria-hidden="true">↗</span>
             </button>
             <span className="hero-note">
-              <span className="pulse-dot" /> 4 learning paths ready
+              <span className="pulse-dot" /> 3 learning paths ready
             </span>
           </div>
         </div>
@@ -360,7 +364,7 @@ function Dashboard({
 
       <section className="dashboard-metrics" aria-label="Training summary">
         {[
-          ["04", "role-based modules"],
+          ["03", "role-based modules"],
           [`${scenarioCount}`, "fictional scenarios"],
           ["88%", "average score"],
           ["23", "completed this week"],
@@ -378,10 +382,12 @@ function Dashboard({
             <span className="section-kicker">Practice paths</span>
             <h2>Choose the workflow to coach</h2>
           </div>
-          <span className="section-caption">12 cases · 60 guided decisions</span>
+          <span className="section-caption">
+            9 cases · independent work + guided denials
+          </span>
         </div>
         <div className="module-grid">
-          {modules.map((module, index) => (
+          {workspaceModules.map((module, index) => (
             <article
               className="module-card"
               key={module.id}

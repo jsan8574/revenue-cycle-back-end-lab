@@ -6,6 +6,7 @@ import {
   type PostingScenario,
 } from "../data/exploration";
 import type { TrainingModule } from "../data/training";
+import { PdfExportCenter } from "./PdfExportCenter";
 
 type PostingDeskTab =
   | "source"
@@ -16,14 +17,18 @@ type PostingDeskTab =
   | "glossary";
 type SourceDocument = "era" | "bank" | "proof";
 
-type PostingForm = {
+type LinePostingForm = {
   payment: string;
   contractual: string;
   deductible: string;
   coinsurance: string;
   copay: string;
   denial: string;
-  denialCode: string;
+  code: string;
+};
+
+type PostingForm = {
+  lines: Record<string, LinePostingForm>;
   action: string;
 };
 
@@ -42,14 +47,20 @@ const postingTabs: { id: PostingDeskTab; label: string; marker: string }[] = [
   { id: "glossary", label: "Terms & codes", marker: "06" },
 ];
 
-const emptyPostingForm = (): PostingForm => ({
+const emptyLinePosting = (): LinePostingForm => ({
   payment: "",
   contractual: "",
   deductible: "",
   coinsurance: "",
   copay: "",
   denial: "",
-  denialCode: "",
+  code: "",
+});
+
+const emptyPostingForm = (scenario: PostingScenario): PostingForm => ({
+  lines: Object.fromEntries(
+    scenario.era.serviceLines.map((line) => [line.cpt, emptyLinePosting()]),
+  ),
   action: "",
 });
 
@@ -68,13 +79,24 @@ const numeric = (value: string) => {
 const closeEnough = (left: number, right: number) =>
   Number.isFinite(left) && Math.abs(left - right) < 0.005;
 
+const normalizedCodes = (value: string) =>
+  value
+    .toUpperCase()
+    .split(/[\/,]/)
+    .map((code) => code.trim().replace(/\s+/g, ""))
+    .filter(Boolean)
+    .sort()
+    .join("|");
+
 export function PaymentPostingLab({
   module,
+  learnerName,
   scenarioIndex,
   onSelectScenario,
   onComplete,
 }: {
   module: TrainingModule;
+  learnerName: string;
   scenarioIndex: number;
   onSelectScenario: (index: number) => void;
   onComplete: (scenario: string, score: number) => void;
@@ -89,7 +111,9 @@ export function PaymentPostingLab({
   const [searched, setSearched] = useState(false);
   const [selectedAccountId, setSelectedAccountId] = useState("");
   const [selectedEncounterId, setSelectedEncounterId] = useState("");
-  const [form, setForm] = useState<PostingForm>(emptyPostingForm());
+  const [form, setForm] = useState<PostingForm>(() =>
+    emptyPostingForm(postingScenarios[scenarioIndex]),
+  );
   const [feedback, setFeedback] = useState<FieldFeedback[]>([]);
   const [postingValid, setPostingValid] = useState(false);
   const [batchTotal, setBatchTotal] = useState("");
@@ -108,16 +132,22 @@ export function PaymentPostingLab({
 
   const postingTotal = useMemo(
     () =>
-      [
-        form.payment,
-        form.contractual,
-        form.deductible,
-        form.coinsurance,
-        form.copay,
-      ].reduce((sum, value) => {
-        const parsed = numeric(value);
-        return sum + (Number.isFinite(parsed) ? parsed : 0);
-      }, 0),
+      Object.values(form.lines).reduce(
+        (claimSum, line) =>
+          claimSum +
+          [
+            line.payment,
+            line.contractual,
+            line.deductible,
+            line.coinsurance,
+            line.copay,
+            line.denial,
+          ].reduce((sum, value) => {
+            const parsed = numeric(value);
+            return sum + (Number.isFinite(parsed) ? parsed : 0);
+          }, 0),
+        0,
+      ),
     [form],
   );
 
@@ -159,7 +189,7 @@ export function PaymentPostingLab({
     setAttempts((count) => count + 1);
     const expected = scenario.expected;
     const reversalToAr = expected.action === "reverse-to-ar";
-    const checks: FieldFeedback[] = [
+    const accountChecks: FieldFeedback[] = [
       {
         label: "Patient account",
         ok: selectedAccountId === expected.accountId,
@@ -176,49 +206,37 @@ export function PaymentPostingLab({
             ? "DOS, service, charge, and payer claim ID align."
             : "Recheck the DOS, service, billed charge, and payer claim ID.",
       },
-      {
-        label: "Insurance payment",
-        ok: closeEnough(numeric(form.payment), expected.payment),
-        message: closeEnough(numeric(form.payment), expected.payment)
-          ? "Payment amount matches the claim service line."
-          : "The payment does not match the CLP/SVC amount.",
+    ];
+
+    const lineChecks: FieldFeedback[] = expected.lineAllocations.map(
+      (expectedLine) => {
+        const entered = form.lines[expectedLine.cpt] ?? emptyLinePosting();
+        const valuesCorrect =
+          closeEnough(numeric(entered.payment), expectedLine.payment) &&
+          closeEnough(
+            numeric(entered.contractual),
+            expectedLine.contractual,
+          ) &&
+          closeEnough(numeric(entered.deductible), expectedLine.deductible) &&
+          closeEnough(numeric(entered.coinsurance), expectedLine.coinsurance) &&
+          closeEnough(numeric(entered.copay), expectedLine.copay) &&
+          closeEnough(numeric(entered.denial), expectedLine.denial);
+        const codesCorrect =
+          normalizedCodes(entered.code) === normalizedCodes(expectedLine.code);
+        return {
+          label: `Service line ${expectedLine.cpt}`,
+          ok: valuesCorrect && codesCorrect,
+          message:
+            valuesCorrect && codesCorrect
+              ? reversalToAr
+                ? "The negative payment and payer reason are posted without creating patient liability."
+                : "Payment, adjustments, denial, and patient responsibility balance for this service line."
+              : "Recheck this line’s SVC payment, CAS amounts, patient-responsibility category, and reason codes.",
+        };
       },
-      {
-        label: "Contractual adjustment",
-        ok: closeEnough(numeric(form.contractual), expected.contractual),
-        message: closeEnough(numeric(form.contractual), expected.contractual)
-          ? "Contractual adjustment is supported."
-          : "Recheck the adjustment group, reason, and service-line equation.",
-      },
-      {
-        label: "Patient responsibility",
-        ok:
-          closeEnough(numeric(form.deductible), expected.deductible) &&
-          closeEnough(numeric(form.coinsurance), expected.coinsurance) &&
-          closeEnough(numeric(form.copay), expected.copay),
-        message:
-          closeEnough(numeric(form.deductible), expected.deductible) &&
-          closeEnough(numeric(form.coinsurance), expected.coinsurance) &&
-          closeEnough(numeric(form.copay), expected.copay)
-            ? "Patient-responsibility categories are correct."
-            : "Separate deductible, coinsurance, and copay using the PR reason codes.",
-      },
-      {
-        label: reversalToAr ? "Reversal reason" : "Denial / reversal",
-        ok:
-          closeEnough(numeric(form.denial), expected.denial) &&
-          form.denialCode.trim().toUpperCase() === expected.denialCode,
-        message:
-          closeEnough(numeric(form.denial), expected.denial) &&
-          form.denialCode.trim().toUpperCase() === expected.denialCode
-            ? reversalToAr
-              ? "Payer reason captured without creating a patient-liability amount."
-              : "Denial and reversal treatment is correct."
-            : reversalToAr
-              ? "Record the payer reason, but do not add a denial or patient-responsibility amount."
-              : "Recheck the reversal amount and CARC group/reason code.",
-      },
-      {
+    );
+
+    const actionCheck: FieldFeedback = {
         label: "Posting action",
         ok: form.action === expected.action,
         message:
@@ -227,8 +245,8 @@ export function PaymentPostingLab({
               ? "The negative payment restores insurance AR for follow-up."
               : "The transaction path is appropriate."
             : "The selected action does not fit the remittance evidence.",
-      },
-    ];
+      };
+    const checks = [...accountChecks, ...lineChecks, actionCheck];
     setFeedback(checks);
     setPostingValid(checks.every((check) => check.ok));
   };
@@ -288,6 +306,85 @@ export function PaymentPostingLab({
         scenarios={postingScenarios}
         selected={scenarioIndex}
         onSelect={onSelectScenario}
+      />
+
+      <PdfExportCenter
+        learnerName={learnerName}
+        moduleName={module.title}
+        scenarioName={`${scenario.id} · ${scenario.title}`}
+        reports={[
+          {
+            label: "Remittance review",
+            description: "ERA controls, claim identifiers, and service lines",
+            title: "Payment Posting Remittance Review",
+            sections: [
+              {
+                heading: "Payment controls",
+                lines: [
+                  `Payer: ${scenario.era.payer}`,
+                  `Trace: ${scenario.era.trace}`,
+                  `ERA total: ${money(scenario.era.eraTotal)}`,
+                  `Bank amount: ${money(scenario.bank.deposit)}`,
+                  `Patient control: ${scenario.era.patientControl}`,
+                  `Payer claim: ${scenario.era.payerClaim}`,
+                ],
+              },
+              {
+                heading: "Service lines",
+                lines: scenario.era.serviceLines.map(
+                  (line) =>
+                    `${line.dos} · CPT ${line.cpt} · charge ${money(line.billed)} · allowed ${money(line.allowed)} · paid ${money(line.paid)} · patient ${money(line.patientResponsibility)}`,
+                ),
+              },
+            ],
+          },
+          {
+            label: "Line posting worksheet",
+            description: "Amounts and codes entered for every service line",
+            title: "Service-Line Posting Worksheet",
+            sections: scenario.era.serviceLines.map((line) => {
+              const entered = form.lines[line.cpt] ?? emptyLinePosting();
+              return {
+                heading: `CPT ${line.cpt} · ${line.dos}`,
+                lines: [
+                  `Insurance payment: ${entered.payment || "Not entered"}`,
+                  `Contractual: ${entered.contractual || "Not entered"}`,
+                  `Deductible: ${entered.deductible || "Not entered"}`,
+                  `Coinsurance: ${entered.coinsurance || "Not entered"}`,
+                  `Copay: ${entered.copay || "Not entered"}`,
+                  `Denied amount: ${entered.denial || "Not entered"}`,
+                  `Codes: ${entered.code || "Not entered"}`,
+                ],
+              };
+            }),
+          },
+          {
+            label: "Batch completion",
+            description: "Validation, reconciliation, and final disposition",
+            title: "Payment Posting Completion Report",
+            sections: [
+              {
+                heading: "Posting validation",
+                lines: [
+                  `Posting action: ${form.action || "Not selected"}`,
+                  `Posting status: ${postingValid ? "Validated" : "Not validated"}`,
+                  ...feedback.map(
+                    (item) => `${item.label}: ${item.ok ? "Passed" : "Review"}`,
+                  ),
+                ],
+              },
+              {
+                heading: "Batch control",
+                lines: [
+                  `Controlled total: ${batchTotal || "Not entered"}`,
+                  `Variance treatment: ${varianceReason || "Not selected"}`,
+                  `Reconciliation: ${reconcileValid ? "Balanced" : "Not balanced"}`,
+                  `Batch status: ${closed ? "Closed" : "Open"}`,
+                ],
+              },
+            ],
+          },
+        ]}
       />
 
       <section className="system-frame">
@@ -398,8 +495,20 @@ export function PaymentPostingLab({
                 form={form}
                 feedback={feedback}
                 postingTotal={postingTotal}
-                onChange={(key, value) =>
-                  setForm((current) => ({ ...current, [key]: value }))
+                onLineChange={(cpt, key, value) =>
+                  setForm((current) => ({
+                    ...current,
+                    lines: {
+                      ...current.lines,
+                      [cpt]: {
+                        ...(current.lines[cpt] ?? emptyLinePosting()),
+                        [key]: value,
+                      },
+                    },
+                  }))
+                }
+                onAction={(action) =>
+                  setForm((current) => ({ ...current, action }))
                 }
                 onValidate={validatePosting}
                 onGoToAccount={() => setTab("account")}
@@ -510,7 +619,7 @@ function ScenarioRail({
               .toLowerCase()
               .replace(" ", "-")}`}
           >
-            {item.status}
+            {item.priority} · {item.status}
           </span>
         </button>
       ))}
@@ -1069,7 +1178,8 @@ function PostTransaction({
   form,
   feedback,
   postingTotal,
-  onChange,
+  onLineChange,
+  onAction,
   onValidate,
   onGoToAccount,
 }: {
@@ -1081,7 +1191,12 @@ function PostTransaction({
   form: PostingForm;
   feedback: FieldFeedback[];
   postingTotal: number;
-  onChange: (key: keyof PostingForm, value: string) => void;
+  onLineChange: (
+    cpt: string,
+    key: keyof LinePostingForm,
+    value: string,
+  ) => void;
+  onAction: (value: string) => void;
   onValidate: () => void;
   onGoToAccount: () => void;
 }) {
@@ -1098,19 +1213,16 @@ function PostTransaction({
     );
   }
 
-  const fields: { key: keyof PostingForm; label: string }[] = [
-    { key: "payment", label: "Insurance payment" },
-    { key: "contractual", label: "Contractual adjustment" },
+  const lineFields: {
+    key: Exclude<keyof LinePostingForm, "code">;
+    label: string;
+  }[] = [
+    { key: "payment", label: "Payer paid" },
+    { key: "contractual", label: "Contractual" },
     { key: "deductible", label: "Deductible" },
     { key: "coinsurance", label: "Coinsurance" },
     { key: "copay", label: "Copay" },
-    {
-      key: "denial",
-      label:
-        scenario.expected.action === "reverse-to-ar"
-          ? "Additional denial amount (if any)"
-          : "Denial / reversal amount",
-    },
+    { key: "denial", label: "Denied" },
   ];
   const postingApproved =
     feedback.length > 0 && feedback.every((item) => item.ok);
@@ -1147,37 +1259,76 @@ function PostTransaction({
               Entered allocation <strong>{money(postingTotal)}</strong>
             </span>
           </div>
-          <div className="posting-fields">
-            {fields.map((field) => (
-              <label key={field.key}>
-                <span>{field.label}</span>
-                <div className="currency-input">
-                  <span>$</span>
-                  <input
-                    inputMode="decimal"
-                    value={form[field.key]}
-                    onChange={(event) => onChange(field.key, event.target.value)}
-                    placeholder="0.00"
-                  />
+          <div className="line-posting-wrap">
+            <div className="line-posting-head">
+              <span>Service</span>
+              {lineFields.map((field) => (
+                <span key={field.key}>{field.label}</span>
+              ))}
+              <span>CARC / RARC</span>
+            </div>
+            {scenario.era.serviceLines.map((line) => {
+              const entered = form.lines[line.cpt] ?? emptyLinePosting();
+              return (
+                <div className="line-posting-row" key={line.cpt}>
+                  <div className="line-posting-service">
+                    <strong>CPT {line.cpt}</strong>
+                    <small>
+                      {line.dos} · charge {money(line.billed)}
+                    </small>
+                  </div>
+                  {lineFields.map((field) => (
+                    <label key={field.key}>
+                      <span>{field.label}</span>
+                      <div className="currency-input compact-currency-input">
+                        <span>$</span>
+                        <input
+                          inputMode="decimal"
+                          value={entered[field.key]}
+                          onChange={(event) =>
+                            onLineChange(
+                              line.cpt,
+                              field.key,
+                              event.target.value,
+                            )
+                          }
+                          placeholder="0.00"
+                        />
+                      </div>
+                    </label>
+                  ))}
+                  <label className="line-code-field">
+                    <span>CARC / RARC</span>
+                    <input
+                      value={entered.code}
+                      onChange={(event) =>
+                        onLineChange(line.cpt, "code", event.target.value)
+                      }
+                      placeholder="CO-45 / PR-2"
+                    />
+                  </label>
                 </div>
-              </label>
-            ))}
-            <label>
-              <span>CARC group / reason</span>
-              <input
-                value={form.denialCode}
-                onChange={(event) => onChange("denialCode", event.target.value)}
-                placeholder="Example: CO-18"
-              />
-            </label>
+              );
+            })}
+          </div>
+          <div className="posting-action-field">
             <label>
               <span>Posting action</span>
               <select
                 value={form.action}
-                onChange={(event) => onChange("action", event.target.value)}
+                onChange={(event) => onAction(event.target.value)}
               >
                 <option value="">Choose an action…</option>
                 <option value="standard-posting">Post payment and adjustments</option>
+                <option value="post-partial-denial">
+                  Post paid lines and route denied line
+                </option>
+                <option value="post-patient-responsibility">
+                  Post allowed amount to patient responsibility
+                </option>
+                <option value="post-claim-denial">
+                  Post zero-pay claim denial
+                </option>
                 <option value="reverse-to-ar">
                   Reverse payment and return balance to insurance AR
                 </option>
@@ -1489,6 +1640,7 @@ function ReconciliationDesk({
             onChange={(event) => onVarianceReason(event.target.value)}
           >
             <option value="">Choose treatment…</option>
+            <option value="none">No variance — ERA and bank agree</option>
             <option value="interest-plb">Provider-level interest adjustment</option>
             <option value="recoupment">Payer recoupment / offset</option>
             <option value="unmatched-held">Unmatched funds held to unapplied</option>

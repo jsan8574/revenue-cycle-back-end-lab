@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ARCollectionsLab } from "./ARCollectionsLab";
 import { PaymentPostingLab } from "./PaymentPostingLab";
+import { PdfExportCenter } from "./PdfExportCenter";
 import {
   modules,
   startingLogs,
@@ -10,6 +11,7 @@ import {
   type Scenario,
   type TrainingModule,
 } from "../data/training";
+import { arScenarios, postingScenarios } from "../data/exploration";
 
 type Screen = "dashboard" | ModuleId;
 type WorkspaceTab = "brief" | "workflow" | "history" | "notes" | "complete";
@@ -57,7 +59,62 @@ function moduleInitial(module: TrainingModule) {
     .join("");
 }
 
+function moduleScenarioCount(module: TrainingModule) {
+  if (module.id === "payment-posting") return postingScenarios.length;
+  if (module.id === "ar-collections") return arScenarios.length;
+  return module.scenarios.length;
+}
+
+function LearnerWelcome({
+  value,
+  onChange,
+  onStart,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  onStart: () => void;
+}) {
+  return (
+    <main className="learner-welcome">
+      <section className="learner-welcome-card">
+        <span className="brand-mark learner-brand-mark" aria-hidden="true">
+          RC
+        </span>
+        <span className="section-kicker">Revenue Cycle Training Lab</span>
+        <h1>Welcome to your practice session.</h1>
+        <p>
+          Enter your name before opening the workstations. It will appear on
+          every PDF activity, decision worksheet, and completion report you
+          create.
+        </p>
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            onStart();
+          }}
+        >
+          <label htmlFor="learner-name">Learner name</label>
+          <input
+            id="learner-name"
+            autoComplete="name"
+            autoFocus
+            value={value}
+            onChange={(event) => onChange(event.target.value)}
+            placeholder="Enter your full name"
+          />
+          <button type="submit" disabled={value.trim().length < 2}>
+            Begin learner session <span aria-hidden="true">→</span>
+          </button>
+        </form>
+        <small>All accounts and payer records in this lab are fictional.</small>
+      </section>
+    </main>
+  );
+}
+
 export function TrainingWorkspace() {
+  const [learnerName, setLearnerName] = useState("");
+  const [nameEntry, setNameEntry] = useState("");
   const [screen, setScreen] = useState<Screen>("dashboard");
   const [activeScenario, setActiveScenario] = useState<Record<ModuleId, number>>({
     "payment-posting": 0,
@@ -83,7 +140,7 @@ export function TrainingWorkspace() {
   const score = calculateScore(progress);
 
   const scenarioCount = modules.reduce(
-    (count, module) => count + module.scenarios.length,
+    (count, module) => count + moduleScenarioCount(module),
     0,
   );
 
@@ -131,7 +188,7 @@ export function TrainingWorkspace() {
       id: `LOG-${8822 + logs.length}`,
       module: activeModule.title,
       scenario: scenario.title,
-      learner: "Current trainee",
+      learner: learnerName,
       score,
       time: "Just now",
     };
@@ -150,12 +207,25 @@ export function TrainingWorkspace() {
       id: `LOG-${8822 + logs.length}`,
       module: moduleName,
       scenario: scenarioName,
-      learner: "Current trainee",
+      learner: learnerName,
       score: completionScore,
       time: "Just now",
     };
     setLogs((current) => [newLog, ...current]);
   };
+
+  if (!learnerName) {
+    return (
+      <LearnerWelcome
+        value={nameEntry}
+        onChange={setNameEntry}
+        onStart={() => {
+          const normalized = nameEntry.trim().replace(/\s+/g, " ");
+          if (normalized.length >= 2) setLearnerName(normalized);
+        }}
+      />
+    );
+  }
 
   return (
     <div className="app-shell">
@@ -198,10 +268,17 @@ export function TrainingWorkspace() {
         </div>
 
         <div className="profile-card">
-          <span className="avatar">TR</span>
+          <span className="avatar">
+            {learnerName
+              .split(" ")
+              .map((part) => part[0])
+              .join("")
+              .slice(0, 2)
+              .toUpperCase()}
+          </span>
           <div>
-            <strong>Trainer workspace</strong>
-            <span>Facilitator mode</span>
+            <strong>{learnerName}</strong>
+            <span>Learner session</span>
           </div>
           <span aria-hidden="true">•••</span>
         </div>
@@ -243,6 +320,7 @@ export function TrainingWorkspace() {
           <PaymentPostingLab
             key={`payment-${activeScenario["payment-posting"]}`}
             module={activeModule}
+            learnerName={learnerName}
             scenarioIndex={activeScenario["payment-posting"]}
             onSelectScenario={(index) => selectScenario(activeModule, index)}
             onComplete={(scenarioName, completionScore) =>
@@ -257,6 +335,7 @@ export function TrainingWorkspace() {
           <ARCollectionsLab
             key={`ar-${activeScenario["ar-collections"]}`}
             module={activeModule}
+            learnerName={learnerName}
             scenarioIndex={activeScenario["ar-collections"]}
             onSelectScenario={(index) => selectScenario(activeModule, index)}
             onComplete={(scenarioName, completionScore) =>
@@ -270,6 +349,7 @@ export function TrainingWorkspace() {
         ) : activeModule && scenario ? (
           <ModuleWorkspace
             module={activeModule}
+            learnerName={learnerName}
             scenario={scenario}
             selectedScenario={activeScenario[activeModule.id]}
             workspaceTab={workspaceTab}
@@ -378,7 +458,7 @@ function Dashboard({
             <h2>Choose the workflow to coach</h2>
           </div>
           <span className="section-caption">
-            9 cases · independent work + guided denials
+            {scenarioCount} cases · independent work + guided denials
           </span>
         </div>
         <div className="module-grid">
@@ -401,7 +481,7 @@ function Dashboard({
               <h3>{module.title}</h3>
               <p>{module.description}</p>
               <div className="module-card-meta">
-                <span>{module.scenarios.length} scenarios</span>
+                <span>{moduleScenarioCount(module)} scenarios</span>
                 <span>
                   <strong>{module.metric}</strong> {module.metricLabel}
                 </span>
@@ -474,6 +554,7 @@ function Dashboard({
 
 function ModuleWorkspace({
   module,
+  learnerName,
   scenario,
   selectedScenario,
   workspaceTab,
@@ -492,6 +573,7 @@ function ModuleWorkspace({
   logs,
 }: {
   module: TrainingModule;
+  learnerName: string;
   scenario: Scenario;
   selectedScenario: number;
   workspaceTab: WorkspaceTab;
@@ -564,6 +646,78 @@ function ModuleWorkspace({
           </button>
         ))}
       </section>
+
+      <PdfExportCenter
+        learnerName={learnerName}
+        moduleName={module.title}
+        scenarioName={`${scenario.id} · ${scenario.title}`}
+        reports={[
+          {
+            label: "Case review",
+            description: "Account facts, financial detail, and work status",
+            title: "Denial Case Review",
+            sections: [
+              {
+                heading: "Account facts",
+                lines: scenario.facts.map(
+                  (fact) => `${fact.label}: ${fact.value}`,
+                ),
+              },
+              {
+                heading: "Financial breakdown",
+                lines: scenario.breakdown.map(
+                  (item) => `${item.label}: ${item.value}`,
+                ),
+              },
+              {
+                heading: "Progress",
+                lines: [
+                  `${progress.completedSteps.length} of ${scenario.steps.length} workflow steps completed`,
+                  `${progress.checked.filter(Boolean).length} of 4 trainer criteria marked`,
+                ],
+              },
+            ],
+          },
+          {
+            label: "Decision worksheet",
+            description: "Investigation notes and selected disposition",
+            title: "Denial Decision Worksheet",
+            sections: [
+              {
+                heading: "Scenario mission",
+                lines: [scenario.mission],
+              },
+              {
+                heading: "Learner notes",
+                lines: [progress.notes || "No notes entered"],
+              },
+              {
+                heading: "Disposition",
+                lines: [progress.disposition || "No disposition selected"],
+              },
+            ],
+          },
+          {
+            label: "Completion report",
+            description: "Score, completion evidence, and final note",
+            title: "Denial Completion Report",
+            sections: [
+              {
+                heading: "Completion",
+                lines: [
+                  `Score: ${score}%`,
+                  `Disposition: ${progress.disposition || "Not selected"}`,
+                  `Completed workflow steps: ${progress.completedSteps.length}`,
+                ],
+              },
+              {
+                heading: "Final learner note",
+                lines: [progress.notes || "No final note entered"],
+              },
+            ],
+          },
+        ]}
+      />
 
       <div className="workspace-grid">
         <section className="case-workspace">
@@ -714,8 +868,77 @@ function CaseBrief({
   onStart: () => void;
 }) {
   return (
-    <div className="case-brief-layout">
-      <div className="brief-primary">
+    <div className="case-brief-stack">
+      {scenario.documentLines && scenario.correspondence ? (
+        <article className="denial-pdf-page">
+          <div className="pdf-document-toolbar">
+            <span>PDF preview · Explanation of Benefits</span>
+            <strong>{scenario.correspondence.reference}</strong>
+          </div>
+          <div className="denial-pdf-sheet">
+            <header>
+              <div>
+                <span>{scenario.payer}</span>
+                <h3>{scenario.correspondence.title}</h3>
+              </div>
+              <div>
+                <span>Document date</span>
+                <strong>{scenario.correspondence.date}</strong>
+              </div>
+            </header>
+            <div className="denial-pdf-meta">
+              <div>
+                <span>Patient control / claim</span>
+                <strong>{scenario.account}</strong>
+              </div>
+              <div>
+                <span>Payer</span>
+                <strong>{scenario.payer}</strong>
+              </div>
+              <div>
+                <span>Work queue</span>
+                <strong>{scenario.owner}</strong>
+              </div>
+            </div>
+            <div className="system-table-wrap">
+              <table className="system-table denial-eob-table">
+                <thead>
+                  <tr>
+                    <th>CPT</th>
+                    <th>Billed</th>
+                    <th>Allowed</th>
+                    <th>Paid</th>
+                    <th>Adjustment</th>
+                    <th>Patient</th>
+                    <th>Codes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {scenario.documentLines.map((line) => (
+                    <tr key={line.cpt}>
+                      <td>{line.cpt}</td>
+                      <td>{line.billed}</td>
+                      <td>{line.allowed}</td>
+                      <td>{line.paid}</td>
+                      <td>{line.adjustment}</td>
+                      <td>{line.patient}</td>
+                      <td>{line.codes}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="denial-pdf-message">
+              <span>Claim determination</span>
+              <p>{scenario.correspondence.body}</p>
+            </div>
+            <footer>Fictional payer document · Training use only</footer>
+          </div>
+        </article>
+      ) : null}
+
+      <div className="case-brief-layout">
+        <div className="brief-primary">
         <div className="story-block">
           <span className="mini-label">Situation</span>
           <p>{scenario.story}</p>
@@ -735,8 +958,8 @@ function CaseBrief({
             </div>
           ))}
         </div>
-      </div>
-      <div className="financial-card">
+        </div>
+        <div className="financial-card">
         <div className="financial-card-head">
           <span className="mini-label">Account snapshot</span>
           <span className="status-dot">Ready</span>
@@ -760,6 +983,7 @@ function CaseBrief({
               <strong>{item.value}</strong>
             </div>
           ))}
+        </div>
         </div>
       </div>
     </div>

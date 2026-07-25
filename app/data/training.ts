@@ -37,6 +37,21 @@ export type Scenario = {
   steps: WorkflowStep[];
   history: TimelineItem[];
   notePrompts: string[];
+  documentLines?: {
+    cpt: string;
+    billed: string;
+    allowed: string;
+    paid: string;
+    adjustment: string;
+    patient: string;
+    codes: string;
+  }[];
+  correspondence?: {
+    title: string;
+    date: string;
+    reference: string;
+    body: string;
+  };
 };
 
 export type TrainingModule = {
@@ -650,7 +665,7 @@ export const modules: TrainingModule[] = [
     scenarios: [
       {
         id: "DM-4203",
-        title: "Missing referral number",
+        title: "Specialist claim 4203",
         subtitle: "Summit Health · CO-16",
         priority: "Priority",
         status: "Correctable",
@@ -703,10 +718,19 @@ export const modules: TrainingModule[] = [
           "Which claim field and source record need correction?",
           "Who owns the upstream prevention action?",
         ],
+        documentLines: [
+          { cpt: "99204", billed: "$785.00", allowed: "$0.00", paid: "$0.00", adjustment: "$785.00", patient: "$0.00", codes: "CO-16 · MA36" },
+        ],
+        correspondence: {
+          title: "Remittance advice and referral record",
+          date: "Jul 14, 2026",
+          reference: "SUM-ICN-8027614",
+          body: "The claim could not be processed because required referral information was missing from the submitted claim. The scheduling record contains referral RF-662910 covering the member, specialist, date of service, and billed service.",
+        },
       },
       {
         id: "DM-4218",
-        title: "Medical necessity",
+        title: "Advanced imaging claim 4218",
         subtitle: "Northstar Health · CO-50",
         priority: "High risk",
         status: "Clinical appeal",
@@ -759,10 +783,19 @@ export const modules: TrainingModule[] = [
           "What documents belong in the appeal package?",
           "What upstream authorization control should change?",
         ],
+        documentLines: [
+          { cpt: "72141", billed: "$3,240.00", allowed: "$0.00", paid: "$0.00", adjustment: "$3,240.00", patient: "$0.00", codes: "CO-50 · N115" },
+        ],
+        correspondence: {
+          title: "Clinical claim determination",
+          date: "Jun 29, 2026",
+          reference: "NS-CLN-7961044",
+          body: "The submitted clinical information did not demonstrate the plan criteria required for advanced imaging. First-level appeal rights remain available. Include ordering notes, conservative-treatment history, and the applicable policy criteria.",
+        },
       },
       {
         id: "DM-4226",
-        title: "Non-covered service",
+        title: "Preventive service claim 4226",
         subtitle: "Crescent Choice · PR-204",
         priority: "Routine",
         status: "Benefit review",
@@ -815,6 +848,147 @@ export const modules: TrainingModule[] = [
           "Does coding match the service and benefit?",
           "What outcome and prevention action should be documented?",
         ],
+        documentLines: [
+          { cpt: "G0439", billed: "$460.00", allowed: "$0.00", paid: "$0.00", adjustment: "$460.00", patient: "$460.00", codes: "PR-204 · N130" },
+        ],
+        correspondence: {
+          title: "Member benefit determination",
+          date: "Jul 19, 2026",
+          reference: "CC-EOB-8080552",
+          body: "The billed preventive service is not covered under the member's current benefit as submitted. Review diagnosis, benefit frequency, and the signed patient notice before assigning final liability.",
+        },
+      },
+      {
+        id: "DM-4234",
+        title: "Laboratory claim 4234",
+        subtitle: "Harbor Blue · CO-11",
+        priority: "Priority",
+        status: "Coding review",
+        amount: "$1,120.00",
+        age: "18 days",
+        account: "CL-8114234",
+        payer: "Harbor Blue PPO",
+        owner: "Coding denials",
+        story:
+          "A multi-line laboratory claim denied with CO-11 and N386. The order, result, and claim image are available, but the submitted diagnosis must be compared with the service documentation before any correction.",
+        mission:
+          "Determine whether the denial can be corrected from existing documentation or requires provider clarification, then select the appropriate recovery path.",
+        facts: [
+          { label: "Date of service", value: "Jun 16, 2026" },
+          { label: "CARC / RARC", value: "CO-11 · N386" },
+          { label: "Claim received", value: "Jun 19, 2026" },
+          { label: "Correction limit", value: "120 days" },
+          { label: "Order diagnosis", value: "Indexed in chart" },
+          { label: "Claim diagnosis", value: "R53.83" },
+        ],
+        breakdown: [
+          { label: "Billed amount", value: "$1,120.00" },
+          { label: "Paid amount", value: "$0.00", tone: "muted" },
+          { label: "Denied amount", value: "$1,120.00", tone: "accent" },
+          { label: "Patient liability", value: "$0.00" },
+        ],
+        steps: denialSteps,
+        history: [
+          {
+            date: "Jul 24 · 10:41 AM",
+            title: "Order and results indexed",
+            detail: "Ordering diagnosis and final pathology report available.",
+            actor: "HIM",
+          },
+          {
+            date: "Jul 8 · 5:12 AM",
+            title: "Denial posted",
+            detail: "CO-11 diagnosis inconsistent with procedure.",
+            actor: "Auto posting",
+          },
+          {
+            date: "Jun 19 · 6:20 PM",
+            title: "Claim accepted",
+            detail: "Original claim passed front-end edits.",
+            actor: "Claims",
+          },
+        ],
+        notePrompts: [
+          "Which source supports the diagnosis used for correction?",
+          "Does the correction require a coder or ordering provider?",
+          "What should be changed upstream to prevent recurrence?",
+        ],
+        documentLines: [
+          { cpt: "88305", billed: "$820.00", allowed: "$0.00", paid: "$0.00", adjustment: "$820.00", patient: "$0.00", codes: "CO-11 · N386" },
+          { cpt: "88312", billed: "$300.00", allowed: "$0.00", paid: "$0.00", adjustment: "$300.00", patient: "$0.00", codes: "CO-11 · N386" },
+        ],
+        correspondence: {
+          title: "Claim coding determination",
+          date: "Jul 8, 2026",
+          reference: "HB-ICN-8114234",
+          body: "The diagnosis submitted is inconsistent with the billed laboratory services. Corrected claim submission is permitted when supported by the medical record. Do not change diagnosis solely to obtain payment.",
+        },
+      },
+      {
+        id: "DM-4241",
+        title: "Observation claim 4241",
+        subtitle: "Meridian · CO-197",
+        priority: "High risk",
+        status: "Authorization review",
+        amount: "$6,480.00",
+        age: "31 days",
+        account: "CL-8144241",
+        payer: "Meridian Community Health",
+        owner: "Authorization denials",
+        story:
+          "An observation claim denied with CO-197. A notification number appears in the utilization-management log, but the approved span, level of care, and claim dates require comparison before deciding whether to appeal or correct the claim.",
+        mission:
+          "Reconcile the authorization evidence with the billed claim, preserve the deadline, and route the case using the strongest supported action.",
+        facts: [
+          { label: "Dates of service", value: "Jun 2–Jun 3, 2026" },
+          { label: "CARC / RARC", value: "CO-197 · N130" },
+          { label: "Notification", value: "MCH-NOT-771904" },
+          { label: "Approved level", value: "Observation" },
+          { label: "Appeal due", value: "Aug 20, 2026" },
+          { label: "Claim type", value: "Facility UB-04" },
+        ],
+        breakdown: [
+          { label: "Billed amount", value: "$6,480.00" },
+          { label: "Paid amount", value: "$0.00", tone: "muted" },
+          { label: "Denied amount", value: "$6,480.00", tone: "accent" },
+          { label: "Days to appeal", value: "25" },
+        ],
+        steps: denialSteps,
+        history: [
+          {
+            date: "Jul 20 · 2:14 PM",
+            title: "Notification log located",
+            detail: "Reference includes observation approval for both service dates.",
+            actor: "Prior authorization",
+          },
+          {
+            date: "Jun 25 · 5:02 AM",
+            title: "Denial posted",
+            detail: "CO-197 authorization not matched.",
+            actor: "Auto posting",
+          },
+          {
+            date: "Jun 5 · 7:11 PM",
+            title: "Claim accepted",
+            detail: "Facility claim accepted by payer.",
+            actor: "Claims",
+          },
+        ],
+        notePrompts: [
+          "Do the approved span and level of care match every billed line?",
+          "Which evidence must accompany the payer request?",
+          "What notification-number control failed on the original claim?",
+        ],
+        documentLines: [
+          { cpt: "G0378", billed: "$4,980.00", allowed: "$0.00", paid: "$0.00", adjustment: "$4,980.00", patient: "$0.00", codes: "CO-197 · N130" },
+          { cpt: "99220", billed: "$1,500.00", allowed: "$0.00", paid: "$0.00", adjustment: "$1,500.00", patient: "$0.00", codes: "CO-197 · N130" },
+        ],
+        correspondence: {
+          title: "Authorization claim determination",
+          date: "Jun 25, 2026",
+          reference: "MCH-ICN-8144241",
+          body: "The claim did not match an authorization or notification in the adjudication system. Appeal or reconsideration may include the notification number, approval span, level of care, and complete claim identifiers.",
+        },
       },
     ],
   },
@@ -824,7 +998,7 @@ export const startingLogs = [
   {
     id: "LOG-8821",
     module: "Denial Management",
-    scenario: "Medical necessity",
+    scenario: "Advanced imaging claim 4218",
     learner: "A. Reyes",
     score: 92,
     time: "Today · 10:42 AM",
@@ -840,7 +1014,7 @@ export const startingLogs = [
   {
     id: "LOG-8808",
     module: "AR Collections",
-    scenario: "Contract underpayment",
+    scenario: "Surgical claim review",
     learner: "S. Flores",
     score: 86,
     time: "Yesterday · 2:03 PM",

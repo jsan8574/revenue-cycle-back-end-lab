@@ -8,6 +8,7 @@ import {
   type ArScenario,
 } from "../data/exploration";
 import type { TrainingModule } from "../data/training";
+import { PdfExportCenter } from "./PdfExportCenter";
 
 type ArDeskTab =
   | "account"
@@ -67,11 +68,13 @@ const closeEnough = (left: number, right: number) =>
 
 export function ARCollectionsLab({
   module,
+  learnerName,
   scenarioIndex,
   onSelectScenario,
   onComplete,
 }: {
   module: TrainingModule;
+  learnerName: string;
   scenarioIndex: number;
   onSelectScenario: (index: number) => void;
   onComplete: (scenario: string, score: number) => void;
@@ -81,7 +84,16 @@ export function ARCollectionsLab({
   const [visited, setVisited] = useState<ArDeskTab[]>(["account"]);
   const [balanceReviewed, setBalanceReviewed] = useState(false);
   const [portalOpened, setPortalOpened] = useState(false);
+  const [portalCredentials, setPortalCredentials] = useState({
+    memberId: "",
+    providerId: "",
+    dob: "",
+    dos: "",
+  });
+  const [portalFeedback, setPortalFeedback] = useState("");
+  const [callStage, setCallStage] = useState(0);
   const [callAnswers, setCallAnswers] = useState<number[]>([]);
+  const [callClosed, setCallClosed] = useState(false);
   const [calculator, setCalculator] = useState<CalculatorState>(
     initialCalculator(),
   );
@@ -99,6 +111,10 @@ export function ARCollectionsLab({
   const [actionFeedback, setActionFeedback] = useState("");
   const [decisionAttempts, setDecisionAttempts] = useState(0);
   const [notes, setNotes] = useState({
+    source: "",
+    representative: "",
+    reference: "",
+    followUp: "",
     issue: "",
     findings: "",
     resolution: "",
@@ -106,11 +122,15 @@ export function ARCollectionsLab({
   const [notePosted, setNotePosted] = useState(false);
   const [closed, setClosed] = useState(false);
 
-  const investigationComplete =
-    portalOpened || callAnswers.length >= 2;
-  const notesComplete = Object.values(notes).every(
-    (value) => value.trim().length >= 12,
-  );
+  const investigationComplete = portalOpened && callClosed;
+  const notesComplete =
+    notes.source.length > 0 &&
+    notes.representative.trim().length >= 2 &&
+    notes.reference.trim().length >= 5 &&
+    notes.followUp.trim().length >= 4 &&
+    notes.issue.trim().length >= 12 &&
+    notes.findings.trim().length >= 12 &&
+    notes.resolution.trim().length >= 12;
   const checklist = [
     { label: "Access the account", done: true },
     { label: "Review the account balance", done: balanceReviewed },
@@ -127,7 +147,7 @@ export function ARCollectionsLab({
       done: visited.includes("transactions"),
     },
     {
-      label: "Investigate through payer portal and/or call",
+      label: "Complete payer portal research and call",
       done: investigationComplete,
     },
     { label: "Choose and validate a resolution", done: actionValid },
@@ -143,6 +163,25 @@ export function ARCollectionsLab({
     setTab(next);
     setVisited((current) =>
       current.includes(next) ? current : [...current, next],
+    );
+  };
+
+  const authenticatePortal = () => {
+    const normalize = (value: string) =>
+      value.toLowerCase().replace(/[^a-z0-9]/g, "");
+    const providerEntered = normalize(portalCredentials.providerId);
+    const correct =
+      normalize(portalCredentials.memberId) ===
+        normalize(scenario.patient.memberId) &&
+      (providerEntered === normalize(scenario.patient.providerNpi) ||
+        providerEntered === normalize(scenario.patient.providerTaxId)) &&
+      normalize(portalCredentials.dob) === normalize(scenario.patient.dob) &&
+      normalize(portalCredentials.dos) === normalize(scenario.patient.dos);
+    setPortalOpened(correct);
+    setPortalFeedback(
+      correct
+        ? "Claim located. The adjudication detail is available below."
+        : "Claim not found. Verify the member ID, provider NPI or tax ID, patient DOB, and date of service.",
     );
   };
 
@@ -229,6 +268,103 @@ export function ARCollectionsLab({
         onSelect={onSelectScenario}
       />
 
+      <PdfExportCenter
+        learnerName={learnerName}
+        moduleName={module.title}
+        scenarioName={`${scenario.id} · ${scenario.title}`}
+        reports={[
+          {
+            label: "Account investigation",
+            description: "Claim facts, notes, transactions, and documents reviewed",
+            title: "AR Account Investigation",
+            sections: [
+              {
+                heading: "Account and claim",
+                lines: [
+                  `${scenario.patient.name} · ${scenario.patient.account}`,
+                  `Member ID: ${scenario.patient.memberId}`,
+                  `DOS: ${scenario.patient.dos}`,
+                  `Claim: ${scenario.claim.claimId}`,
+                  `Billed: ${money(scenario.claim.billed)}`,
+                  `Open insurance AR: ${money(scenario.claim.openAr)}`,
+                ],
+              },
+              {
+                heading: "Previous account notes",
+                lines: scenario.previousNotes.map(
+                  (note) =>
+                    `${note.date} · ${note.author} (${note.department}): ${note.note}`,
+                ),
+              },
+              {
+                heading: "Investigation status",
+                lines: [
+                  `Portal claim detail: ${portalOpened ? "Reviewed" : "Not reviewed"}`,
+                  `Payer call: ${callClosed ? "Closed" : "Not completed"}`,
+                  `Documents reviewed: ${visited.includes("eobs") ? "Yes" : "No"}`,
+                  `Transactions reviewed: ${visited.includes("transactions") ? "Yes" : "No"}`,
+                ],
+              },
+            ],
+          },
+          {
+            label: "Resolution worksheet",
+            description: "Reimbursement calculation and proposed next action",
+            title: "AR Resolution Worksheet",
+            sections: [
+              {
+                heading: "Expected reimbursement",
+                lines: [
+                  `Method selected: ${calculator.method || "Not selected"}`,
+                  `Expected allowed: ${calculation ? money(calculation.allowed) : "Not calculated"}`,
+                  `Expected payment: ${calculation ? money(calculation.payment) : "Not calculated"}`,
+                  `Variance: ${calculation ? money(calculation.variance) : "Not calculated"}`,
+                  `Validation: ${reimbursementValid ? "Passed" : "Not passed"}`,
+                ],
+              },
+              {
+                heading: "Resolution decision",
+                lines: [
+                  `Action: ${selectedAction || "Not selected"}`,
+                  `Route: ${selectedRoute || "Not selected"}`,
+                  `Rationale: ${decisionReason || "Not entered"}`,
+                ],
+              },
+            ],
+          },
+          {
+            label: "Final account note",
+            description: "Issue, findings, resolution, and completion status",
+            title: "AR Completion Report",
+            sections: [
+              { heading: "Issue", lines: [notes.issue || "Not entered"] },
+              {
+                heading: "Status source and payer contact",
+                lines: [
+                  `Source: ${notes.source || "Not entered"}`,
+                  `Representative: ${notes.representative || "Not entered"}`,
+                  `Reference: ${notes.reference || "Not entered"}`,
+                  `Follow-up: ${notes.followUp || "Not entered"}`,
+                ],
+              },
+              { heading: "Findings", lines: [notes.findings || "Not entered"] },
+              {
+                heading: "Resolution",
+                lines: [notes.resolution || "Not entered"],
+              },
+              {
+                heading: "Completion",
+                lines: [
+                  `Checklist: ${completedCount} of 9 complete`,
+                  `Note status: ${notePosted ? "Posted" : "Draft"}`,
+                  `Account status: ${closed ? "Completed" : "Open"}`,
+                ],
+              },
+            ],
+          },
+        ]}
+      />
+
       <section className="ar-system-frame">
         <header className="ar-system-titlebar">
           <div className="system-brand">
@@ -313,13 +449,27 @@ export function ARCollectionsLab({
                 <InvestigationView
                   scenario={scenario}
                   portalOpened={portalOpened}
+                  portalCredentials={portalCredentials}
+                  portalFeedback={portalFeedback}
+                  callStage={callStage}
                   callAnswers={callAnswers}
-                  onPortal={() => setPortalOpened(true)}
+                  callClosed={callClosed}
+                  onPortalCredential={(key, value) =>
+                    setPortalCredentials((current) => ({
+                      ...current,
+                      [key]: value,
+                    }))
+                  }
+                  onPortal={authenticatePortal}
+                  onAdvanceCall={() =>
+                    setCallStage((current) => Math.min(4, current + 1))
+                  }
                   onQuestion={(index) =>
                     setCallAnswers((current) =>
                       current.includes(index) ? current : [...current, index],
                     )
                   }
+                  onCloseCall={() => setCallClosed(true)}
                 />
               ) : null}
               {tab === "reimbursement" ? (
@@ -399,7 +549,7 @@ function ArScenarioRail({
               .toLowerCase()
               .replace(" ", "-")}`}
           >
-            {item.status}
+            {item.priority} · {item.status}
           </span>
         </button>
       ))}
@@ -529,11 +679,39 @@ function AccountView({
           ))}
         </div>
       </div>
+
+      <div className="ar-section previous-notes-section">
+        <div className="system-section-heading compact-system-heading">
+          <div>
+            <span className="system-kicker">Account notes</span>
+            <h3>Previous collector and department notes</h3>
+          </div>
+          <small>Read chronologically before duplicating work.</small>
+        </div>
+        <div className="previous-note-list">
+          {scenario.previousNotes.map((note) => (
+            <article key={`${note.date}-${note.author}`}>
+              <div>
+                <strong>{note.author}</strong>
+                <span>{note.department}</span>
+                <small>{note.date}</small>
+              </div>
+              <p>{note.note}</p>
+            </article>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
 
 function DocumentsView({ scenario }: { scenario: ArScenario }) {
+  const [selectedDocument, setSelectedDocument] = useState(0);
+  const document = scenario.documents[selectedDocument];
+  const isEob =
+    document.type.toLowerCase().includes("eob") ||
+    document.type.toLowerCase().includes("era");
+
   return (
     <div className="ar-section">
       <div className="system-section-heading">
@@ -543,18 +721,129 @@ function DocumentsView({ scenario }: { scenario: ArScenario }) {
           <p>Read each record and decide which evidence changes the account story.</p>
         </div>
       </div>
-      <div className="ar-document-grid">
-        {scenario.documents.map((document) => (
-          <article key={document.reference}>
-            <div>
-              <span>{document.type}</span>
-              <small>{document.date}</small>
+      <div className="document-review-layout">
+        <div className="ar-document-grid document-index">
+          {scenario.documents.map((item, index) => (
+            <button
+              type="button"
+              key={item.reference}
+              className={selectedDocument === index ? "selected" : ""}
+              onClick={() => setSelectedDocument(index)}
+            >
+              <div>
+                <span>{item.type}</span>
+                <small>{item.date}</small>
+              </div>
+              <h4>{item.reference}</h4>
+              <p>{item.summary}</p>
+              <strong>{item.codes}</strong>
+            </button>
+          ))}
+        </div>
+
+        <article className="pdf-document-page">
+          <div className="pdf-document-toolbar">
+            <span>PDF preview · Page 1 of 1</span>
+            <strong>{document.reference}</strong>
+          </div>
+          <div className="pdf-document-sheet">
+            <header>
+              <div className="pdf-payer-mark">
+                {isEob ? scenario.patient.payer : document.type}
+              </div>
+              <div>
+                <span>{isEob ? "Explanation of Benefits" : "Correspondence"}</span>
+                <strong>{document.date}</strong>
+              </div>
+            </header>
+
+            <div className="pdf-document-address">
+              <div>
+                <span>Patient / member</span>
+                <strong>{scenario.patient.name}</strong>
+                <p>{scenario.patient.memberId}</p>
+              </div>
+              <div>
+                <span>Provider</span>
+                <strong>{scenario.patient.provider}</strong>
+                <p>NPI {scenario.patient.providerNpi}</p>
+              </div>
+              <div>
+                <span>Claim / reference</span>
+                <strong>{isEob ? scenario.portal.icn : document.reference}</strong>
+                <p>DOS {scenario.patient.dos}</p>
+              </div>
             </div>
-            <h4>{document.reference}</h4>
-            <p>{document.summary}</p>
-            <strong>{document.codes}</strong>
-          </article>
-        ))}
+
+            {isEob ? (
+              <>
+                <div className="pdf-eob-summary">
+                  <div>
+                    <span>Total billed</span>
+                    <strong>{money(scenario.portal.claimBilled)}</strong>
+                  </div>
+                  <div>
+                    <span>Allowed</span>
+                    <strong>{money(scenario.portal.claimAllowed)}</strong>
+                  </div>
+                  <div>
+                    <span>Plan paid</span>
+                    <strong>{money(scenario.portal.claimPaid)}</strong>
+                  </div>
+                  <div>
+                    <span>Patient responsibility</span>
+                    <strong>
+                      {money(scenario.portal.claimPatientResponsibility)}
+                    </strong>
+                  </div>
+                </div>
+                <table className="pdf-eob-table">
+                  <thead>
+                    <tr>
+                      <th>Service</th>
+                      <th>Billed</th>
+                      <th>Allowed</th>
+                      <th>Paid</th>
+                      <th>Adjustment</th>
+                      <th>Patient</th>
+                      <th>Codes / status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {scenario.portal.serviceLines.map((line) => (
+                      <tr key={line.cpt}>
+                        <td>{line.cpt}</td>
+                        <td>{money(line.billed)}</td>
+                        <td>{money(line.allowed)}</td>
+                        <td>{money(line.paid)}</td>
+                        <td>{money(line.adjustment)}</td>
+                        <td>{money(line.patientResponsibility)}</td>
+                        <td>
+                          {line.codes}
+                          <small>{line.status}</small>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </>
+            ) : (
+              <div className="pdf-letter-body">
+                <p>Re: {document.reference}</p>
+                <p>{document.body}</p>
+              </div>
+            )}
+
+            <div className="pdf-document-explanation">
+              <span>Explanation / correspondence detail</span>
+              <p>{document.body}</p>
+              <strong>{document.codes}</strong>
+            </div>
+            <footer>
+              Fictional training document · Not a real payer communication
+            </footer>
+          </div>
+        </article>
       </div>
     </div>
   );
@@ -677,16 +966,64 @@ function CoverageView({ scenario }: { scenario: ArScenario }) {
 function InvestigationView({
   scenario,
   portalOpened,
+  portalCredentials,
+  portalFeedback,
+  callStage,
   callAnswers,
+  callClosed,
+  onPortalCredential,
   onPortal,
+  onAdvanceCall,
   onQuestion,
+  onCloseCall,
 }: {
   scenario: ArScenario;
   portalOpened: boolean;
+  portalCredentials: {
+    memberId: string;
+    providerId: string;
+    dob: string;
+    dos: string;
+  };
+  portalFeedback: string;
+  callStage: number;
   callAnswers: number[];
+  callClosed: boolean;
+  onPortalCredential: (
+    key: "memberId" | "providerId" | "dob" | "dos",
+    value: string,
+  ) => void;
   onPortal: () => void;
+  onAdvanceCall: () => void;
   onQuestion: (index: number) => void;
+  onCloseCall: () => void;
 }) {
+  const openingExchanges = [
+    {
+      rep: `Thank you for calling ${scenario.patient.payer} Provider Services. My name is Alex. How may I help you?`,
+      learner: `Hello, I’m calling from ${scenario.patient.location} for a detailed claim-status review.`,
+    },
+    {
+      rep: "Please provide the member ID, patient name, and date of birth.",
+      learner: `${scenario.patient.memberId}; ${scenario.patient.name}; DOB ${scenario.patient.dob}.`,
+    },
+    {
+      rep: "Please verify the billing provider NPI or tax ID.",
+      learner: `${scenario.patient.provider}; NPI ${scenario.patient.providerNpi}; tax ID ${scenario.patient.providerTaxId}.`,
+    },
+    {
+      rep: "What date of service and billed amount should I search?",
+      learner: `DOS ${scenario.patient.dos}; total billed ${money(scenario.claim.billed)}; patient control ${scenario.claim.claimId}.`,
+    },
+  ];
+  const referenceAsked = callAnswers.some((index) =>
+    scenario.callQuestions[index].question.toLowerCase().includes("reference"),
+  );
+  const canCloseCall =
+    callStage >= openingExchanges.length &&
+    callAnswers.length >= 3 &&
+    referenceAsked;
+
   return (
     <div className="investigation-layout">
       <div className="portal-simulator">
@@ -694,25 +1031,82 @@ function InvestigationView({
           <div className="coverage-icon">WEB</div>
           <div>
             <span className="system-kicker">External simulation</span>
-            <h3>{scenario.patient.payer} provider portal</h3>
+            <h3>Multi-payer provider portal</h3>
+          </div>
+        </div>
+
+        <div className="portal-search-form">
+          <div className="portal-search-banner">
+            <span>Claims & payments inquiry</span>
+            <strong>{scenario.patient.payer}</strong>
+          </div>
+          <div className="portal-credential-grid">
+            <label>
+              <span>Member ID</span>
+              <input
+                value={portalCredentials.memberId}
+                onChange={(event) =>
+                  onPortalCredential("memberId", event.target.value)
+                }
+                placeholder="Member / subscriber ID"
+              />
+            </label>
+            <label>
+              <span>Provider NPI or tax ID</span>
+              <input
+                value={portalCredentials.providerId}
+                onChange={(event) =>
+                  onPortalCredential("providerId", event.target.value)
+                }
+                placeholder="NPI or TIN"
+              />
+            </label>
+            <label>
+              <span>Patient DOB</span>
+              <input
+                value={portalCredentials.dob}
+                onChange={(event) =>
+                  onPortalCredential("dob", event.target.value)
+                }
+                placeholder="MM/DD/YYYY or written date"
+              />
+            </label>
+            <label>
+              <span>Date of service</span>
+              <input
+                value={portalCredentials.dos}
+                onChange={(event) =>
+                  onPortalCredential("dos", event.target.value)
+                }
+                placeholder="Service date"
+              />
+            </label>
           </div>
           <button type="button" onClick={onPortal}>
-            {portalOpened ? "Refresh status" : "Open payer portal"}
+            Search claim
           </button>
-        </div>
-        {!portalOpened ? (
-          <div className="portal-locked">
-            <span>↗</span>
-            <p>
-              Launch the simulated payer portal to review claim status and payer
-              processing detail.
+          {portalFeedback ? (
+            <p className={portalOpened ? "portal-feedback valid" : "portal-feedback"}>
+              {portalFeedback}
             </p>
-          </div>
-        ) : (
+          ) : null}
+        </div>
+
+        {portalOpened ? (
           <div className="portal-result">
-            <div className="portal-status">
-              <span>Current status</span>
-              <strong>{scenario.portal.status}</strong>
+            <div className="portal-claim-title">
+              <div>
+                <span>Claim status</span>
+                <strong>{scenario.portal.status}</strong>
+              </div>
+              <div>
+                <span>Payer claim control</span>
+                <strong>{scenario.portal.icn}</strong>
+              </div>
+              <div>
+                <span>Patient control</span>
+                <strong>{scenario.portal.patientControl}</strong>
+              </div>
             </div>
             <div className="portal-grid">
               <div>
@@ -728,16 +1122,64 @@ function InvestigationView({
                 <strong>{scenario.portal.icn}</strong>
               </div>
               <div>
-                <span>Portal next step</span>
-                <strong>{scenario.portal.nextStep}</strong>
+                <span>Payment reference</span>
+                <strong>{scenario.portal.checkOrEft}</strong>
               </div>
+            </div>
+            <div className="portal-payment-summary">
+              {[
+                ["Claim billed", scenario.portal.claimBilled],
+                ["Allowed", scenario.portal.claimAllowed],
+                ["Plan paid", scenario.portal.claimPaid],
+                [
+                  "Patient responsibility",
+                  scenario.portal.claimPatientResponsibility,
+                ],
+              ].map(([label, value]) => (
+                <div key={String(label)}>
+                  <span>{label}</span>
+                  <strong>{money(Number(value))}</strong>
+                </div>
+              ))}
+            </div>
+            <div className="system-table-wrap portal-service-lines">
+              <table className="system-table">
+                <thead>
+                  <tr>
+                    <th>CPT</th>
+                    <th>Billed</th>
+                    <th>Allowed</th>
+                    <th>Paid</th>
+                    <th>Adjustment</th>
+                    <th>Patient</th>
+                    <th>Codes</th>
+                    <th>Line status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {scenario.portal.serviceLines.map((line) => (
+                    <tr key={line.cpt}>
+                      <td>{line.cpt}</td>
+                      <td>{money(line.billed)}</td>
+                      <td>{money(line.allowed)}</td>
+                      <td>{money(line.paid)}</td>
+                      <td>{money(line.adjustment)}</td>
+                      <td>{money(line.patientResponsibility)}</td>
+                      <td>{line.codes}</td>
+                      <td>{line.status}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
             <div className="portal-reason">
               <span>Processing detail</span>
               <p>{scenario.portal.reason}</p>
+              <span>Portal guidance</span>
+              <p>{scenario.portal.nextStep}</p>
             </div>
           </div>
-        )}
+        ) : null}
       </div>
 
       <div className="payer-call-simulator">
@@ -747,37 +1189,84 @@ function InvestigationView({
             <span className="system-kicker">Call simulation</span>
             <h3>Speak with the payer</h3>
           </div>
-          <span className="call-timer">00:{String(42 + callAnswers.length * 18).padStart(2, "0")}</span>
+          <span className="call-timer">
+            00:{String(18 + callStage * 14 + callAnswers.length * 18).padStart(2, "0")}
+          </span>
         </div>
         <p className="simulator-instruction">
-          Choose the questions that will move the account. Payer responses are
-          added to your call notes below.
+          Complete the verification flow before asking claim questions. Obtain
+          a call reference number and close the call professionally.
         </p>
-        <div className="question-bank">
-          {scenario.callQuestions.map((item, index) => (
+
+        {callStage < openingExchanges.length ? (
+          <div className="call-flow-prompt">
+            <span>Payer representative</span>
+            <p>{openingExchanges[callStage].rep}</p>
+            <button type="button" onClick={onAdvanceCall}>
+              Respond: “{openingExchanges[callStage].learner}”
+            </button>
+          </div>
+        ) : (
+          <>
+            <div className="question-bank">
+              {scenario.callQuestions.map((item, index) => (
+                <button
+                  type="button"
+                  className={callAnswers.includes(index) ? "asked" : ""}
+                  key={item.question}
+                  disabled={callClosed}
+                  onClick={() => onQuestion(index)}
+                >
+                  {callAnswers.includes(index) ? "✓" : "+"} {item.question}
+                </button>
+              ))}
+            </div>
             <button
               type="button"
-              className={callAnswers.includes(index) ? "asked" : ""}
-              key={item.question}
-              onClick={() => onQuestion(index)}
+              className="close-call-button"
+              disabled={!canCloseCall || callClosed}
+              onClick={onCloseCall}
             >
-              {callAnswers.includes(index) ? "✓" : "+"} {item.question}
+              {callClosed
+                ? "Call closed ✓"
+                : referenceAsked
+                  ? "Confirm next step and close call"
+                  : "Ask for a reference number before closing"}
             </button>
-          ))}
-        </div>
+          </>
+        )}
+
         <div className="call-transcript">
-          {callAnswers.length ? (
-            callAnswers.map((index) => (
+          {openingExchanges.slice(0, callStage).map((exchange, index) => (
+            <div key={`opening-${index}`}>
+              <span>Payer representative</span>
+              <p>{exchange.rep}</p>
+              <span>You</span>
+              <p>{exchange.learner}</p>
+            </div>
+          ))}
+          {callAnswers.map((index) => (
               <div key={index}>
                 <span>You</span>
                 <p>{scenario.callQuestions[index].question}</p>
                 <span>Payer representative</span>
                 <p>{scenario.callQuestions[index].answer}</p>
               </div>
-            ))
-          ) : (
+            ))}
+          {callClosed ? (
+            <div>
+              <span>You</span>
+              <p>
+                Thank you. I have documented the outcome, turnaround, and call
+                reference. Have a good day.
+              </p>
+              <span>Payer representative</span>
+              <p>Thank you for calling. Goodbye.</p>
+            </div>
+          ) : null}
+          {!callStage && !callAnswers.length ? (
             <p className="transcript-empty">No payer questions asked yet.</p>
-          )}
+          ) : null}
         </div>
       </div>
     </div>
@@ -980,11 +1469,29 @@ function NotationView({
   onPost,
   onClose,
 }: {
-  notes: { issue: string; findings: string; resolution: string };
+  notes: {
+    source: string;
+    representative: string;
+    reference: string;
+    followUp: string;
+    issue: string;
+    findings: string;
+    resolution: string;
+  };
   canPost: boolean;
   posted: boolean;
   closed: boolean;
-  onChange: (key: "issue" | "findings" | "resolution", value: string) => void;
+  onChange: (
+    key:
+      | "source"
+      | "representative"
+      | "reference"
+      | "followUp"
+      | "issue"
+      | "findings"
+      | "resolution",
+    value: string,
+  ) => void;
   onPost: () => void;
   onClose: () => void;
 }) {
@@ -993,6 +1500,49 @@ function NotationView({
       <div className="notation-editor">
         <span className="system-kicker">Account notation</span>
         <h3>Document the issue, findings, and resolution</h3>
+        <div className="notation-control-grid">
+          <label>
+            <span>Source of claim status</span>
+            <select
+              value={notes.source}
+              onChange={(event) => onChange("source", event.target.value)}
+            >
+              <option value="">Choose source…</option>
+              <option value="Payer portal and call">
+                Payer portal and call
+              </option>
+              <option value="Payer portal">Payer portal</option>
+              <option value="Payer call">Payer call</option>
+              <option value="EOB / correspondence">EOB / correspondence</option>
+            </select>
+          </label>
+          <label>
+            <span>Representative name</span>
+            <input
+              value={notes.representative}
+              onChange={(event) =>
+                onChange("representative", event.target.value)
+              }
+              placeholder="Payer representative"
+            />
+          </label>
+          <label>
+            <span>Call / portal reference</span>
+            <input
+              value={notes.reference}
+              onChange={(event) => onChange("reference", event.target.value)}
+              placeholder="Reference number"
+            />
+          </label>
+          <label>
+            <span>Follow-up date / timeframe</span>
+            <input
+              value={notes.followUp}
+              onChange={(event) => onChange("followUp", event.target.value)}
+              placeholder="Date or payer turnaround"
+            />
+          </label>
+        </div>
         {(
           [
             ["issue", "Issue", "Why is the account still open?"],

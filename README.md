@@ -11,17 +11,26 @@ a guided learner workflow; Payment Posting and AR Collections use independent
 system workstations where answers are validated only after the learner submits
 a decision.
 
-The Payment Posting workstation includes realistic claim- and service-level
-ERA/835 records, bank evidence, account search with true no-match handling,
-encounter matching, line-level posting, reversal/recoupment handling,
-patient-responsibility allocation, batch reconciliation, and an in-system
-glossary of payment-posting terms.
+The Payment Posting workstation includes six realistic claim- and service-level
+ERA/835 scenarios, bank evidence, account search with true no-match handling,
+per-service-line payment and adjustment entry, partial and full denial handling,
+patient-responsibility allocation, reversal/recoupment handling, batch
+reconciliation, and an in-system glossary of posting terms.
 
-The AR Collections workstation includes a nine-step investigation checklist,
-account balance and history, EOBs and correspondence, prior transactions,
-related accounts, insurance and authorization records, payer portal and payer
-call simulations, expected-reimbursement calculation, resolution routing, and
-structured issue/findings/resolution notation.
+The AR Collections workstation includes five cases, a nine-step investigation
+checklist, prior account notes, PDF-style EOBs and correspondence, transactions,
+related accounts, insurance and authorization records, credential-based payer
+portal claim research, a complete payer-call flow, expected-reimbursement
+calculation, resolution routing, and structured issue/findings/resolution
+notation.
+
+Denial Management includes five complexity-labeled cases with neutral case
+titles, PDF-style claim determinations, service-line EOB detail, investigation
+workflows, trainer prompts, and completion scoring.
+
+Every learner session begins with name capture. Each of the three modules
+offers three printable PDF reports containing the learner name and current
+work.
 
 ## Run locally
 

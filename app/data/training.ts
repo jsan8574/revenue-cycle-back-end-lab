@@ -471,9 +471,9 @@ export const modules: TrainingModule[] = [
   },
   {
     id: "ar-collections",
-    navLabel: "AR Collections",
-    title: "AR Collections",
-    eyebrow: "Account investigation",
+    navLabel: "Insurance Follow-up",
+    title: "AR Collections / Insurance Follow-up",
+    eyebrow: "Insurance account investigation",
     description:
       "Navigate the full account, investigate with the payer, validate expected reimbursement, and defend the next action.",
     accent: "#d79a35",

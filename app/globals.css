@@ -5719,6 +5719,257 @@ button {
   position: absolute;
 }
 
+.priority-queue-panel {
+  background: rgba(255, 255, 255, 0.66);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  margin-bottom: 18px;
+  padding: 18px;
+}
+
+.priority-queue-heading {
+  align-items: flex-end;
+  display: flex;
+  gap: 24px;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.priority-queue-heading h2 {
+  font-size: 24px;
+  letter-spacing: -0.04em;
+  margin: 3px 0 5px;
+}
+
+.priority-queue-heading p {
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 0;
+  max-width: 760px;
+}
+
+.priority-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.priority-legend span {
+  background: #edf2f0;
+  border: 1px solid #dbe3e0;
+  border-radius: 999px;
+  color: #526b6b;
+  font-size: 11px;
+  font-weight: 750;
+  padding: 6px 9px;
+}
+
+.priority-queue-panel .scenario-rail {
+  grid-template-columns: repeat(5, minmax(190px, 1fr));
+  margin-bottom: 0;
+  overflow-x: auto;
+  padding-bottom: 3px;
+}
+
+.priority-queue-panel .scenario-card {
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  min-width: 210px;
+}
+
+.priority-queue-panel .scenario-card .priority-tag {
+  grid-column: 2 / -1;
+  justify-self: start;
+}
+
+.priority-reason {
+  color: #6a7a79 !important;
+  white-space: normal !important;
+}
+
+.queue-score {
+  align-items: flex-end;
+  display: flex;
+  flex-direction: column;
+}
+
+.queue-score strong {
+  color: var(--module-accent);
+  font-size: 18px !important;
+}
+
+.queue-score small {
+  font-size: 9px !important;
+  margin-top: 0 !important;
+  white-space: nowrap !important;
+}
+
+.appeal-workbench {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(0, 1.35fr) minmax(300px, 0.65fr);
+}
+
+.appeal-editor-panel,
+.appeal-submission-panel {
+  background: #fff;
+  border: 1px solid #d6dfdc;
+  border-radius: 10px;
+  padding: 18px;
+}
+
+.appeal-editor-panel label {
+  display: block;
+  margin-top: 12px;
+}
+
+.appeal-editor-panel label > span {
+  color: #405858;
+  display: block;
+  font-weight: 750;
+  margin-bottom: 6px;
+}
+
+.appeal-letter-textarea {
+  font-family: Georgia, "Times New Roman", serif;
+  line-height: 1.7 !important;
+  min-height: 390px !important;
+  padding: 18px !important;
+  resize: vertical;
+}
+
+.deadline-badge {
+  background: #edf2f0;
+  border-radius: 999px;
+  color: #587070;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 7px 10px;
+}
+
+.deadline-badge.urgent {
+  background: #ffebe6;
+  color: #a44f3c;
+}
+
+.denial-fact-strip {
+  background: #f2f5f4;
+  border-radius: 9px;
+  display: grid;
+  gap: 1px;
+  grid-template-columns: repeat(3, 1fr);
+  margin: 14px 0;
+  overflow: hidden;
+}
+
+.denial-fact-strip > div {
+  background: #f7f9f8;
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+}
+
+.denial-fact-strip span {
+  color: #718080;
+}
+
+.denial-fact-strip strong {
+  margin-top: 4px;
+}
+
+.appeal-submission-panel > h3 {
+  font-size: 20px;
+  margin: 5px 0 7px;
+}
+
+.appeal-submission-panel > p {
+  color: #657777;
+  line-height: 1.55;
+  margin: 0 0 15px;
+}
+
+.submission-methods {
+  display: grid;
+  gap: 8px;
+}
+
+.submission-methods button {
+  background: #f7f9f8;
+  border: 1px solid #d8e0de;
+  border-radius: 9px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  min-height: 76px;
+  padding: 12px;
+  text-align: left;
+}
+
+.submission-methods button:hover,
+.submission-methods button.selected {
+  background: color-mix(in srgb, var(--module-soft) 70%, white);
+  border-color: var(--module-accent);
+}
+
+.submission-methods button span {
+  color: var(--module-accent);
+  font-weight: 850;
+}
+
+.submission-methods button strong {
+  line-height: 1.45;
+  margin-top: 5px;
+}
+
+.appeal-attachments {
+  border-bottom: 1px solid #dce3e1;
+  border-top: 1px solid #dce3e1;
+  margin: 15px 0;
+  padding: 14px 0;
+}
+
+.appeal-attachments > strong {
+  display: block;
+  margin-bottom: 9px;
+}
+
+.appeal-attachments label {
+  align-items: flex-start;
+  display: flex;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.appeal-attachments input {
+  min-height: 0 !important;
+  margin-top: 3px;
+}
+
+.appeal-submission-panel .system-primary-button {
+  width: 100%;
+}
+
+.appeal-submission-feedback {
+  background: #fff2e7;
+  border: 1px solid #efc6a6;
+  border-radius: 9px;
+  color: #845338;
+  margin-top: 12px;
+  padding: 12px;
+}
+
+.appeal-submission-feedback.success {
+  background: #e7f6ef;
+  border-color: #a7d7c2;
+  color: #276b51;
+}
+
+.appeal-submission-feedback p {
+  line-height: 1.55;
+  margin: 5px 0 0;
+}
+
 @media (max-width: 1260px) {
   .system-body {
     grid-template-columns: 175px minmax(0, 1fr);
@@ -5734,7 +5985,8 @@ button {
   .reconciliation-layout,
   .reimbursement-layout,
   .resolution-layout,
-  .notation-layout {
+  .notation-layout,
+  .appeal-workbench {
     grid-template-columns: 1fr;
   }
 
@@ -5864,8 +6116,22 @@ button {
   .balance-strip,
   .coverage-layout,
   .calculator-grid,
-  .action-choice-grid {
+  .action-choice-grid,
+  .denial-fact-strip {
     grid-template-columns: 1fr;
+  }
+
+  .priority-queue-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .priority-legend {
+    justify-content: flex-start;
+  }
+
+  .priority-queue-panel {
+    padding: 13px;
   }
 
   .document-meta-grid > div,

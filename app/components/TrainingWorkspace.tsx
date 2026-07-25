@@ -11,7 +11,11 @@ import {
   type Scenario,
   type TrainingModule,
 } from "../data/training";
-import { arScenarios, postingScenarios } from "../data/exploration";
+import {
+  arScenarios,
+  denialScenarios,
+  postingScenarios,
+} from "../data/exploration";
 
 type Screen = "dashboard" | ModuleId;
 type WorkspaceTab = "brief" | "workflow" | "history" | "notes" | "complete";
@@ -28,7 +32,7 @@ type CompletionLog = (typeof startingLogs)[number];
 const navItems: { id: Screen; label: string; marker: string }[] = [
   { id: "dashboard", label: "Overview", marker: "01" },
   { id: "payment-posting", label: "Payment Posting", marker: "PP" },
-  { id: "ar-collections", label: "AR Collections", marker: "AR" },
+  { id: "ar-collections", label: "Insurance Follow-up", marker: "AR" },
   { id: "denial-management", label: "Denial Management", marker: "DM" },
 ];
 
@@ -62,7 +66,8 @@ function moduleInitial(module: TrainingModule) {
 function moduleScenarioCount(module: TrainingModule) {
   if (module.id === "payment-posting") return postingScenarios.length;
   if (module.id === "ar-collections") return arScenarios.length;
-  return module.scenarios.length;
+  if (module.id === "denial-management") return denialScenarios.length;
+  return 0;
 }
 
 function LearnerWelcome({
@@ -80,7 +85,7 @@ function LearnerWelcome({
         <span className="brand-mark learner-brand-mark" aria-hidden="true">
           RC
         </span>
-        <span className="section-kicker">Revenue Cycle Training Lab</span>
+        <span className="section-kicker">Revenue Cycle Back End Training Lab</span>
         <h1>Welcome to your practice session.</h1>
         <p>
           Enter your name before opening the workstations. It will appear on
@@ -235,8 +240,8 @@ export function TrainingWorkspace() {
             RC
           </span>
           <div>
-            <strong>Revenue Cycle</strong>
-            <span>training lab</span>
+            <strong>Revenue Cycle Back End</strong>
+            <span>operations training lab</span>
           </div>
         </div>
 
@@ -297,7 +302,7 @@ export function TrainingWorkspace() {
             <span />
           </button>
           <div className="topbar-copy">
-            <span className="eyebrow">Training environment</span>
+            <span className="eyebrow">Back End training environment</span>
             <strong>
               {activeModule ? activeModule.title : "Revenue Cycle Lab"}
             </strong>
@@ -337,6 +342,22 @@ export function TrainingWorkspace() {
             module={activeModule}
             learnerName={learnerName}
             scenarioIndex={activeScenario["ar-collections"]}
+            onSelectScenario={(index) => selectScenario(activeModule, index)}
+            onComplete={(scenarioName, completionScore) =>
+              saveExplorationCompletion(
+                activeModule.title,
+                scenarioName,
+                completionScore,
+              )
+            }
+          />
+        ) : activeModule?.id === "denial-management" ? (
+          <ARCollectionsLab
+            key={`denial-${activeScenario["denial-management"]}`}
+            mode="denial"
+            module={activeModule}
+            learnerName={learnerName}
+            scenarioIndex={activeScenario["denial-management"]}
             onSelectScenario={(index) => selectScenario(activeModule, index)}
             onComplete={(scenarioName, completionScore) =>
               saveExplorationCompletion(
@@ -400,7 +421,7 @@ function Dashboard({
     <div className="dashboard-page page-enter">
       <section className="hero-panel">
         <div className="hero-copy">
-          <span className="section-kicker">One connected practice floor</span>
+          <span className="section-kicker">Revenue Cycle Back End practice floor</span>
           <h1>Train the decisions behind every dollar.</h1>
           <p>
             Move from payment evidence to payer recovery with realistic
@@ -458,7 +479,7 @@ function Dashboard({
             <h2>Choose the workflow to coach</h2>
           </div>
           <span className="section-caption">
-            {scenarioCount} cases · independent work + guided denials
+            {scenarioCount} cases · independent investigation and validation
           </span>
         </div>
         <div className="module-grid">

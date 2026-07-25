@@ -27,22 +27,22 @@ export async function generateMetadata(): Promise<Metadata> {
 
   return {
     metadataBase: base,
-    title: "Revenue Cycle Lab | Healthcare RCM Training",
+    title: "Revenue Cycle Back End Lab | Healthcare RCM Training",
     description:
-      "A hands-on fictional system simulator for payment posting, AR collections, and denial management.",
+      "A hands-on fictional back-end system simulator for payment posting, insurance follow-up, and denial management.",
     icons: {
       icon: "/og.png",
       shortcut: "/og.png",
     },
     openGraph: {
-      title: "Revenue Cycle Lab",
+      title: "Revenue Cycle Back End Lab",
       description: "Train every workflow. Coach every decision.",
       type: "website",
       images: [{ url: imageUrl, width: 1536, height: 1024 }],
     },
     twitter: {
       card: "summary_large_image",
-      title: "Revenue Cycle Lab",
+      title: "Revenue Cycle Back End Lab",
       description: "Train every workflow. Coach every decision.",
       images: [imageUrl],
     },

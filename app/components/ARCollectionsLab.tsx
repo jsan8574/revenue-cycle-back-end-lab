@@ -1,11 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import {
   arScenarios,
+  denialScenarios,
   resolutionActions,
   resolutionRoutes,
   type ArScenario,
+  type DenialScenario,
 } from "../data/exploration";
 import type { TrainingModule } from "../data/training";
 import { PdfExportCenter } from "./PdfExportCenter";
@@ -18,6 +20,7 @@ type ArDeskTab =
   | "investigate"
   | "reimbursement"
   | "resolve"
+  | "appeal"
   | "notation";
 
 type CalculatorState = {
@@ -38,6 +41,7 @@ const arTabs: { id: ArDeskTab; label: string }[] = [
   { id: "investigate", label: "Payer investigation" },
   { id: "reimbursement", label: "Reimbursement" },
   { id: "resolve", label: "Resolution" },
+  { id: "appeal", label: "Appeal workbench" },
   { id: "notation", label: "Notation" },
 ];
 
@@ -66,20 +70,71 @@ const numeric = (value: string) => {
 const closeEnough = (left: number, right: number) =>
   Math.abs(left - right) < 0.005;
 
+const trainingToday = new Date("2026-07-26T12:00:00");
+
+function getAgeDays(scenario: ArScenario) {
+  const match = scenario.claim.aging.match(/\d+/);
+  return match ? Number(match[0]) : 0;
+}
+
+function getDeadlineDays(scenario: ArScenario) {
+  const timestamp = Date.parse(scenario.claim.appealDeadline);
+  if (!Number.isFinite(timestamp)) return 180;
+  return Math.ceil((timestamp - trainingToday.getTime()) / 86400000);
+}
+
+function getPriorityScore(scenario: ArScenario) {
+  const balancePoints = Math.min(35, scenario.claim.openAr / 350);
+  const agePoints = Math.min(28, getAgeDays(scenario) / 3.5);
+  const deadlineDays = getDeadlineDays(scenario);
+  const deadlinePoints =
+    deadlineDays <= 7 ? 32 : deadlineDays <= 21 ? 24 : deadlineDays <= 45 ? 14 : 4;
+  const riskPoints =
+    scenario.priority === "High risk"
+      ? 12
+      : scenario.priority === "Priority"
+        ? 7
+        : 2;
+  return Math.round(balancePoints + agePoints + deadlinePoints + riskPoints);
+}
+
+function getPriorityReason(scenario: ArScenario) {
+  const reasons: string[] = [];
+  const age = getAgeDays(scenario);
+  const deadline = getDeadlineDays(scenario);
+  if (scenario.claim.openAr >= 5000) reasons.push("high balance");
+  else if (scenario.claim.openAr >= 2000) reasons.push("material balance");
+  if (age >= 90) reasons.push("aged 90+ days");
+  else if (age >= 60) reasons.push("aged 60+ days");
+  if (deadline <= 7) reasons.push("deadline within 7 days");
+  else if (deadline <= 21) reasons.push("deadline within 21 days");
+  else if (deadline <= 45) reasons.push("near-term filing risk");
+  return reasons.slice(0, 3).join(" · ") || "routine follow-up window";
+}
+
 export function ARCollectionsLab({
   module,
   learnerName,
   scenarioIndex,
   onSelectScenario,
   onComplete,
+  mode = "ar",
 }: {
   module: TrainingModule;
   learnerName: string;
   scenarioIndex: number;
   onSelectScenario: (index: number) => void;
   onComplete: (scenario: string, score: number) => void;
+  mode?: "ar" | "denial";
 }) {
-  const scenario = arScenarios[scenarioIndex];
+  const scenarioList: ArScenario[] =
+    mode === "denial" ? denialScenarios : arScenarios;
+  const scenario = scenarioList[scenarioIndex];
+  const denialScenario =
+    mode === "denial" ? (scenario as DenialScenario) : null;
+  const visibleTabs = arTabs.filter(
+    (item) => mode === "denial" || item.id !== "appeal",
+  );
   const [tab, setTab] = useState<ArDeskTab>("account");
   const [visited, setVisited] = useState<ArDeskTab[]>(["account"]);
   const [balanceReviewed, setBalanceReviewed] = useState(false);
@@ -110,6 +165,17 @@ export function ARCollectionsLab({
   const [actionValid, setActionValid] = useState(false);
   const [actionFeedback, setActionFeedback] = useState("");
   const [decisionAttempts, setDecisionAttempts] = useState(0);
+  const [appealDraft, setAppealDraft] = useState(() => ({
+    recipient: denialScenario?.appeal.recipient ?? "",
+    subject: denialScenario?.appeal.subject ?? "",
+    body: denialScenario?.appeal.template ?? "",
+  }));
+  const [appealMethod, setAppealMethod] = useState<"electronic" | "mail" | "">(
+    "",
+  );
+  const [appealAttachments, setAppealAttachments] = useState<string[]>([]);
+  const [appealSubmitted, setAppealSubmitted] = useState(false);
+  const [appealFeedback, setAppealFeedback] = useState("");
   const [notes, setNotes] = useState({
     source: "",
     representative: "",
@@ -123,6 +189,10 @@ export function ARCollectionsLab({
   const [closed, setClosed] = useState(false);
 
   const investigationComplete = portalOpened && callClosed;
+  const appealRequirementMet =
+    mode !== "denial" ||
+    !denialScenario?.appeal.required ||
+    appealSubmitted;
   const notesComplete =
     notes.source.length > 0 &&
     notes.representative.trim().length >= 2 &&
@@ -151,13 +221,25 @@ export function ARCollectionsLab({
       done: investigationComplete,
     },
     { label: "Choose and validate a resolution", done: actionValid },
+    ...(mode === "denial"
+      ? [
+          {
+            label: "Prepare the required denial response / appeal",
+            done: appealRequirementMet && actionValid,
+          },
+        ]
+      : []),
     { label: "Create notation: issue, findings, resolution", done: notesComplete },
     { label: "Post note in the system", done: notePosted },
   ];
 
   const completedCount = checklist.filter((item) => item.done).length;
   const canPostNote =
-    notesComplete && actionValid && reimbursementValid && investigationComplete;
+    notesComplete &&
+    actionValid &&
+    reimbursementValid &&
+    investigationComplete &&
+    appealRequirementMet;
 
   const openTab = (next: ArDeskTab) => {
     setTab(next);
@@ -233,6 +315,37 @@ export function ARCollectionsLab({
     setNotePosted(true);
   };
 
+  const submitAppealRequest = () => {
+    if (
+      !denialScenario ||
+      !appealMethod ||
+      appealDraft.recipient.trim().length < 4 ||
+      appealDraft.subject.trim().length < 8 ||
+      appealDraft.body.trim().length < 120
+    ) {
+      setAppealFeedback(
+        "Complete the recipient, subject, letter, and submission method before sending the request.",
+      );
+      return;
+    }
+    if (
+      denialScenario.appeal.required &&
+      appealAttachments.length !== denialScenario.appeal.attachments.length
+    ) {
+      setAppealFeedback(
+        "Confirm every required attachment before submitting the appeal request.",
+      );
+      return;
+    }
+    const reference = `${appealMethod === "electronic" ? "APL" : "MAIL"}-${scenario.id.replace("DM-", "")}-${appealMethod === "electronic" ? "26" : "48"}`;
+    setAppealSubmitted(true);
+    setAppealFeedback(
+      appealMethod === "electronic"
+        ? `Successful — the electronic appeal request was sent to ${denialScenario.appeal.electronicRoute}. Confirmation ${reference}.`
+        : `Successful — the mail submission request was created for ${denialScenario.appeal.mailingAddress}. Tracking task ${reference}.`,
+    );
+  };
+
   const closeAccount = () => {
     if (!notePosted || closed) return;
     const score = Math.max(74, 100 - decisionAttempts * 4);
@@ -252,18 +365,28 @@ export function ARCollectionsLab({
     >
       <section className="exploration-header">
         <div>
-          <span className="section-kicker">AR investigation desktop</span>
-          <h1>Work the account. Prove the next action.</h1>
+          <span className="section-kicker">
+            {mode === "denial"
+              ? "Denial investigation desktop"
+              : "AR Collections / Insurance Follow-up desktop"}
+          </span>
+          <h1>
+            {mode === "denial"
+              ? "Investigate the denial. Defend the recovery path."
+              : "Work the account. Prove the next action."}
+          </h1>
           <p>
-            Navigate a realistic patient account, develop the claim story,
-            calculate expected reimbursement, investigate with the payer, and
-            own the resolution.
+            {mode === "denial"
+              ? "Build the claim story from system evidence, confirm the denial and reimbursement impact, then correct, escalate, or appeal it."
+              : "Navigate a realistic patient account, develop the claim story, calculate expected reimbursement, investigate with the payer, and own the resolution."}
           </p>
         </div>
         <span className="mode-chip">Industry-ready mode</span>
       </section>
 
       <ArScenarioRail
+        scenarios={scenarioList}
+        mode={mode}
         selected={scenarioIndex}
         onSelect={onSelectScenario}
       />
@@ -276,7 +399,10 @@ export function ARCollectionsLab({
           {
             label: "Account investigation",
             description: "Claim facts, notes, transactions, and documents reviewed",
-            title: "AR Account Investigation",
+            title:
+              mode === "denial"
+                ? "Denial Account Investigation"
+                : "Insurance Follow-up Account Investigation",
             sections: [
               {
                 heading: "Account and claim",
@@ -308,9 +434,15 @@ export function ARCollectionsLab({
             ],
           },
           {
-            label: "Resolution worksheet",
-            description: "Reimbursement calculation and proposed next action",
-            title: "AR Resolution Worksheet",
+            label: mode === "denial" ? "Appeal & resolution" : "Resolution worksheet",
+            description:
+              mode === "denial"
+                ? "Reimbursement, denial action, and editable appeal package"
+                : "Reimbursement calculation and proposed next action",
+            title:
+              mode === "denial"
+                ? "Denial Resolution and Appeal Package"
+                : "Insurance Follow-up Resolution Worksheet",
             sections: [
               {
                 heading: "Expected reimbursement",
@@ -330,12 +462,32 @@ export function ARCollectionsLab({
                   `Rationale: ${decisionReason || "Not entered"}`,
                 ],
               },
+              ...(denialScenario
+                ? [
+                    {
+                      heading: "Appeal request",
+                      lines: [
+                        `Denial: ${denialScenario.denial.carc} / ${denialScenario.denial.rarc}`,
+                        `Recipient: ${appealDraft.recipient || "Not entered"}`,
+                        `Subject: ${appealDraft.subject || "Not entered"}`,
+                        `Method: ${appealMethod || "Not selected"}`,
+                        `Attachments: ${appealAttachments.length} of ${denialScenario.appeal.attachments.length} confirmed`,
+                        `Status: ${appealSubmitted ? "Submitted successfully" : "Draft"}`,
+                        "",
+                        appealDraft.body || "No appeal letter drafted",
+                      ],
+                    },
+                  ]
+                : []),
             ],
           },
           {
             label: "Final account note",
             description: "Issue, findings, resolution, and completion status",
-            title: "AR Completion Report",
+            title:
+              mode === "denial"
+                ? "Denial Management Completion Report"
+                : "Insurance Follow-up Completion Report",
             sections: [
               { heading: "Issue", lines: [notes.issue || "Not entered"] },
               {
@@ -355,7 +507,7 @@ export function ARCollectionsLab({
               {
                 heading: "Completion",
                 lines: [
-                  `Checklist: ${completedCount} of 9 complete`,
+                  `Checklist: ${completedCount} of ${checklist.length} complete`,
                   `Note status: ${notePosted ? "Posted" : "Draft"}`,
                   `Account status: ${closed ? "Completed" : "Open"}`,
                 ],
@@ -368,9 +520,15 @@ export function ARCollectionsLab({
       <section className="ar-system-frame">
         <header className="ar-system-titlebar">
           <div className="system-brand">
-            <span className="system-logo amber">AR</span>
+            <span className="system-logo amber">
+              {mode === "denial" ? "DM" : "AR"}
+            </span>
             <div>
-              <strong>Account Resolution Manager</strong>
+              <strong>
+                {mode === "denial"
+                  ? "Denial Resolution Manager"
+                  : "Insurance Follow-up Manager"}
+              </strong>
               <small>Practice tenant · {scenario.id}</small>
             </div>
           </div>
@@ -389,12 +547,22 @@ export function ARCollectionsLab({
         <div className="ar-system-body">
           <aside className="ar-checklist">
             <div className="checklist-heading">
-              <span className="system-kicker">Collection workflow</span>
+              <span className="system-kicker">
+                {mode === "denial"
+                  ? "Denial management workflow"
+                  : "Insurance follow-up workflow"}
+              </span>
               <h3>Account checklist</h3>
-              <p>{completedCount} of 9 complete</p>
+              <p>
+                {completedCount} of {checklist.length} complete
+              </p>
             </div>
             <div className="ar-checklist-progress">
-              <span style={{ width: `${(completedCount / 9) * 100}%` }} />
+              <span
+                style={{
+                  width: `${(completedCount / checklist.length) * 100}%`,
+                }}
+              />
             </div>
             <div className="ar-checklist-items">
               {checklist.map((item, index) => (
@@ -416,8 +584,15 @@ export function ARCollectionsLab({
           </aside>
 
           <div className="ar-workspace">
-            <nav className="ar-tabbar" aria-label="AR account areas">
-              {arTabs.map((item) => (
+            <nav
+              className="ar-tabbar"
+              aria-label={
+                mode === "denial"
+                  ? "Denial account areas"
+                  : "Insurance follow-up account areas"
+              }
+            >
+              {visibleTabs.map((item) => (
                 <button
                   type="button"
                   key={item.id}
@@ -498,6 +673,31 @@ export function ARCollectionsLab({
                   onValidate={validateAction}
                 />
               ) : null}
+              {tab === "appeal" && denialScenario ? (
+                <AppealView
+                  scenario={denialScenario}
+                  draft={appealDraft}
+                  method={appealMethod}
+                  attachments={appealAttachments}
+                  submitted={appealSubmitted}
+                  feedback={appealFeedback}
+                  onDraft={(key, value) =>
+                    setAppealDraft((current) => ({
+                      ...current,
+                      [key]: value,
+                    }))
+                  }
+                  onMethod={setAppealMethod}
+                  onAttachment={(attachment) =>
+                    setAppealAttachments((current) =>
+                      current.includes(attachment)
+                        ? current.filter((item) => item !== attachment)
+                        : [...current, attachment],
+                    )
+                  }
+                  onSubmit={submitAppealRequest}
+                />
+              ) : null}
               {tab === "notation" ? (
                 <NotationView
                   notes={notes}
@@ -520,39 +720,87 @@ export function ARCollectionsLab({
 }
 
 function ArScenarioRail({
+  scenarios,
+  mode,
   selected,
   onSelect,
 }: {
+  scenarios: ArScenario[];
+  mode: "ar" | "denial";
   selected: number;
   onSelect: (index: number) => void;
 }) {
+  const ranked = scenarios
+    .map((scenario, originalIndex) => ({
+      scenario,
+      originalIndex,
+      score: getPriorityScore(scenario),
+    }))
+    .sort((left, right) => right.score - left.score);
+
   return (
-    <section className="scenario-rail exploration-scenarios" aria-label="AR scenarios">
-      {arScenarios.map((item, index) => (
-        <button
-          key={item.id}
-          className={
-            index === selected
-              ? "scenario-card scenario-card-active"
-              : "scenario-card"
-          }
-          onClick={() => onSelect(index)}
-          type="button"
-        >
-          <span className="scenario-number">0{index + 1}</span>
-          <span className="scenario-card-copy">
-            <strong>{item.title}</strong>
-            <small>{item.subtitle}</small>
-          </span>
-          <span
-            className={`priority-tag priority-${item.priority
-              .toLowerCase()
-              .replace(" ", "-")}`}
+    <section className="priority-queue-panel">
+      <div className="priority-queue-heading">
+        <div>
+          <span className="section-kicker">Prioritization activity</span>
+          <h2>
+            {mode === "denial"
+              ? "Denial priority queue"
+              : "Insurance Follow-up priority queue"}
+          </h2>
+          <p>
+            Worklist rank weighs open balance, account age, filing or appeal
+            deadline, and operational risk. The underlying issue stays hidden.
+          </p>
+        </div>
+        <div className="priority-legend">
+          <span>Balance</span>
+          <span>Age</span>
+          <span>Deadline</span>
+          <span>Risk</span>
+        </div>
+      </div>
+      <div
+        className="scenario-rail exploration-scenarios"
+        aria-label={
+          mode === "denial"
+            ? "Ranked denial scenarios"
+            : "Ranked insurance follow-up scenarios"
+        }
+      >
+        {ranked.map(({ scenario: item, originalIndex, score }, rank) => (
+          <button
+            key={item.id}
+            className={
+              originalIndex === selected
+                ? "scenario-card scenario-card-active"
+                : "scenario-card"
+            }
+            onClick={() => onSelect(originalIndex)}
+            type="button"
           >
-            {item.priority} · {item.status}
-          </span>
-        </button>
-      ))}
+            <span className="scenario-number">#{rank + 1}</span>
+            <span className="scenario-card-copy">
+              <strong>{item.title}</strong>
+              <small>{item.subtitle}</small>
+              <small className="priority-reason">
+                {getPriorityReason(item)}
+              </small>
+            </span>
+            <span className="queue-score">
+              <strong>{score}</strong>
+              <small>priority score</small>
+            </span>
+            <span
+              className={`priority-tag priority-${item.priority
+                .toLowerCase()
+                .replace(" ", "-")}`}
+            >
+              {item.claim.aging} · {money(item.claim.openAr)}
+            </span>
+          </button>
+        ))}
+      </div>
     </section>
   );
 }
@@ -1455,6 +1703,155 @@ function ResolutionView({
           {feedback ||
             "The simulator will validate the action and destination only after you commit your rationale."}
         </p>
+      </aside>
+    </div>
+  );
+}
+
+function AppealView({
+  scenario,
+  draft,
+  method,
+  attachments,
+  submitted,
+  feedback,
+  onDraft,
+  onMethod,
+  onAttachment,
+  onSubmit,
+}: {
+  scenario: DenialScenario;
+  draft: { recipient: string; subject: string; body: string };
+  method: "electronic" | "mail" | "";
+  attachments: string[];
+  submitted: boolean;
+  feedback: string;
+  onDraft: (key: "recipient" | "subject" | "body", value: string) => void;
+  onMethod: (value: "electronic" | "mail") => void;
+  onAttachment: (attachment: string) => void;
+  onSubmit: () => void;
+}) {
+  return (
+    <div className="appeal-workbench">
+      <section className="appeal-editor-panel">
+        <div className="system-section-heading">
+          <div>
+            <span className="system-kicker">Editable appeal letter</span>
+            <h3>Build the argument from the account evidence</h3>
+            <p>
+              The template is a starting point. Edit it so the request,
+              evidence, dates, and claim identifiers support this account.
+            </p>
+          </div>
+          <span className={scenario.appeal.required ? "deadline-badge urgent" : "deadline-badge"}>
+            {scenario.appeal.required ? "Appeal indicated" : "Confirm the correct first action"}
+          </span>
+        </div>
+
+        <div className="denial-fact-strip">
+          <div>
+            <span>CARC / RARC</span>
+            <strong>
+              {scenario.denial.carc} · {scenario.denial.rarc}
+            </strong>
+          </div>
+          <div>
+            <span>Denied amount</span>
+            <strong>{money(scenario.denial.deniedAmount)}</strong>
+          </div>
+          <div>
+            <span>Submission deadline</span>
+            <strong>{scenario.denial.deadline}</strong>
+          </div>
+        </div>
+
+        <label>
+          <span>Appeal recipient</span>
+          <input
+            value={draft.recipient}
+            onChange={(event) => onDraft("recipient", event.target.value)}
+          />
+        </label>
+        <label>
+          <span>Subject / claim reference</span>
+          <input
+            value={draft.subject}
+            onChange={(event) => onDraft("subject", event.target.value)}
+          />
+        </label>
+        <label>
+          <span>Appeal letter</span>
+          <textarea
+            className="appeal-letter-textarea"
+            value={draft.body}
+            onChange={(event) => onDraft("body", event.target.value)}
+          />
+        </label>
+      </section>
+
+      <aside className="appeal-submission-panel">
+        <span className="system-kicker">Submission request</span>
+        <h3>Choose the delivery channel</h3>
+        <p>
+          Confirm the payer destination and include every document named in the
+          appeal.
+        </p>
+
+        <div className="submission-methods">
+          <button
+            type="button"
+            className={method === "electronic" ? "selected" : ""}
+            onClick={() => onMethod("electronic")}
+          >
+            <span>Electronic</span>
+            <strong>{scenario.appeal.electronicRoute}</strong>
+          </button>
+          <button
+            type="button"
+            className={method === "mail" ? "selected" : ""}
+            onClick={() => onMethod("mail")}
+          >
+            <span>Mail</span>
+            <strong>{scenario.appeal.mailingAddress}</strong>
+          </button>
+        </div>
+
+        <div className="appeal-attachments">
+          <strong>Attachment checklist</strong>
+          {scenario.appeal.attachments.map((attachment) => (
+            <label key={attachment}>
+              <input
+                type="checkbox"
+                checked={attachments.includes(attachment)}
+                onChange={() => onAttachment(attachment)}
+              />
+              <span>{attachment}</span>
+            </label>
+          ))}
+        </div>
+
+        <button
+          type="button"
+          className="system-primary-button"
+          disabled={submitted}
+          onClick={onSubmit}
+        >
+          {submitted ? "Submission request sent ✓" : "Send submission request"}
+        </button>
+
+        {feedback ? (
+          <div
+            className={
+              submitted
+                ? "appeal-submission-feedback success"
+                : "appeal-submission-feedback"
+            }
+            role="status"
+          >
+            <strong>{submitted ? "Successful" : "Review required"}</strong>
+            <p>{feedback}</p>
+          </div>
+        ) : null}
       </aside>
     </div>
   );

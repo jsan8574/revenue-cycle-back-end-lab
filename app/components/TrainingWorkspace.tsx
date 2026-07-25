@@ -30,10 +30,6 @@ const navItems: { id: Screen; label: string; marker: string }[] = [
   { id: "denial-management", label: "Denial Management", marker: "DM" },
 ];
 
-const workspaceModules = modules.filter(
-  (module) => module.id !== "patient-collections",
-);
-
 const coachCriteria = [
   "Accurate workflow",
   "Clear rationale",
@@ -64,7 +60,6 @@ function moduleInitial(module: TrainingModule) {
 export function TrainingWorkspace() {
   const [screen, setScreen] = useState<Screen>("dashboard");
   const [activeScenario, setActiveScenario] = useState<Record<ModuleId, number>>({
-    "patient-collections": 0,
     "payment-posting": 0,
     "ar-collections": 0,
     "denial-management": 0,
@@ -87,7 +82,7 @@ export function TrainingWorkspace() {
     : defaultProgress();
   const score = calculateScore(progress);
 
-  const scenarioCount = workspaceModules.reduce(
+  const scenarioCount = modules.reduce(
     (count, module) => count + module.scenarios.length,
     0,
   );
@@ -387,7 +382,7 @@ function Dashboard({
           </span>
         </div>
         <div className="module-grid">
-          {workspaceModules.map((module, index) => (
+          {modules.map((module, index) => (
             <article
               className="module-card"
               key={module.id}

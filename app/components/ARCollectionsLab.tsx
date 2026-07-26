@@ -70,6 +70,47 @@ const numeric = (value: string) => {
 const closeEnough = (left: number, right: number) =>
   Math.abs(left - right) < 0.005;
 
+const canonicalText = (value: string) =>
+  value.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+const canonicalDate = (value: string) => {
+  const parsed = Date.parse(value);
+  if (Number.isFinite(parsed)) {
+    return new Date(parsed).toISOString().slice(0, 10);
+  }
+  return value.replace(/\D/g, "");
+};
+
+const samePatientName = (entered: string, expected: string) => {
+  const enteredTokens = entered
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean)
+    .sort();
+  const expectedTokens = expected
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean)
+    .sort();
+  return (
+    enteredTokens.length > 0 &&
+    enteredTokens.join("") === expectedTokens.join("")
+  );
+};
+
+const dateBefore = (value: string, days: number) => {
+  const parsed = Date.parse(value);
+  if (!Number.isFinite(parsed)) return value;
+  const date = new Date(parsed);
+  date.setUTCDate(date.getUTCDate() - days);
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(date);
+};
+
 const trainingToday = new Date("2026-07-26T12:00:00");
 
 function getAgeDays(scenario: ArScenario) {
@@ -250,26 +291,42 @@ export function ARCollectionsLab({
   };
 
   const authenticatePortal = () => {
-    const normalize = (value: string) =>
-      value.toLowerCase().replace(/[^a-z0-9]/g, "");
-    const providerEntered = normalize(portalCredentials.providerId);
+    const providerEntered = canonicalText(portalCredentials.providerId);
     const patientMatch =
-      normalize(portalCredentials.patientName) ===
-      normalize(scenario.patient.name);
+      samePatientName(
+        portalCredentials.patientName,
+        scenario.patient.name,
+      ) ||
+      canonicalText(portalCredentials.patientName) ===
+        canonicalText(scenario.patient.name);
     const memberMatch =
-      normalize(portalCredentials.memberId) ===
-      normalize(scenario.patient.memberId);
+      canonicalText(portalCredentials.memberId) ===
+      canonicalText(scenario.patient.memberId);
+    const providerMatch =
+      providerEntered === canonicalText(scenario.patient.providerNpi) ||
+      providerEntered === canonicalText(scenario.patient.providerTaxId);
+    const dobMatch =
+      canonicalDate(portalCredentials.dob) ===
+      canonicalDate(scenario.patient.dob);
+    const dosMatch =
+      canonicalDate(portalCredentials.dos) ===
+      canonicalDate(scenario.patient.dos);
     const correct =
       (patientMatch || memberMatch) &&
-      (providerEntered === normalize(scenario.patient.providerNpi) ||
-        providerEntered === normalize(scenario.patient.providerTaxId)) &&
-      normalize(portalCredentials.dob) === normalize(scenario.patient.dob) &&
-      normalize(portalCredentials.dos) === normalize(scenario.patient.dos);
+      providerMatch &&
+      dobMatch &&
+      dosMatch;
     setPortalOpened(correct);
     setPortalFeedback(
       correct
         ? "Claim located. The adjudication detail is available below."
-        : "Claim not found. Verify the patient name or member ID, provider NPI or tax ID, patient DOB, and date of service.",
+        : !patientMatch && !memberMatch
+          ? "Patient not found. Enter either the patient name or member ID from the account. Spaces, dashes, and capitalization do not matter."
+          : !providerMatch
+            ? "Patient found, but the provider identifier does not match. Verify the billing NPI or tax ID from the Account tab."
+            : !dobMatch || !dosMatch
+              ? "Patient found, but no claim matches the selected birth date and date of service."
+              : "Claim not found. Review the account identifiers and try again.",
     );
   };
 
@@ -997,6 +1054,15 @@ function DocumentsView({ scenario }: { scenario: ArScenario }) {
   const [selectedDocument, setSelectedDocument] = useState(0);
   const supplementalLetters = [
     {
+      type: "Electronic eligibility response",
+      date: dateBefore(scenario.patient.dos, 14),
+      reference: `271-${scenario.patient.account}`,
+      summary:
+        "Initial electronic eligibility and benefits verification completed before the date of service.",
+      codes: "270/271 · Active coverage · Benefits returned",
+      body: `An electronic 270 eligibility inquiry was submitted for ${scenario.patient.name}. The payer 271 response confirmed ${scenario.patient.plan} coverage as ${scenario.insurance.termination.toLowerCase()}, ${scenario.insurance.network.toLowerCase()} participation, and ${scenario.insurance.coordination.toLowerCase()} order for the requested service period. Benefit verification is not a guarantee of payment; claim processing remains subject to authorization, medical necessity, coding, contract, and plan rules.`,
+    },
+    {
       type: "Payer determination letter",
       date: scenario.portal.finalized,
       reference: `LTR-${scenario.portal.icn}`,
@@ -1020,6 +1086,9 @@ function DocumentsView({ scenario }: { scenario: ArScenario }) {
   const isEob =
     document.type.toLowerCase().includes("eob") ||
     document.type.toLowerCase().includes("era");
+  const isEligibility = document.type
+    .toLowerCase()
+    .includes("eligibility");
 
   return (
     <div className="ar-section">
@@ -1050,7 +1119,13 @@ function DocumentsView({ scenario }: { scenario: ArScenario }) {
               onClick={() => setSelectedDocument(index)}
             >
               <span className="document-type-icon" aria-hidden="true">
-                {item.type.toLowerCase().includes("letter") ? "LTR" : isDocumentEob(item.type) ? "EOB" : "DOC"}
+                {item.type.toLowerCase().includes("eligibility")
+                  ? "ELG"
+                  : item.type.toLowerCase().includes("letter")
+                    ? "LTR"
+                    : isDocumentEob(item.type)
+                      ? "EOB"
+                      : "DOC"}
               </span>
               <div className="document-list-copy">
                 <div>
@@ -1076,7 +1151,13 @@ function DocumentsView({ scenario }: { scenario: ArScenario }) {
                 {isEob ? scenario.patient.payer : document.type}
               </div>
               <div>
-                <span>{isEob ? "Explanation of Benefits" : "Correspondence"}</span>
+                <span>
+                  {isEob
+                    ? "Explanation of Benefits"
+                    : isEligibility
+                      ? "Electronic Eligibility & Benefits Response"
+                      : "Correspondence"}
+                </span>
                 <strong>{document.date}</strong>
               </div>
             </header>
@@ -1151,6 +1232,47 @@ function DocumentsView({ scenario }: { scenario: ArScenario }) {
                   </tbody>
                 </table>
               </>
+            ) : isEligibility ? (
+              <div className="eligibility-response-sheet">
+                <div className="eligibility-status-banner">
+                  <span>Coverage status</span>
+                  <strong>Active coverage returned</strong>
+                  <small>Electronic transaction: X12 270/271</small>
+                </div>
+                <dl>
+                  <div>
+                    <dt>Member / insurance ID</dt>
+                    <dd>{scenario.patient.memberId}</dd>
+                  </div>
+                  <div>
+                    <dt>Health plan</dt>
+                    <dd>{scenario.patient.plan}</dd>
+                  </div>
+                  <div>
+                    <dt>Eligibility period</dt>
+                    <dd>
+                      {scenario.insurance.effective} through{" "}
+                      {scenario.insurance.termination}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Network</dt>
+                    <dd>{scenario.insurance.network}</dd>
+                  </div>
+                  <div>
+                    <dt>Coordination of benefits</dt>
+                    <dd>{scenario.insurance.coordination}</dd>
+                  </div>
+                  <div>
+                    <dt>Requested service date</dt>
+                    <dd>{scenario.patient.dos}</dd>
+                  </div>
+                </dl>
+                <div className="eligibility-disclaimer">
+                  <strong>Electronic response detail</strong>
+                  <p>{document.body}</p>
+                </div>
+              </div>
             ) : (
               <div className="pdf-letter-body">
                 <p className="letter-date">{document.date}</p>
@@ -1172,7 +1294,7 @@ function DocumentsView({ scenario }: { scenario: ArScenario }) {
                 <p>{document.body}</p>
                 <strong>{document.codes}</strong>
               </div>
-            ) : (
+            ) : isEligibility ? null : (
               <div className="pdf-document-explanation letter-record-detail">
                 <span>Document classification</span>
                 <strong>{document.codes}</strong>
@@ -1258,6 +1380,10 @@ function CoverageView({ scenario }: { scenario: ArScenario }) {
         <span className="system-kicker">Insurance record</span>
         <h3>{scenario.patient.plan}</h3>
         <dl>
+          <dt>Payer</dt>
+          <dd>{scenario.patient.payer}</dd>
+          <dt>Member / insurance ID</dt>
+          <dd>{scenario.patient.memberId}</dd>
           <dt>Effective</dt>
           <dd>{scenario.insurance.effective}</dd>
           <dt>Termination / status</dt>
@@ -1419,21 +1545,21 @@ function InvestigationView({
             <label>
               <span>Patient DOB</span>
               <input
+                type="date"
                 value={portalCredentials.dob}
                 onChange={(event) =>
                   onPortalCredential("dob", event.target.value)
                 }
-                placeholder="MM/DD/YYYY or written date"
               />
             </label>
             <label>
               <span>Date of service</span>
               <input
+                type="date"
                 value={portalCredentials.dos}
                 onChange={(event) =>
                   onPortalCredential("dos", event.target.value)
                 }
-                placeholder="Service date"
               />
             </label>
           </div>
@@ -2109,11 +2235,11 @@ function NotationView({
             />
           </label>
           <label>
-            <span>Follow-up date / timeframe</span>
+            <span>Follow-up date</span>
             <input
+              type="date"
               value={notes.followUp}
               onChange={(event) => onChange("followUp", event.target.value)}
-              placeholder="Date or payer turnaround"
             />
           </label>
         </div>

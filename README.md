@@ -21,7 +21,8 @@ ranked priority queue, a nine-step investigation checklist, realistic billing
 history, prior-agent notes, a compact document center with PDF-style EOBs,
 claim records and relevant payer/provider letters, detailed
 transactions, related accounts, insurance and authorization records,
-patient-name or member-ID payer website research, full provider identifiers, a
+an initial electronic 270/271 eligibility response, patient-name or member-ID
+payer website research with punctuation-tolerant matching, full provider identifiers, a
 complete payer-call flow, claim-service contract reimbursement calculation,
 resolution routing, and structured
 issue/findings/resolution notation.

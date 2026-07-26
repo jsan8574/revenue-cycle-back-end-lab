@@ -70,11 +70,46 @@ const canonicalText = (value: string) =>
   value.toLowerCase().replace(/[^a-z0-9]/g, "");
 
 const canonicalDate = (value: string) => {
-  const parsed = Date.parse(value);
-  if (Number.isFinite(parsed)) {
-    return new Date(parsed).toISOString().slice(0, 10);
+  const normalized = value.trim().toLowerCase();
+  const pad = (part: string | number) => String(part).padStart(2, "0");
+  const isoMatch = normalized.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (isoMatch) {
+    return `${isoMatch[1]}-${pad(isoMatch[2])}-${pad(isoMatch[3])}`;
   }
-  return value.replace(/\D/g, "");
+
+  const numericMatch = normalized.match(
+    /^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/,
+  );
+  if (numericMatch) {
+    return `${numericMatch[3]}-${pad(numericMatch[1])}-${pad(
+      numericMatch[2],
+    )}`;
+  }
+
+  const monthNumbers: Record<string, number> = {
+    jan: 1,
+    feb: 2,
+    mar: 3,
+    apr: 4,
+    may: 5,
+    jun: 6,
+    jul: 7,
+    aug: 8,
+    sep: 9,
+    oct: 10,
+    nov: 11,
+    dec: 12,
+  };
+  const namedMatch = normalized.match(
+    /^([a-z]{3})[a-z]*\s+(\d{1,2}),?\s+(\d{4})$/,
+  );
+  if (namedMatch && monthNumbers[namedMatch[1]]) {
+    return `${namedMatch[3]}-${pad(monthNumbers[namedMatch[1]])}-${pad(
+      namedMatch[2],
+    )}`;
+  }
+
+  return normalized.replace(/\s+/g, "");
 };
 
 const samePatientName = (entered: string, expected: string) => {

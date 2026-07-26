@@ -31,10 +31,28 @@ type CalculatorState = {
   actualPayment: string;
 };
 
+type AccountNoteFields = {
+  source: string;
+  representative: string;
+  reference: string;
+  followUp: string;
+  issue: string;
+  findings: string;
+  resolution: string;
+};
+
+type PostedAccountNote = AccountNoteFields & {
+  author: string;
+  date: string;
+  department: string;
+};
+
+type AccountHistoryFilter = "all" | "billing" | "financial" | "notes";
+
 const arTabs: { id: ArDeskTab; label: string }[] = [
   { id: "account", label: "Account" },
   { id: "eobs", label: "EOBs & correspondence" },
-  { id: "transactions", label: "Transactions" },
+  { id: "transactions", label: "Account notes" },
   { id: "coverage", label: "Insurance" },
   { id: "investigate", label: "Payer investigation" },
   { id: "reimbursement", label: "Reimbursement" },
@@ -380,7 +398,7 @@ export function ARCollectionsLab({
   const [appealAttachments, setAppealAttachments] = useState<string[]>([]);
   const [appealSubmitted, setAppealSubmitted] = useState(false);
   const [appealFeedback, setAppealFeedback] = useState("");
-  const [notes, setNotes] = useState({
+  const [notes, setNotes] = useState<AccountNoteFields>({
     source: "",
     representative: "",
     reference: "",
@@ -389,6 +407,9 @@ export function ARCollectionsLab({
     findings: "",
     resolution: "",
   });
+  const [postedAccountNotes, setPostedAccountNotes] = useState<
+    PostedAccountNote[]
+  >([]);
   const [notePosted, setNotePosted] = useState(false);
   const [closed, setClosed] = useState(false);
 
@@ -417,7 +438,7 @@ export function ARCollectionsLab({
       done: reimbursementValid,
     },
     {
-      label: "Review previous transactions & related accounts",
+      label: "Review billing history, transactions & collector notes",
       done: visited.includes("transactions"),
     },
     {
@@ -526,17 +547,29 @@ export function ARCollectionsLab({
     const correct =
       selectedAction === scenario.expected.action &&
       (!routeRequired || selectedRoute === scenario.expected.route) &&
-      decisionReason.trim().length >= 20;
+      (!routeRequired || decisionReason.trim().length >= 20);
     setActionValid(correct);
     setActionFeedback(
       correct
         ? `Decision supported. ${scenario.expected.rationale}`
-        : "The action, request note, or required internal destination is not fully supported. Revisit the account evidence and deadlines before trying again.",
+        : routeRequired
+          ? "The task or escalation, request note, or internal destination is not fully supported. Revisit the account evidence and deadlines before trying again."
+          : "The selected action is not fully supported. Revisit the account evidence and deadlines before trying again.",
     );
   };
 
   const postNote = () => {
     if (!canPostNote || notePosted) return;
+    setPostedAccountNotes((current) => [
+      ...current,
+      {
+        ...notes,
+        author: learnerName,
+        date: "Jul 26, 2026 · Posted this session",
+        department:
+          mode === "denial" ? "Denial Management" : "Insurance Follow-up",
+      },
+    ]);
     setNotePosted(true);
   };
 
@@ -616,132 +649,6 @@ export function ARCollectionsLab({
         onSelect={onSelectScenario}
       />
 
-      <PdfExportCenter
-        learnerName={learnerName}
-        moduleName={module.title}
-        scenarioName={`${scenario.id} · ${scenario.title}`}
-        reports={[
-          {
-            label: "Account investigation",
-            description: "Claim facts, notes, transactions, and documents reviewed",
-            title:
-              mode === "denial"
-                ? "Denial Account Investigation"
-                : "Insurance Follow-up Account Investigation",
-            sections: [
-              {
-                heading: "Account and claim",
-                lines: [
-                  `${scenario.patient.name} · ${scenario.patient.account}`,
-                  `Member ID: ${scenario.patient.memberId}`,
-                  `DOS: ${scenario.patient.dos}`,
-                  `Claim: ${scenario.claim.claimId}`,
-                  `Billed: ${money(scenario.claim.billed)}`,
-                  `Open insurance AR: ${money(scenario.claim.openAr)}`,
-                ],
-              },
-              {
-                heading: "Previous account notes",
-                lines: scenario.previousNotes.map(
-                  (note) =>
-                    `${note.date} · ${note.author} (${note.department}): ${note.note}`,
-                ),
-              },
-              {
-                heading: "Investigation status",
-                lines: [
-                  `Portal claim detail: ${portalOpened ? "Reviewed" : "Not reviewed"}`,
-                  `Payer call: ${callClosed ? "Closed" : "Not completed"}`,
-                  `Documents reviewed: ${visited.includes("eobs") ? "Yes" : "No"}`,
-                  `Transactions reviewed: ${visited.includes("transactions") ? "Yes" : "No"}`,
-                ],
-              },
-            ],
-          },
-          {
-            label: mode === "denial" ? "Appeal & resolution" : "Resolution worksheet",
-            description:
-              mode === "denial"
-                ? "Reimbursement, denial action, and editable appeal package"
-                : "Reimbursement calculation and proposed next action",
-            title:
-              mode === "denial"
-                ? "Denial Resolution and Appeal Package"
-                : "Insurance Follow-up Resolution Worksheet",
-            sections: [
-              {
-                heading: "Expected reimbursement",
-                lines: [
-                  `Contract method: ${contractMethodLabel(scenario)}`,
-                  `Expected allowed: ${calculation ? money(calculation.allowed) : "Not calculated"}`,
-                  `Expected payment: ${calculation ? money(calculation.payment) : "Not calculated"}`,
-                  `Variance: ${calculation ? money(calculation.variance) : "Not calculated"}`,
-                  `Validation: ${reimbursementValid ? "Passed" : "Not passed"}`,
-                ],
-              },
-              {
-                heading: "Resolution decision",
-                lines: [
-                  `Action: ${selectedAction || "Not selected"}`,
-                  `Route: ${selectedAction === "send-task" ? selectedRoute || "Not selected" : "Not required"}`,
-                  `Request note: ${decisionReason || "Not entered"}`,
-                ],
-              },
-              ...(denialScenario
-                ? [
-                    {
-                      heading: "Appeal request",
-                      lines: [
-                        `Denial: ${denialScenario.denial.carc} / ${denialScenario.denial.rarc}`,
-                        `Recipient: ${appealDraft.recipient || "Not entered"}`,
-                        `Subject: ${appealDraft.subject || "Not entered"}`,
-                        `Method: ${appealMethod || "Not selected"}`,
-                        `Attachments: ${appealAttachments.length} of ${denialScenario.appeal.attachments.length} confirmed`,
-                        `Status: ${appealSubmitted ? "Submitted successfully" : "Draft"}`,
-                        "",
-                        appealDraft.body || "No appeal letter drafted",
-                      ],
-                    },
-                  ]
-                : []),
-            ],
-          },
-          {
-            label: "Final account note",
-            description: "Issue, findings, resolution, and completion status",
-            title:
-              mode === "denial"
-                ? "Denial Management Completion Report"
-                : "Insurance Follow-up Completion Report",
-            sections: [
-              { heading: "Issue", lines: [notes.issue || "Not entered"] },
-              {
-                heading: "Status source and payer contact",
-                lines: [
-                  `Source: ${notes.source || "Not entered"}`,
-                  `Representative: ${notes.representative || "Not entered"}`,
-                  `Reference: ${notes.reference || "Not entered"}`,
-                  `Follow-up: ${notes.followUp || "Not entered"}`,
-                ],
-              },
-              { heading: "Findings", lines: [notes.findings || "Not entered"] },
-              {
-                heading: "Resolution",
-                lines: [notes.resolution || "Not entered"],
-              },
-              {
-                heading: "Completion",
-                lines: [
-                  `Checklist: ${completedCount} of ${checklist.length} complete`,
-                  `Note status: ${notePosted ? "Posted" : "Draft"}`,
-                  `Account status: ${closed ? "Completed" : "Open"}`,
-                ],
-              },
-            ],
-          },
-        ]}
-      />
-
       <section className="ar-system-frame">
         <header className="ar-system-titlebar">
           <div className="system-brand">
@@ -768,6 +675,8 @@ export function ARCollectionsLab({
             <strong>{scenario.amount}</strong>
           </div>
         </header>
+
+        <AccountReferenceStrip scenario={scenario} />
 
         <div className="ar-system-body">
           <aside className="ar-checklist">
@@ -842,7 +751,10 @@ export function ARCollectionsLab({
               ) : null}
               {tab === "eobs" ? <DocumentsView scenario={scenario} /> : null}
               {tab === "transactions" ? (
-                <TransactionsView scenario={scenario} />
+                <AccountNotesView
+                  scenario={scenario}
+                  postedNotes={postedAccountNotes}
+                />
               ) : null}
               {tab === "coverage" ? <CoverageView scenario={scenario} /> : null}
               {tab === "investigate" ? (
@@ -895,7 +807,10 @@ export function ARCollectionsLab({
                     valid={actionValid}
                     onAction={(value) => {
                       setSelectedAction(value);
-                      if (value !== "send-task") setSelectedRoute("");
+                      if (value !== "send-task") {
+                        setSelectedRoute("");
+                        setDecisionReason("");
+                      }
                     }}
                     onRoute={setSelectedRoute}
                     onReason={setDecisionReason}
@@ -943,6 +858,144 @@ export function ARCollectionsLab({
           </div>
         </div>
       </section>
+
+      <PdfExportCenter
+        learnerName={learnerName}
+        moduleName={module.title}
+        scenarioName={`${scenario.id} · ${scenario.title}`}
+        reports={[
+          {
+            label: "Account investigation",
+            description:
+              "Claim facts, account history, notes, transactions, and documents reviewed",
+            title:
+              mode === "denial"
+                ? "Denial Account Investigation"
+                : "Insurance Follow-up Account Investigation",
+            sections: [
+              {
+                heading: "Patient, provider, and claim",
+                lines: [
+                  `${scenario.patient.name} · ${scenario.patient.account}`,
+                  `DOB: ${scenario.patient.dob}`,
+                  `Member ID: ${scenario.patient.memberId}`,
+                  `DOS: ${scenario.patient.dos}`,
+                  `Provider: ${scenario.patient.provider}`,
+                  `NPI: ${scenario.patient.providerNpi}`,
+                  `TIN: ${scenario.patient.providerTaxId}`,
+                  `Claim: ${scenario.claim.claimId}`,
+                  `Billed: ${money(scenario.claim.billed)}`,
+                  `Open insurance AR: ${money(scenario.claim.openAr)}`,
+                ],
+              },
+              {
+                heading: "Account notes",
+                lines: [
+                  ...scenario.previousNotes.map(
+                    (note) =>
+                      `${note.date} · ${note.author} (${note.department}): ${note.note}`,
+                  ),
+                  ...postedAccountNotes.map(
+                    (note) =>
+                      `${note.date} · ${note.author} (${note.department}): Issue — ${note.issue} Findings — ${note.findings} Resolution — ${note.resolution}`,
+                  ),
+                ],
+              },
+              {
+                heading: "Investigation status",
+                lines: [
+                  `Portal claim detail: ${portalOpened ? "Reviewed" : "Not reviewed"}`,
+                  `Payer call: ${callClosed ? "Closed" : "Not completed"}`,
+                  `Documents reviewed: ${visited.includes("eobs") ? "Yes" : "No"}`,
+                  `Account history reviewed: ${visited.includes("transactions") ? "Yes" : "No"}`,
+                ],
+              },
+            ],
+          },
+          {
+            label:
+              mode === "denial" ? "Appeal & resolution" : "Resolution worksheet",
+            description:
+              mode === "denial"
+                ? "Reimbursement, denial action, and editable appeal package"
+                : "Reimbursement calculation and proposed next action",
+            title:
+              mode === "denial"
+                ? "Denial Resolution and Appeal Package"
+                : "Insurance Follow-up Resolution Worksheet",
+            sections: [
+              {
+                heading: "Expected reimbursement",
+                lines: [
+                  `Contract method: ${contractMethodLabel(scenario)}`,
+                  `Expected allowed: ${calculation ? money(calculation.allowed) : "Not calculated"}`,
+                  `Expected payment: ${calculation ? money(calculation.payment) : "Not calculated"}`,
+                  `Variance: ${calculation ? money(calculation.variance) : "Not calculated"}`,
+                  `Validation: ${reimbursementValid ? "Passed" : "Not passed"}`,
+                ],
+              },
+              {
+                heading: "Resolution decision",
+                lines: [
+                  `Action: ${selectedAction || "Not selected"}`,
+                  `Route: ${selectedAction === "send-task" ? selectedRoute || "Not selected" : "Not required"}`,
+                  `Request note: ${selectedAction === "send-task" ? decisionReason || "Not entered" : "Not required"}`,
+                ],
+              },
+              ...(denialScenario
+                ? [
+                    {
+                      heading: "Appeal request",
+                      lines: [
+                        `Denial: ${denialScenario.denial.carc} / ${denialScenario.denial.rarc}`,
+                        `Recipient: ${appealDraft.recipient || "Not entered"}`,
+                        `Subject: ${appealDraft.subject || "Not entered"}`,
+                        `Method: ${appealMethod || "Not selected"}`,
+                        `Attachments: ${appealAttachments.length} of ${denialScenario.appeal.attachments.length} confirmed`,
+                        `Status: ${appealSubmitted ? "Submitted successfully" : "Draft"}`,
+                        "",
+                        appealDraft.body || "No appeal letter drafted",
+                      ],
+                    },
+                  ]
+                : []),
+            ],
+          },
+          {
+            label: "Final account note",
+            description: "Issue, findings, resolution, and completion status",
+            title:
+              mode === "denial"
+                ? "Denial Management Completion Report"
+                : "Insurance Follow-up Completion Report",
+            sections: [
+              { heading: "Issue", lines: [notes.issue || "Not entered"] },
+              {
+                heading: "Status source and payer contact",
+                lines: [
+                  `Source: ${notes.source || "Not entered"}`,
+                  `Representative: ${notes.representative || "Not entered"}`,
+                  `Reference: ${notes.reference || "Not entered"}`,
+                  `Follow-up: ${notes.followUp || "Not entered"}`,
+                ],
+              },
+              { heading: "Findings", lines: [notes.findings || "Not entered"] },
+              {
+                heading: "Resolution",
+                lines: [notes.resolution || "Not entered"],
+              },
+              {
+                heading: "Completion",
+                lines: [
+                  `Checklist: ${completedCount} of ${checklist.length} complete`,
+                  `Note status: ${notePosted ? "Posted" : "Draft"}`,
+                  `Account status: ${closed ? "Completed" : "Open"}`,
+                ],
+              },
+            ],
+          },
+        ]}
+      />
     </div>
   );
 }
@@ -1028,6 +1081,67 @@ function ArScenarioRail({
             </span>
           </button>
         ))}
+      </div>
+    </section>
+  );
+}
+
+function AccountReferenceStrip({ scenario }: { scenario: ArScenario }) {
+  return (
+    <section
+      className="account-reference-strip"
+      aria-label="Patient and provider quick reference"
+    >
+      <div className="account-reference-group patient-reference">
+        <span className="reference-group-label">Patient information</span>
+        <strong>{scenario.patient.name}</strong>
+        <dl>
+          <div>
+            <dt>Account</dt>
+            <dd>{scenario.patient.account}</dd>
+          </div>
+          <div>
+            <dt>DOB</dt>
+            <dd>{scenario.patient.dob}</dd>
+          </div>
+          <div>
+            <dt>DOS</dt>
+            <dd>{scenario.patient.dos}</dd>
+          </div>
+          <div>
+            <dt>Member ID</dt>
+            <dd>{scenario.patient.memberId}</dd>
+          </div>
+        </dl>
+      </div>
+      <div className="account-reference-group provider-reference">
+        <span className="reference-group-label">Provider information</span>
+        <strong>{scenario.patient.provider}</strong>
+        <dl>
+          <div>
+            <dt>Practice</dt>
+            <dd>Evergreen Medical Group</dd>
+          </div>
+          <div>
+            <dt>NPI</dt>
+            <dd>{scenario.patient.providerNpi}</dd>
+          </div>
+          <div>
+            <dt>TIN</dt>
+            <dd>{scenario.patient.providerTaxId}</dd>
+          </div>
+          <div>
+            <dt>Location</dt>
+            <dd>{scenario.patient.location}</dd>
+          </div>
+        </dl>
+      </div>
+      <div className="account-reference-balance">
+        <span>Open insurance AR</span>
+        <strong>{money(scenario.claim.openAr)}</strong>
+        <small>
+          {scenario.claim.claimId} · {scenario.claim.aging}
+        </small>
       </div>
     </section>
   );
@@ -1131,6 +1245,23 @@ function AccountView({
         ))}
       </div>
 
+      <div className="account-review-row">
+        <div>
+          <span className="system-kicker">Account balance review</span>
+          <p>
+            Confirm the open insurance amount and service-line charges before
+            continuing the investigation.
+          </p>
+        </div>
+        <button
+          type="button"
+          className={reviewed ? "review-control reviewed" : "review-control"}
+          onClick={onReviewed}
+        >
+          {reviewed ? "Balance reviewed ✓" : "Mark balance reviewed"}
+        </button>
+      </div>
+
       <div className="ar-section">
         <div className="system-section-heading compact-system-heading">
           <div>
@@ -1159,56 +1290,6 @@ function AccountView({
               ))}
             </tbody>
           </table>
-        </div>
-      </div>
-
-      <div className="ar-section">
-        <div className="system-section-heading compact-system-heading">
-          <div>
-            <span className="system-kicker">Billing history</span>
-            <h3>Claim story to date</h3>
-          </div>
-          <button
-            type="button"
-            className={reviewed ? "review-control reviewed" : "review-control"}
-            onClick={onReviewed}
-          >
-            {reviewed ? "Balance reviewed ✓" : "Mark balance reviewed"}
-          </button>
-        </div>
-        <div className="billing-history-list">
-          {scenario.billingHistory.map((item) => (
-            <div key={`${item.date}-${item.event}`}>
-              <span>{item.date}</span>
-              <p>
-                <strong>{item.event}</strong>
-                {item.detail}
-              </p>
-              <small>{item.source}</small>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="ar-section previous-notes-section">
-        <div className="system-section-heading compact-system-heading">
-          <div>
-            <span className="system-kicker">Account notes</span>
-            <h3>Previous collector and department notes</h3>
-          </div>
-          <small>Read chronologically before duplicating work.</small>
-        </div>
-        <div className="previous-note-list">
-          {scenario.previousNotes.map((note) => (
-            <article key={`${note.date}-${note.author}`}>
-              <div>
-                <strong>{note.author}</strong>
-                <span>{note.department}</span>
-                <small>{note.date}</small>
-              </div>
-              <p>{note.note}</p>
-            </article>
-          ))}
         </div>
       </div>
     </div>
@@ -1819,15 +1900,93 @@ function DocumentFooter() {
   );
 }
 
-function TransactionsView({ scenario }: { scenario: ArScenario }) {
+function AccountNotesView({
+  scenario,
+  postedNotes,
+}: {
+  scenario: ArScenario;
+  postedNotes: PostedAccountNote[];
+}) {
+  const [filter, setFilter] = useState<AccountHistoryFilter>("all");
+  const collectorNotes = [
+    ...scenario.previousNotes,
+    ...postedNotes.map((note) => ({
+      date: note.date,
+      author: note.author,
+      department: note.department,
+      note: [
+        `Issue: ${note.issue}`,
+        `Findings: ${note.findings}`,
+        `Resolution: ${note.resolution}`,
+        `Source: ${note.source}; representative ${note.representative}; reference ${note.reference}; follow-up ${note.followUp}.`,
+      ].join(" "),
+    })),
+  ];
+  const filters: { id: AccountHistoryFilter; label: string }[] = [
+    { id: "all", label: "All activity" },
+    { id: "billing", label: "Billing history" },
+    { id: "financial", label: "Financial transactions" },
+    { id: "notes", label: "Collector notes" },
+  ];
+
   return (
-    <div className="ar-transactions-view">
-      <div className="ar-section">
+    <div className="account-notes-view">
+      <section className="account-history-header">
+        <div>
+          <span className="system-kicker">Historical account data</span>
+          <h3>Account Notes</h3>
+          <p>
+            Review the complete account story or filter by record type before
+            taking new action.
+          </p>
+        </div>
+        <div className="account-history-filters" aria-label="Filter account history">
+          {filters.map((item) => (
+            <button
+              type="button"
+              key={item.id}
+              className={filter === item.id ? "selected" : ""}
+              aria-pressed={filter === item.id}
+              onClick={() => setFilter(item.id)}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {filter === "all" || filter === "billing" ? (
+        <section className="ar-section account-history-section">
+          <div className="system-section-heading compact-system-heading">
+            <div>
+              <span className="system-kicker">Billing history</span>
+              <h3>Claim story to date</h3>
+            </div>
+            <small>{scenario.billingHistory.length} recorded events</small>
+          </div>
+          <div className="billing-history-list">
+            {scenario.billingHistory.map((item) => (
+              <div key={`${item.date}-${item.event}`}>
+                <span>{item.date}</span>
+                <p>
+                  <strong>{item.event}</strong>
+                  {item.detail}
+                </p>
+                <small>{item.source}</small>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {filter === "all" || filter === "financial" ? (
+        <section className="ar-section account-history-section">
         <div className="system-section-heading compact-system-heading">
           <div>
             <span className="system-kicker">Financial ledger</span>
-            <h3>Previous transactions</h3>
+              <h3>Financial transactions</h3>
           </div>
+            <small>{scenario.transactions.length} ledger entries</small>
         </div>
         <div className="system-table-wrap">
           <table className="system-table">
@@ -1853,25 +2012,57 @@ function TransactionsView({ scenario }: { scenario: ArScenario }) {
             </tbody>
           </table>
         </div>
-      </div>
-      <div className="ar-section related-section">
-        <div className="system-section-heading compact-system-heading">
-          <div>
-            <span className="system-kicker">Enterprise account links</span>
-            <h3>Related accounts</h3>
-          </div>
-        </div>
-        <div className="related-account-grid">
-          {scenario.relatedAccounts.map((account) => (
-            <div key={account.account}>
-              <span>{account.account}</span>
-              <strong>{account.dos}</strong>
-              <small>{account.status}</small>
-              <b>{money(account.balance)}</b>
+          <div className="related-history-block">
+            <div className="system-section-heading compact-system-heading">
+              <div>
+                <span className="system-kicker">Enterprise account links</span>
+                <h3>Related accounts</h3>
+              </div>
             </div>
-          ))}
-        </div>
-      </div>
+            <div className="related-account-grid">
+              {scenario.relatedAccounts.map((account) => (
+                <div key={account.account}>
+                  <span>{account.account}</span>
+                  <strong>{account.dos}</strong>
+                  <small>{account.status}</small>
+                  <b>{money(account.balance)}</b>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      ) : null}
+
+      {filter === "all" || filter === "notes" ? (
+        <section className="ar-section account-history-section">
+          <div className="system-section-heading compact-system-heading">
+            <div>
+              <span className="system-kicker">Collectors notes</span>
+              <h3>Collector and department notes</h3>
+            </div>
+            <small>{collectorNotes.length} posted notes</small>
+          </div>
+          <div className="previous-note-list">
+            {collectorNotes.map((note, index) => (
+              <article
+                className={
+                  index >= scenario.previousNotes.length
+                    ? "learner-posted-note"
+                    : ""
+                }
+                key={`${note.date}-${note.author}-${index}`}
+              >
+                <div>
+                  <strong>{note.author}</strong>
+                  <span>{note.department}</span>
+                  <small>{note.date}</small>
+                </div>
+                <p>{note.note}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }
@@ -2479,33 +2670,31 @@ function ResolutionView({
           ))}
         </div>
         {selectedAction === "send-task" ? (
-          <label>
-            <span>Route / destination</span>
-            <select
-              value={selectedRoute}
-              onChange={(event) => onRoute(event.target.value)}
-            >
-              <option value="">Choose the responsible destination…</option>
-              {resolutionRoutes.map((route) => (
-                <option value={route.id} key={route.id}>
-                  {route.label}
-                </option>
-              ))}
-            </select>
-          </label>
+          <>
+            <label>
+              <span>Route / destination</span>
+              <select
+                value={selectedRoute}
+                onChange={(event) => onRoute(event.target.value)}
+              >
+                <option value="">Choose the responsible destination…</option>
+                {resolutionRoutes.map((route) => (
+                  <option value={route.id} key={route.id}>
+                    {route.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>Request note</span>
+              <textarea
+                value={decisionReason}
+                onChange={(event) => onReason(event.target.value)}
+                placeholder="Write a clear request for the receiving department: state the issue, evidence reviewed, exact action needed, amount, and deadline."
+              />
+            </label>
+          </>
         ) : null}
-        <label>
-          <span>Request note</span>
-          <textarea
-            value={decisionReason}
-            onChange={(event) => onReason(event.target.value)}
-            placeholder={
-              selectedAction === "send-task"
-                ? "Write a clear request for the receiving department: state the issue, evidence reviewed, exact action needed, amount, and deadline."
-                : "Document the action requested, account evidence, amount, deadline, and expected follow-up."
-            }
-          />
-        </label>
         <button type="button" className="system-primary-button" onClick={onValidate}>
           Commit decision for validation
         </button>
@@ -2516,7 +2705,7 @@ function ResolutionView({
         <h3>{valid ? "Decision supported" : "No answer revealed yet"}</h3>
         <p>
           {feedback ||
-            "The simulator will validate the action, request note, and destination when an internal task is selected."}
+            "The simulator will validate the action. A destination and request note are checked only when Send task / escalation is selected."}
         </p>
       </aside>
     </div>
@@ -2681,15 +2870,7 @@ function NotationView({
   onPost,
   onClose,
 }: {
-  notes: {
-    source: string;
-    representative: string;
-    reference: string;
-    followUp: string;
-    issue: string;
-    findings: string;
-    resolution: string;
-  };
+  notes: AccountNoteFields;
   canPost: boolean;
   posted: boolean;
   closed: boolean;

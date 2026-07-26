@@ -5822,13 +5822,13 @@ button {
 }
 
 .document-index.document-list > button {
-  align-items: start;
+  align-items: center;
   background: #fff;
   display: grid;
   gap: 10px;
   grid-template-columns: 38px minmax(0, 1fr) 14px;
-  min-height: 104px;
-  padding: 11px;
+  min-height: 66px;
+  padding: 9px 10px;
 }
 
 .document-index.document-list > button.selected {
@@ -5856,27 +5856,22 @@ button {
 }
 
 .document-list-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
   min-width: 0;
 }
 
-.document-list-copy > div {
-  align-items: center;
-  display: flex;
-  gap: 9px;
-  justify-content: space-between;
-}
-
-.document-list-copy h4 {
+.document-list-copy > strong {
+  color: #173941;
   font-size: 13px;
-  margin: 5px 0 3px;
+  line-height: 1.25;
 }
 
-.document-list-copy p {
-  color: #637575;
+.document-list-copy > small {
+  color: #718080;
   font-size: 11px;
-  line-height: 1.4;
-  margin: 0;
-  min-height: 0;
+  line-height: 1.25;
 }
 
 .document-open-arrow {
@@ -5965,6 +5960,677 @@ button {
 
 .letter-record-detail {
   background: #f7f9f8;
+}
+
+/* Native-style document previews */
+.pdf-document-sheet[class*="format-"] {
+  color: #243f45;
+  overflow: hidden;
+}
+
+.eob-letterhead,
+.clinical-letterhead {
+  align-items: center !important;
+}
+
+.eob-letterhead > div,
+.clinical-letterhead > div {
+  align-items: center;
+  display: flex;
+  gap: 11px;
+}
+
+.eob-letterhead > div:last-child,
+.clinical-letterhead > div:last-child {
+  align-items: flex-end;
+  flex-direction: column;
+  gap: 2px;
+  text-align: right;
+}
+
+.payer-logo-block {
+  align-items: center;
+  background: #173f78;
+  border-radius: 4px;
+  color: #fff !important;
+  display: inline-flex !important;
+  font-size: 15px !important;
+  font-weight: 900;
+  height: 42px;
+  justify-content: center;
+  letter-spacing: -0.04em;
+  width: 42px;
+}
+
+.format-eob {
+  border-top: 6px solid #173f78;
+}
+
+.format-eob .pdf-document-explanation strong {
+  color: #8a4e13;
+  font-size: 11px;
+}
+
+.eligibility-transaction-head {
+  align-items: center;
+  background: #142f35;
+  color: #fff;
+  display: grid;
+  gap: 13px;
+  grid-template-columns: 58px minmax(0, 1fr) auto;
+  margin: -30px -30px 18px;
+  padding: 22px 26px;
+}
+
+.eligibility-transaction-head > span {
+  align-items: center;
+  background: #1f7d71;
+  border-radius: 3px;
+  display: flex;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 20px;
+  font-weight: 900;
+  height: 48px;
+  justify-content: center;
+}
+
+.eligibility-transaction-head > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.eligibility-transaction-head > div:last-child {
+  text-align: right;
+}
+
+.eligibility-transaction-head small {
+  color: #bdd2cf;
+  font-size: 10px;
+}
+
+.format-contract {
+  border: 1px solid #c7bda9;
+  color: #292b2a !important;
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+.format-contract .contract-letterhead {
+  border-bottom-color: #6c5134;
+}
+
+.contract-letterhead h3 {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 22px;
+  margin: 4px 0;
+}
+
+.contract-letterhead p {
+  color: #6d604e;
+  font-size: 12px;
+  margin: 0;
+}
+
+.contract-letterhead > div:last-child {
+  text-align: right;
+}
+
+.contract-parties {
+  border-bottom: 1px solid #d8d0c3;
+  font-size: 12px;
+  line-height: 1.65;
+  margin-bottom: 16px;
+  padding: 15px 4px 12px;
+}
+
+.contract-schedule-wrap {
+  border: 1px solid #cbc2b4;
+  max-width: 100%;
+  overflow: auto;
+}
+
+.contract-schedule-table {
+  border-collapse: collapse;
+  font-family: Arial, Helvetica, sans-serif;
+  min-width: 850px;
+  width: 100%;
+}
+
+.contract-schedule-table caption {
+  background: #62513f;
+  color: #fff;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 10px 12px;
+  text-align: left;
+}
+
+.contract-schedule-table th,
+.contract-schedule-table td {
+  border: 1px solid #d8d0c3;
+  font-size: 11px;
+  line-height: 1.4;
+  padding: 9px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.contract-schedule-table th {
+  background: #eee9df;
+  color: #514638;
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.contract-schedule-table tbody tr:nth-child(even) {
+  background: #faf8f4;
+}
+
+.contract-provisions {
+  border-top: 1px solid #d8d0c3;
+  margin-top: 17px;
+  padding-top: 11px;
+}
+
+.contract-provisions h4 {
+  font-size: 14px;
+  margin: 0 0 7px;
+}
+
+.contract-provisions ol {
+  font-size: 11px;
+  line-height: 1.55;
+  margin: 0;
+  padding-left: 20px;
+}
+
+.contract-signatures {
+  display: grid;
+  gap: 42px;
+  grid-template-columns: 1fr 1fr;
+  margin-top: 42px;
+}
+
+.contract-signatures span {
+  border-top: 1px solid #514638;
+  font-size: 10px;
+  padding-top: 5px;
+}
+
+.format-clinical {
+  border-top: 7px solid #386a66;
+}
+
+.clinical-mark {
+  align-items: center;
+  background: #386a66;
+  border-radius: 50%;
+  color: #fff !important;
+  display: flex !important;
+  font-size: 11px !important;
+  font-weight: 900;
+  height: 44px;
+  justify-content: center;
+  width: 44px;
+}
+
+.clinical-demographics {
+  background: #edf4f2;
+  display: grid;
+  gap: 1px;
+  grid-template-columns: repeat(3, 1fr);
+  margin: 16px 0;
+}
+
+.clinical-demographics > div {
+  background: rgba(255, 255, 255, 0.72);
+  display: flex;
+  flex-direction: column;
+  min-height: 54px;
+  padding: 9px 10px;
+}
+
+.clinical-demographics span,
+.format-clinical section h4 {
+  color: #56706f;
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.clinical-demographics strong {
+  font-size: 11px;
+  margin-top: 4px;
+}
+
+.clinical-note-section {
+  border-left: 3px solid #86aaa5;
+  margin: 15px 0;
+  padding-left: 13px;
+}
+
+.clinical-note-section h4 {
+  margin: 0 0 6px;
+}
+
+.clinical-note-section p {
+  font-size: 11px;
+  line-height: 1.65;
+  margin: 0;
+}
+
+.clinical-note-section table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.clinical-note-section th,
+.clinical-note-section td {
+  border: 1px solid #ccd9d6;
+  font-size: 10px;
+  padding: 8px;
+  text-align: left;
+}
+
+.clinical-note-section th {
+  background: #e5efed;
+}
+
+.clinical-signature {
+  border-top: 1px solid #9fb4b1;
+  display: flex;
+  flex-direction: column;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+  margin-top: 22px;
+  padding-top: 10px;
+}
+
+.format-acknowledgment {
+  background: #f5f7f3;
+  border: 1px solid #a9b1a7;
+  color: #1f332b !important;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.ack-terminal-head {
+  align-items: center;
+  background: #24332d;
+  color: #d7e6dd;
+  display: flex;
+  justify-content: space-between;
+  margin: -30px -30px 18px;
+  padding: 17px 22px;
+}
+
+.ack-terminal-head > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ack-terminal-head span {
+  color: #98d0b0;
+  font-size: 11px;
+}
+
+.ack-status-grid {
+  border: 1px solid #b7c0b7;
+  display: grid;
+  gap: 1px;
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.ack-status-grid > div {
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  min-height: 54px;
+  padding: 9px;
+}
+
+.ack-status-grid span,
+.ack-explanation > span {
+  color: #5e7067;
+  font-size: 9px;
+  text-transform: uppercase;
+}
+
+.ack-status-grid strong {
+  font-size: 11px;
+  margin-top: 4px;
+}
+
+.ack-raw-record {
+  background: #15231d;
+  border-left: 5px solid #5aaf78;
+  color: #c5e6cf;
+  font-size: 10px;
+  line-height: 1.6;
+  margin: 16px 0;
+  overflow-x: auto;
+  padding: 14px;
+  white-space: pre-wrap;
+}
+
+.ack-explanation {
+  background: #e8ede8;
+  padding: 12px;
+}
+
+.ack-explanation p {
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.format-authorization {
+  background: linear-gradient(#fff 0 135px, #f8fafb 135px);
+  border-top: 9px solid #275f91;
+}
+
+.format-authorization > header {
+  border-bottom: 1px solid #b9c9d7;
+}
+
+.authorization-status {
+  background: #e4f1ea;
+  color: #1e6849;
+  display: inline-flex;
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 0.04em;
+  margin: 16px 0 8px;
+  padding: 7px 11px;
+  text-transform: uppercase;
+}
+
+.authorization-number {
+  border: 2px solid #275f91;
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 15px;
+  padding: 13px;
+}
+
+.authorization-number span {
+  color: #5c7590;
+  font-size: 9px;
+  text-transform: uppercase;
+}
+
+.authorization-number strong {
+  color: #1e4d75;
+  font-size: 19px;
+  margin-top: 3px;
+}
+
+.format-authorization dl {
+  display: grid;
+  gap: 1px;
+  grid-template-columns: 1fr 1fr;
+  margin: 0;
+}
+
+.format-authorization dl > div {
+  background: #edf3f6;
+  padding: 11px;
+}
+
+.format-authorization dt {
+  color: #607587;
+  font-size: 9px;
+  text-transform: uppercase;
+}
+
+.format-authorization dd {
+  font-size: 11px;
+  font-weight: 750;
+  margin: 4px 0 0;
+}
+
+.authorization-notice {
+  border-left: 4px solid #d3a248;
+  font-size: 11px;
+  line-height: 1.6;
+  margin-top: 17px;
+  padding: 10px 13px;
+}
+
+.format-payer-letter {
+  border: 1px solid #c8d3df;
+  color: #293d52 !important;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.payer-correspondence-head {
+  align-items: flex-start;
+  background: #eef3f8;
+  border-bottom: 5px solid #1f4f82;
+  display: flex;
+  justify-content: space-between;
+  margin: -30px -30px 24px;
+  padding: 24px 28px 19px;
+}
+
+.payer-wordmark {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.payer-wordmark strong {
+  color: #1f4f82;
+  font-size: 21px;
+}
+
+.payer-wordmark span,
+.payer-correspondence-head > div:last-child {
+  color: #60768d;
+  font-size: 10px;
+}
+
+.letter-recipient {
+  font-size: 11px;
+  line-height: 1.55;
+  margin: 12px 0 17px;
+}
+
+.payer-reference-box {
+  background: #eff4f8;
+  border-left: 5px solid #1f4f82;
+  display: grid;
+  gap: 1px;
+  grid-template-columns: repeat(3, 1fr);
+  margin-bottom: 20px;
+}
+
+.payer-reference-box > div {
+  background: rgba(255, 255, 255, 0.74);
+  display: flex;
+  flex-direction: column;
+  padding: 10px;
+}
+
+.payer-reference-box span {
+  color: #688097;
+  font-size: 9px;
+  text-transform: uppercase;
+}
+
+.payer-reference-box strong {
+  font-size: 11px;
+  margin-top: 4px;
+}
+
+.payer-letter-copy,
+.provider-letter-copy {
+  font-size: 12px;
+  line-height: 1.75;
+  white-space: pre-line;
+}
+
+.format-internal-review {
+  background: #fffef8;
+  border: 1px solid #ddd4bd;
+}
+
+.internal-review-head {
+  background: #ebe4d2;
+  border-bottom: 1px solid #c9bea2;
+  display: flex;
+  justify-content: space-between;
+  margin: -30px -30px 20px;
+  padding: 20px 25px;
+}
+
+.format-internal-review dl {
+  background: #f5f1e5;
+  display: grid;
+  gap: 1px;
+  grid-template-columns: repeat(3, 1fr);
+  margin: 0 0 18px;
+}
+
+.format-internal-review dl > div {
+  background: rgba(255, 255, 255, 0.64);
+  padding: 10px;
+}
+
+.format-internal-review dt {
+  color: #786e58;
+  font-size: 9px;
+  text-transform: uppercase;
+}
+
+.format-internal-review dd {
+  font-size: 11px;
+  font-weight: 750;
+  margin: 4px 0 0;
+}
+
+.format-internal-review section {
+  border-top: 1px solid #ddd4bd;
+  padding: 12px 0;
+}
+
+.format-internal-review section h4 {
+  color: #584e3b;
+  font-size: 12px;
+  margin: 0 0 6px;
+  text-transform: uppercase;
+}
+
+.format-internal-review section p {
+  font-size: 11px;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.format-provider-letter {
+  border-top: 8px solid #32635f;
+  color: #283f40 !important;
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+.format-provider-letter > header {
+  border-bottom: 1px solid #afc4c1;
+}
+
+.provider-letter-address {
+  font-size: 11px;
+  line-height: 1.55;
+  margin: 18px 0;
+}
+
+.provider-letter-reference {
+  background: #eef4f2;
+  border-left: 4px solid #32635f;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 11px;
+  margin-bottom: 18px;
+  padding: 11px;
+}
+
+.contract-document-view {
+  background: #fffdf8;
+  border: 1px solid #cbc2b4;
+  box-shadow: 0 5px 15px rgba(61, 51, 39, 0.08);
+  margin: 16px 0;
+  overflow: hidden;
+}
+
+.contract-document-view > header {
+  align-items: flex-start;
+  background: #eee8dd;
+  border-bottom: 3px solid #62513f;
+  display: flex;
+  justify-content: space-between;
+  padding: 15px;
+}
+
+.contract-document-view > header h4 {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 17px;
+  margin: 4px 0;
+}
+
+.contract-document-view > header p,
+.contract-document-view > header small,
+.contract-document-view > header span {
+  color: #6c6254;
+  font-size: 10px;
+  margin: 0;
+}
+
+.contract-document-view > header > div:last-child {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  text-align: right;
+}
+
+.contract-document-view .contract-schedule-wrap {
+  border: 0;
+  max-height: 370px;
+}
+
+.contract-document-view > footer {
+  border-top: 1px solid #d7cfc2;
+  color: #675f54;
+  font-size: 11px;
+  line-height: 1.5;
+  padding: 11px 14px;
+}
+
+.claim-code-reference {
+  border: 1px solid #d5dedb;
+  border-radius: 8px;
+  margin: 14px 0;
+  overflow: hidden;
+}
+
+.claim-code-reference > div:first-child {
+  background: #edf3f1;
+  padding: 11px 13px;
+}
+
+.claim-code-reference h4 {
+  font-size: 14px;
+  margin: 3px 0 0;
+}
+
+.resolution-notation-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.resolution-notation-stack .notation-layout {
+  border-top: 4px solid var(--module-soft);
+  padding-top: 16px;
 }
 
 .reimbursement-evidence-card {
@@ -6494,6 +7160,51 @@ button {
 
   .document-index.document-list {
     max-height: 440px;
+  }
+
+  .eligibility-transaction-head {
+    grid-template-columns: 48px minmax(0, 1fr);
+    margin: -16px -16px 16px;
+    padding: 15px;
+  }
+
+  .eligibility-transaction-head > div:last-child {
+    grid-column: 2;
+    text-align: left;
+  }
+
+  .clinical-demographics,
+  .ack-status-grid,
+  .format-authorization dl,
+  .payer-reference-box,
+  .format-internal-review dl {
+    grid-template-columns: 1fr;
+  }
+
+  .contract-letterhead,
+  .eob-letterhead,
+  .clinical-letterhead,
+  .payer-correspondence-head,
+  .internal-review-head,
+  .contract-document-view > header {
+    align-items: flex-start !important;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .eob-letterhead > div:last-child,
+  .clinical-letterhead > div:last-child,
+  .contract-letterhead > div:last-child,
+  .contract-document-view > header > div:last-child {
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  .payer-correspondence-head,
+  .internal-review-head,
+  .ack-terminal-head {
+    margin-left: -16px;
+    margin-right: -16px;
   }
 
   .reimbursement-evidence-heading {

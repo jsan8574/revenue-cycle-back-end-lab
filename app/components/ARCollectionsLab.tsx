@@ -20,11 +20,9 @@ type ArDeskTab =
   | "investigate"
   | "reimbursement"
   | "resolve"
-  | "appeal"
-  | "notation";
+  | "appeal";
 
 type CalculatorState = {
-  method: string;
   billed: string;
   rate: string;
   percent: string;
@@ -40,13 +38,11 @@ const arTabs: { id: ArDeskTab; label: string }[] = [
   { id: "coverage", label: "Insurance" },
   { id: "investigate", label: "Payer investigation" },
   { id: "reimbursement", label: "Reimbursement" },
-  { id: "resolve", label: "Resolution" },
+  { id: "resolve", label: "Resolution & notation" },
   { id: "appeal", label: "Appeal workbench" },
-  { id: "notation", label: "Notation" },
 ];
 
 const initialCalculator = (): CalculatorState => ({
-  method: "",
   billed: "",
   rate: "",
   percent: "",
@@ -110,6 +106,137 @@ const dateBefore = (value: string, days: number) => {
     timeZone: "UTC",
   }).format(date);
 };
+
+type ContractScheduleRow = {
+  category: string;
+  codes: string;
+  method: string;
+  rate: string;
+  rule: string;
+};
+
+function contractMethodLabel(scenario: ArScenario) {
+  if (scenario.contract.method === "case-rate") return "Case rate";
+  if (scenario.contract.method === "percent-charge") {
+    return "Percentage of billed charges";
+  }
+  return "Fee schedule";
+}
+
+function contractRateLabel(scenario: ArScenario) {
+  return scenario.contract.method === "percent-charge"
+    ? `${scenario.contract.percent}% of billed charges`
+    : money(scenario.contract.rate);
+}
+
+function serviceCategory(scenario: ArScenario) {
+  const serviceText = scenario.claim.services
+    .map((service) => service.description.toLowerCase())
+    .join(" ");
+  if (serviceText.includes("infusion") || serviceText.includes("drug")) {
+    return "Specialty drugs & infusion";
+  }
+  if (serviceText.includes("mri") || serviceText.includes("radiology")) {
+    return "Advanced diagnostic imaging";
+  }
+  if (serviceText.includes("surgery") || serviceText.includes("arthroplasty")) {
+    return "Facility surgery";
+  }
+  if (serviceText.includes("laboratory") || serviceText.includes("pathology")) {
+    return "Laboratory & pathology";
+  }
+  if (serviceText.includes("observation") || serviceText.includes("hospital")) {
+    return "Outpatient hospital";
+  }
+  return "Professional services";
+}
+
+function contractScheduleRows(scenario: ArScenario): ContractScheduleRow[] {
+  const claimCodes = scenario.claim.services
+    .map((service) => service.cpt)
+    .join(", ");
+  const relevantRow: ContractScheduleRow = {
+    category: serviceCategory(scenario),
+    codes: claimCodes,
+    method: contractMethodLabel(scenario),
+    rate: contractRateLabel(scenario),
+    rule: scenario.contract.terms,
+  };
+  return [
+    {
+      category: "Primary care office",
+      codes: "99202–99215",
+      method: "Fee schedule",
+      rate: "$94–$312 by CPT",
+      rule: "Professional component only; separately payable services follow the applicable schedule.",
+    },
+    {
+      category: "Preventive medicine",
+      codes: "99381–99397",
+      method: "Fee schedule",
+      rate: "$118–$286 by age band",
+      rule: "Includes routine counseling and age-appropriate preventive work.",
+    },
+    relevantRow,
+    {
+      category: "Basic diagnostic imaging",
+      codes: "70010–74022",
+      method: "Fee schedule",
+      rate: "72% of 2026 plan schedule",
+      rule: "Professional and technical components follow modifier-specific rates.",
+    },
+    {
+      category: "Standard laboratory",
+      codes: "80047–85025",
+      method: "Fee schedule",
+      rate: "65% of billed, schedule cap applies",
+      rule: "Reimbursement cannot exceed the payer laboratory schedule.",
+    },
+    {
+      category: "Physical medicine",
+      codes: "97110–97546",
+      method: "Per-unit fee schedule",
+      rate: "$31–$68 per unit",
+      rule: "Daily therapy limits and multiple-procedure reductions may apply.",
+    },
+    {
+      category: "Emergency department",
+      codes: "99281–99285",
+      method: "Percentage of charges",
+      rate: "74% of covered billed charges",
+      rule: "Subject to outlier and coordination-of-benefits provisions.",
+    },
+  ];
+}
+
+function ContractScheduleTable({ scenario }: { scenario: ArScenario }) {
+  return (
+    <div className="system-table-wrap contract-schedule-wrap">
+      <table className="system-table contract-schedule-table">
+        <thead>
+          <tr>
+            <th>Service category</th>
+            <th>Covered codes</th>
+            <th>Reimbursement method</th>
+            <th>Rate</th>
+            <th>Contract provision</th>
+          </tr>
+        </thead>
+        <tbody>
+          {contractScheduleRows(scenario).map((row) => (
+            <tr key={`${row.category}-${row.codes}`}>
+              <td>{row.category}</td>
+              <td>{row.codes}</td>
+              <td>{row.method}</td>
+              <td>{row.rate}</td>
+              <td>{row.rule}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
 
 const trainingToday = new Date("2026-07-26T12:00:00");
 
@@ -338,7 +465,7 @@ export function ARCollectionsLab({
     const other = numeric(calculator.otherInsurance);
     const actual = numeric(calculator.actualPayment);
     const allowed =
-      calculator.method === "percent-charge"
+      scenario.contract.method === "percent-charge"
         ? billed * (percent / 100)
         : rate;
     const payment = Math.max(0, allowed - patient - other);
@@ -347,29 +474,29 @@ export function ARCollectionsLab({
     setCalculation(result);
 
     const correct =
-      calculator.method === scenario.expected.method &&
       closeEnough(allowed, scenario.expected.expectedAllowed) &&
       closeEnough(payment, scenario.expected.expectedPayment) &&
       closeEnough(variance, scenario.expected.variance);
     setReimbursementValid(correct);
     setCalculationFeedback(
       correct
-        ? "Validated. Your methodology, expected reimbursement, and payment variance match the contract evidence."
-        : "Not validated. Recheck the contract methodology, rate source, patient liability, other insurance, and actual payment.",
+        ? "Validated. Your service-code match, contract rate, expected reimbursement, and payment variance are correct."
+        : "Not validated. Recheck the billed service codes against the full contract schedule, then verify the applicable rate, patient liability, other insurance, and actual payment.",
     );
   };
 
   const validateAction = () => {
     setDecisionAttempts((count) => count + 1);
+    const routeRequired = selectedAction === "send-task";
     const correct =
       selectedAction === scenario.expected.action &&
-      selectedRoute === scenario.expected.route &&
+      (!routeRequired || selectedRoute === scenario.expected.route) &&
       decisionReason.trim().length >= 20;
     setActionValid(correct);
     setActionFeedback(
       correct
         ? `Decision supported. ${scenario.expected.rationale}`
-        : "The action, destination, or written rationale is not fully supported by the investigation. Revisit the payer evidence and deadlines before trying again.",
+        : "The action, request note, or required internal destination is not fully supported. Revisit the account evidence and deadlines before trying again.",
     );
   };
 
@@ -510,7 +637,7 @@ export function ARCollectionsLab({
               {
                 heading: "Expected reimbursement",
                 lines: [
-                  `Method selected: ${calculator.method || "Not selected"}`,
+                  `Contract method: ${contractMethodLabel(scenario)}`,
                   `Expected allowed: ${calculation ? money(calculation.allowed) : "Not calculated"}`,
                   `Expected payment: ${calculation ? money(calculation.payment) : "Not calculated"}`,
                   `Variance: ${calculation ? money(calculation.variance) : "Not calculated"}`,
@@ -521,8 +648,8 @@ export function ARCollectionsLab({
                 heading: "Resolution decision",
                 lines: [
                   `Action: ${selectedAction || "Not selected"}`,
-                  `Route: ${selectedRoute || "Not selected"}`,
-                  `Rationale: ${decisionReason || "Not entered"}`,
+                  `Route: ${selectedAction === "send-task" ? selectedRoute || "Not selected" : "Not required"}`,
+                  `Request note: ${decisionReason || "Not entered"}`,
                 ],
               },
               ...(denialScenario
@@ -724,17 +851,33 @@ export function ARCollectionsLab({
                 />
               ) : null}
               {tab === "resolve" ? (
-                <ResolutionView
-                  selectedAction={selectedAction}
-                  selectedRoute={selectedRoute}
-                  decisionReason={decisionReason}
-                  feedback={actionFeedback}
-                  valid={actionValid}
-                  onAction={setSelectedAction}
-                  onRoute={setSelectedRoute}
-                  onReason={setDecisionReason}
-                  onValidate={validateAction}
-                />
+                <div className="resolution-notation-stack">
+                  <ResolutionView
+                    selectedAction={selectedAction}
+                    selectedRoute={selectedRoute}
+                    decisionReason={decisionReason}
+                    feedback={actionFeedback}
+                    valid={actionValid}
+                    onAction={(value) => {
+                      setSelectedAction(value);
+                      if (value !== "send-task") setSelectedRoute("");
+                    }}
+                    onRoute={setSelectedRoute}
+                    onReason={setDecisionReason}
+                    onValidate={validateAction}
+                  />
+                  <NotationView
+                    notes={notes}
+                    canPost={canPostNote}
+                    posted={notePosted}
+                    closed={closed}
+                    onChange={(key, value) =>
+                      setNotes((current) => ({ ...current, [key]: value }))
+                    }
+                    onPost={postNote}
+                    onClose={closeAccount}
+                  />
+                </div>
               ) : null}
               {tab === "appeal" && denialScenario ? (
                 <AppealView
@@ -759,19 +902,6 @@ export function ARCollectionsLab({
                     )
                   }
                   onSubmit={submitAppealRequest}
-                />
-              ) : null}
-              {tab === "notation" ? (
-                <NotationView
-                  notes={notes}
-                  canPost={canPostNote}
-                  posted={notePosted}
-                  closed={closed}
-                  onChange={(key, value) =>
-                    setNotes((current) => ({ ...current, [key]: value }))
-                  }
-                  onPost={postNote}
-                  onClose={closeAccount}
                 />
               ) : null}
             </div>
@@ -1063,6 +1193,15 @@ function DocumentsView({ scenario }: { scenario: ArScenario }) {
       body: `An electronic 270 eligibility inquiry was submitted for ${scenario.patient.name}. The payer 271 response confirmed ${scenario.patient.plan} coverage as ${scenario.insurance.termination.toLowerCase()}, ${scenario.insurance.network.toLowerCase()} participation, and ${scenario.insurance.coordination.toLowerCase()} order for the requested service period. Benefit verification is not a guarantee of payment; claim processing remains subject to authorization, medical necessity, coding, contract, and plan rules.`,
     },
     {
+      type: "Provider contract",
+      date: scenario.contract.effective,
+      reference: `CONTRACT-${scenario.patient.payer.replace(/\W/g, "").toUpperCase()}-2026`,
+      summary:
+        "Full participating-provider reimbursement schedule with multiple service categories, covered codes, methods, and rates.",
+      codes: "Exhibit B · Reimbursement schedule",
+      body: scenario.contract.terms,
+    },
+    {
       type: "Payer determination letter",
       date: scenario.portal.finalized,
       reference: `LTR-${scenario.portal.icn}`,
@@ -1081,14 +1220,13 @@ function DocumentsView({ scenario }: { scenario: ArScenario }) {
       body: `To ${scenario.patient.payer} Provider Services: Evergreen Medical Group requests detailed review of claim ${scenario.portal.icn} for ${scenario.patient.name}, DOS ${scenario.patient.dos}. The account reflects ${money(scenario.claim.openAr)} in open insurance receivables. Please review the attached claim history, remittance, and supporting account records, then issue a written determination or reprocess the claim as supported. Direct correspondence to Evergreen Medical Group, Revenue Cycle Back End Operations.`,
     },
   ];
-  const documents = [...scenario.documents, ...supplementalLetters];
+  const documents = [
+    ...scenario.documents.filter(
+      (item) => !item.type.toLowerCase().includes("contract"),
+    ),
+    ...supplementalLetters,
+  ];
   const document = documents[selectedDocument];
-  const isEob =
-    document.type.toLowerCase().includes("eob") ||
-    document.type.toLowerCase().includes("era");
-  const isEligibility = document.type
-    .toLowerCase()
-    .includes("eligibility");
 
   return (
     <div className="ar-section">
@@ -1097,8 +1235,8 @@ function DocumentsView({ scenario }: { scenario: ArScenario }) {
           <span className="system-kicker">Document center</span>
           <h3>EOBs, acknowledgments, letters & correspondence</h3>
           <p>
-            Select a document from the compact file list, then read the full
-            EOB or letter in the preview.
+            Select a document type and upload date, then review its native-style
+            record in the preview.
           </p>
         </div>
       </div>
@@ -1109,7 +1247,7 @@ function DocumentsView({ scenario }: { scenario: ArScenario }) {
               <span>Account documents</span>
               <strong>{documents.length} files</strong>
             </div>
-            <small>EOB · letters · claim records</small>
+            <small>Sorted by account record</small>
           </div>
           {documents.map((item, index) => (
             <button
@@ -1121,6 +1259,8 @@ function DocumentsView({ scenario }: { scenario: ArScenario }) {
               <span className="document-type-icon" aria-hidden="true">
                 {item.type.toLowerCase().includes("eligibility")
                   ? "ELG"
+                  : item.type.toLowerCase().includes("contract")
+                    ? "CTR"
                   : item.type.toLowerCase().includes("letter")
                     ? "LTR"
                     : isDocumentEob(item.type)
@@ -1128,12 +1268,8 @@ function DocumentsView({ scenario }: { scenario: ArScenario }) {
                       : "DOC"}
               </span>
               <div className="document-list-copy">
-                <div>
-                  <span>{item.type}</span>
-                  <small>{item.date}</small>
-                </div>
-                <h4>{item.reference}</h4>
-                <p>{item.summary}</p>
+                <strong>{item.type}</strong>
+                <small>Date uploaded · {item.date}</small>
               </div>
               <span className="document-open-arrow" aria-hidden="true">›</span>
             </button>
@@ -1145,165 +1281,7 @@ function DocumentsView({ scenario }: { scenario: ArScenario }) {
             <span>Document preview · Page 1 of 1</span>
             <strong>{document.reference}</strong>
           </div>
-          <div className="pdf-document-sheet">
-            <header>
-              <div className="pdf-payer-mark">
-                {isEob ? scenario.patient.payer : document.type}
-              </div>
-              <div>
-                <span>
-                  {isEob
-                    ? "Explanation of Benefits"
-                    : isEligibility
-                      ? "Electronic Eligibility & Benefits Response"
-                      : "Correspondence"}
-                </span>
-                <strong>{document.date}</strong>
-              </div>
-            </header>
-
-            <div className="pdf-document-address">
-              <div>
-                <span>Patient / member</span>
-                <strong>{scenario.patient.name}</strong>
-                <p>{scenario.patient.memberId}</p>
-              </div>
-              <div>
-                <span>Provider</span>
-                <strong>{scenario.patient.provider}</strong>
-                <p>NPI {scenario.patient.providerNpi}</p>
-              </div>
-              <div>
-                <span>Claim / reference</span>
-                <strong>{isEob ? scenario.portal.icn : document.reference}</strong>
-                <p>DOS {scenario.patient.dos}</p>
-              </div>
-            </div>
-
-            {isEob ? (
-              <>
-                <div className="pdf-eob-summary">
-                  <div>
-                    <span>Total billed</span>
-                    <strong>{money(scenario.portal.claimBilled)}</strong>
-                  </div>
-                  <div>
-                    <span>Allowed</span>
-                    <strong>{money(scenario.portal.claimAllowed)}</strong>
-                  </div>
-                  <div>
-                    <span>Plan paid</span>
-                    <strong>{money(scenario.portal.claimPaid)}</strong>
-                  </div>
-                  <div>
-                    <span>Patient responsibility</span>
-                    <strong>
-                      {money(scenario.portal.claimPatientResponsibility)}
-                    </strong>
-                  </div>
-                </div>
-                <table className="pdf-eob-table">
-                  <thead>
-                    <tr>
-                      <th>Service</th>
-                      <th>Billed</th>
-                      <th>Allowed</th>
-                      <th>Paid</th>
-                      <th>Adjustment</th>
-                      <th>Patient</th>
-                      <th>Codes / status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {scenario.portal.serviceLines.map((line) => (
-                      <tr key={line.cpt}>
-                        <td>{line.cpt}</td>
-                        <td>{money(line.billed)}</td>
-                        <td>{money(line.allowed)}</td>
-                        <td>{money(line.paid)}</td>
-                        <td>{money(line.adjustment)}</td>
-                        <td>{money(line.patientResponsibility)}</td>
-                        <td>
-                          {line.codes}
-                          <small>{line.status}</small>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </>
-            ) : isEligibility ? (
-              <div className="eligibility-response-sheet">
-                <div className="eligibility-status-banner">
-                  <span>Coverage status</span>
-                  <strong>Active coverage returned</strong>
-                  <small>Electronic transaction: X12 270/271</small>
-                </div>
-                <dl>
-                  <div>
-                    <dt>Member / insurance ID</dt>
-                    <dd>{scenario.patient.memberId}</dd>
-                  </div>
-                  <div>
-                    <dt>Health plan</dt>
-                    <dd>{scenario.patient.plan}</dd>
-                  </div>
-                  <div>
-                    <dt>Eligibility period</dt>
-                    <dd>
-                      {scenario.insurance.effective} through{" "}
-                      {scenario.insurance.termination}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>Network</dt>
-                    <dd>{scenario.insurance.network}</dd>
-                  </div>
-                  <div>
-                    <dt>Coordination of benefits</dt>
-                    <dd>{scenario.insurance.coordination}</dd>
-                  </div>
-                  <div>
-                    <dt>Requested service date</dt>
-                    <dd>{scenario.patient.dos}</dd>
-                  </div>
-                </dl>
-                <div className="eligibility-disclaimer">
-                  <strong>Electronic response detail</strong>
-                  <p>{document.body}</p>
-                </div>
-              </div>
-            ) : (
-              <div className="pdf-letter-body">
-                <p className="letter-date">{document.date}</p>
-                <p>
-                  <strong>Re: {document.reference}</strong>
-                </p>
-                <p>{document.body}</p>
-                <p>
-                  Sincerely,
-                  <br />
-                  Provider Correspondence Team
-                </p>
-              </div>
-            )}
-
-            {isEob ? (
-              <div className="pdf-document-explanation">
-                <span>Explanation / correspondence detail</span>
-                <p>{document.body}</p>
-                <strong>{document.codes}</strong>
-              </div>
-            ) : isEligibility ? null : (
-              <div className="pdf-document-explanation letter-record-detail">
-                <span>Document classification</span>
-                <strong>{document.codes}</strong>
-              </div>
-            )}
-            <footer>
-              Fictional training document · Not a real payer communication
-            </footer>
-          </div>
+          <DocumentPreview scenario={scenario} document={document} />
         </article>
       </div>
     </div>
@@ -1313,6 +1291,497 @@ function DocumentsView({ scenario }: { scenario: ArScenario }) {
 function isDocumentEob(type: string) {
   const normalized = type.toLowerCase();
   return normalized.includes("eob") || normalized.includes("era");
+}
+
+function DocumentPreview({
+  scenario,
+  document,
+}: {
+  scenario: ArScenario;
+  document: ArScenario["documents"][number];
+}) {
+  const type = document.type.toLowerCase();
+  const isEob = isDocumentEob(type);
+  const isEligibility = type.includes("eligibility");
+  const isContract = type.includes("contract");
+  const isClinical =
+    type.includes("clinical") ||
+    type.includes("medical record") ||
+    type.includes("medication record") ||
+    type.includes("provider query");
+  const isAcknowledgment =
+    type.includes("277ca") ||
+    type.includes("acknowledg") ||
+    type.includes("clearinghouse");
+  const isAuthorization =
+    type.includes("authorization") || type.includes("referral");
+  const isPayerLetter =
+    type.includes("payer") || type.includes("determination");
+  const isInternalReview =
+    type.includes("coding review") || type.includes("claim image");
+
+  if (isEob) {
+    return (
+      <div className="pdf-document-sheet format-eob">
+        <header className="eob-letterhead">
+          <div>
+            <span className="payer-logo-block">HB</span>
+            <div>
+              <strong>{scenario.patient.payer}</strong>
+              <small>Provider Remittance Advice</small>
+            </div>
+          </div>
+          <div>
+            <span>Remittance date</span>
+            <strong>{document.date}</strong>
+            <small>ICN {scenario.portal.icn}</small>
+          </div>
+        </header>
+        <div className="pdf-document-address">
+          <div>
+            <span>Patient / member</span>
+            <strong>{scenario.patient.name}</strong>
+            <p>{scenario.patient.memberId}</p>
+          </div>
+          <div>
+            <span>Billing provider</span>
+            <strong>Evergreen Medical Group</strong>
+            <p>NPI {scenario.patient.providerNpi}</p>
+          </div>
+          <div>
+            <span>Claim</span>
+            <strong>{scenario.portal.icn}</strong>
+            <p>DOS {scenario.patient.dos}</p>
+          </div>
+        </div>
+        <div className="pdf-eob-summary">
+          {[
+            ["Total billed", scenario.portal.claimBilled],
+            ["Allowed", scenario.portal.claimAllowed],
+            ["Plan paid", scenario.portal.claimPaid],
+            [
+              "Patient responsibility",
+              scenario.portal.claimPatientResponsibility,
+            ],
+          ].map(([label, value]) => (
+            <div key={String(label)}>
+              <span>{label}</span>
+              <strong>{money(Number(value))}</strong>
+            </div>
+          ))}
+        </div>
+        <table className="pdf-eob-table">
+          <thead>
+            <tr>
+              <th>Service</th>
+              <th>Billed</th>
+              <th>Allowed</th>
+              <th>Paid</th>
+              <th>Adjustment</th>
+              <th>Patient</th>
+              <th>Codes / status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {scenario.portal.serviceLines.map((line) => (
+              <tr key={line.cpt}>
+                <td>{line.cpt}</td>
+                <td>{money(line.billed)}</td>
+                <td>{money(line.allowed)}</td>
+                <td>{money(line.paid)}</td>
+                <td>{money(line.adjustment)}</td>
+                <td>{money(line.patientResponsibility)}</td>
+                <td>
+                  {line.codes}
+                  <small>{line.status}</small>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <div className="pdf-document-explanation">
+          <span>Remittance explanation</span>
+          <p>{document.body}</p>
+          <strong>{document.codes}</strong>
+        </div>
+        <DocumentFooter />
+      </div>
+    );
+  }
+
+  if (isEligibility) {
+    return (
+      <div className="pdf-document-sheet format-eligibility">
+        <div className="eligibility-transaction-head">
+          <span>271</span>
+          <div>
+            <strong>Electronic Eligibility & Benefits Response</strong>
+            <small>{scenario.patient.payer} · X12 005010X279A1</small>
+          </div>
+          <div>
+            <small>Response date</small>
+            <strong>{document.date}</strong>
+          </div>
+        </div>
+        <div className="eligibility-response-sheet">
+          <div className="eligibility-status-banner">
+            <span>Coverage status</span>
+            <strong>Active coverage returned</strong>
+            <small>Trace {document.reference}</small>
+          </div>
+          <dl>
+            {[
+              ["Member / insurance ID", scenario.patient.memberId],
+              ["Health plan", scenario.patient.plan],
+              [
+                "Eligibility period",
+                `${scenario.insurance.effective} through ${scenario.insurance.termination}`,
+              ],
+              ["Network", scenario.insurance.network],
+              ["Coordination of benefits", scenario.insurance.coordination],
+              ["Requested service date", scenario.patient.dos],
+            ].map(([label, value]) => (
+              <div key={label}>
+                <dt>{label}</dt>
+                <dd>{value}</dd>
+              </div>
+            ))}
+          </dl>
+          <div className="eligibility-disclaimer">
+            <strong>Electronic response detail</strong>
+            <p>{document.body}</p>
+          </div>
+        </div>
+        <DocumentFooter />
+      </div>
+    );
+  }
+
+  if (isContract) {
+    return (
+      <div className="pdf-document-sheet format-contract">
+        <header className="contract-letterhead">
+          <div>
+            <span>Evergreen Medical Group</span>
+            <h3>Participating Provider Agreement</h3>
+            <p>Exhibit B — Reimbursement Schedule</p>
+          </div>
+          <div>
+            <span>Contract year</span>
+            <strong>2026</strong>
+            <small>Effective {scenario.contract.effective}</small>
+          </div>
+        </header>
+        <div className="contract-parties">
+          <p>
+            This schedule is incorporated into the participating-provider
+            agreement between Evergreen Medical Group and{" "}
+            {scenario.patient.payer}. Covered services are reimbursed according
+            to the code-specific provision below, subject to eligibility,
+            authorization, coding, and coordination-of-benefits requirements.
+          </p>
+        </div>
+        <ContractScheduleTable scenario={scenario} />
+        <div className="contract-provisions">
+          <h4>General reimbursement provisions</h4>
+          <ol>
+            <li>Only covered, medically necessary, properly billed services are payable.</li>
+            <li>Case rates include related same-day services when the schedule states that they are bundled.</li>
+            <li>Patient responsibility and other primary coverage reduce the payer payment, not the contracted allowed amount.</li>
+            <li>The provider must report a pricing discrepancy within the claim-dispute filing period.</li>
+          </ol>
+        </div>
+        <div className="contract-signatures">
+          <span>Evergreen Medical Group</span>
+          <span>{scenario.patient.payer}</span>
+        </div>
+        <DocumentFooter />
+      </div>
+    );
+  }
+
+  if (isClinical) {
+    return (
+      <div className="pdf-document-sheet format-clinical">
+        <header className="clinical-letterhead">
+          <div>
+            <span className="clinical-mark">EMG</span>
+            <div>
+              <strong>{scenario.patient.location}</strong>
+              <small>Clinical Records Packet · Fictional Training Record</small>
+            </div>
+          </div>
+          <div>
+            <span>Packet ID</span>
+            <strong>{document.reference}</strong>
+            <small>Uploaded {document.date}</small>
+          </div>
+        </header>
+        <div className="clinical-demographics">
+          {[
+            ["Patient", scenario.patient.name],
+            ["DOB", scenario.patient.dob],
+            ["Member ID", scenario.patient.memberId],
+            ["Encounter date", scenario.patient.dos],
+            ["Ordering / treating provider", scenario.patient.provider],
+            ["NPI", scenario.patient.providerNpi],
+          ].map(([label, value]) => (
+            <div key={label}>
+              <span>{label}</span>
+              <strong>{value}</strong>
+            </div>
+          ))}
+        </div>
+        <section className="clinical-note-section">
+          <h4>History of present illness</h4>
+          <p>
+            Patient presented for the documented services after symptoms
+            persisted despite an appropriate course of conservative management.
+            The treating provider reviewed prior findings, current functional
+            limitations, medication response, and relevant risk factors before
+            ordering or performing the services listed in this packet.
+          </p>
+        </section>
+        <section className="clinical-note-section">
+          <h4>Services and clinical support</h4>
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Service</th>
+                <th>Units</th>
+                <th>Clinical record entry</th>
+              </tr>
+            </thead>
+            <tbody>
+              {scenario.claim.services.map((service) => (
+                <tr key={service.cpt}>
+                  <td>{service.cpt}</td>
+                  <td>{service.description}</td>
+                  <td>{service.units}</td>
+                  <td>
+                    Signed order, encounter note, and result or administration
+                    record included.
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+        <section className="clinical-note-section">
+          <h4>Assessment and plan</h4>
+          <p>
+            The documented service was selected after review of the patient’s
+            history and examination. Records supporting the service, relevant
+            authorization, results, and follow-up plan are included for payer
+            review. {document.body}
+          </p>
+        </section>
+        <div className="clinical-signature">
+          <span>Electronically signed by</span>
+          <strong>{scenario.patient.provider}, MD</strong>
+          <small>NPI {scenario.patient.providerNpi} · {document.date}</small>
+        </div>
+        <DocumentFooter />
+      </div>
+    );
+  }
+
+  if (isAcknowledgment) {
+    return (
+      <div className="pdf-document-sheet format-acknowledgment">
+        <div className="ack-terminal-head">
+          <span>X12 277CA</span>
+          <strong>Health Care Claim Acknowledgment</strong>
+          <small>Clearinghouse response · {document.date}</small>
+        </div>
+        <div className="ack-status-grid">
+          {[
+            ["Patient control", scenario.claim.claimId],
+            ["Payer claim control", scenario.portal.icn],
+            ["Billing provider NPI", scenario.patient.providerNpi],
+            ["Total claim charge", money(scenario.claim.billed)],
+            ["Acknowledgment status", document.codes],
+            ["Reference", document.reference],
+          ].map(([label, value]) => (
+            <div key={label}>
+              <span>{label}</span>
+              <strong>{value}</strong>
+            </div>
+          ))}
+        </div>
+        <pre className="ack-raw-record">{`ST*277*0001~
+HL*1**20*1~
+NM1*PR*2*${scenario.patient.payer.toUpperCase()}*****PI~
+TRN*2*${document.reference.replace(/\W/g, "")}~
+STC*A1:19*${document.date}*WQ*${scenario.claim.billed.toFixed(2)}~
+REF*1K*${scenario.portal.icn}~
+SE*7*0001~`}</pre>
+        <div className="ack-explanation">
+          <strong>Response explanation</strong>
+          <p>{document.body}</p>
+        </div>
+        <DocumentFooter />
+      </div>
+    );
+  }
+
+  if (isAuthorization) {
+    return (
+      <div className="pdf-document-sheet format-authorization">
+        <header>
+          <div>
+            <span>{scenario.patient.payer}</span>
+            <h3>Authorization / Referral Determination</h3>
+          </div>
+          <strong className="authorization-status">
+            {scenario.authorization.status}
+          </strong>
+        </header>
+        <div className="authorization-number">
+          <span>Authorization number</span>
+          <strong>{scenario.authorization.number}</strong>
+        </div>
+        <dl>
+          {[
+            ["Member", `${scenario.patient.name} · ${scenario.patient.memberId}`],
+            ["Rendering provider", scenario.patient.provider],
+            ["Service location", scenario.patient.location],
+            ["Approved span", scenario.authorization.span],
+            ["Approved services", scenario.authorization.services],
+            ["Reference", document.reference],
+          ].map(([label, value]) => (
+            <div key={label}>
+              <dt>{label}</dt>
+              <dd>{value}</dd>
+            </div>
+          ))}
+        </dl>
+        <div className="authorization-notice">
+          <p>{document.body}</p>
+          <strong>{scenario.authorization.notes}</strong>
+        </div>
+        <DocumentFooter />
+      </div>
+    );
+  }
+
+  if (isPayerLetter) {
+    return (
+      <div className="pdf-document-sheet format-payer-letter">
+        <header className="payer-correspondence-head">
+          <div>
+            <span className="payer-wordmark">
+              {scenario.patient.payer.slice(0, 2).toUpperCase()}
+            </span>
+            <div>
+              <strong>{scenario.patient.payer}</strong>
+              <small>Provider Claims Correspondence</small>
+            </div>
+          </div>
+          <p>{document.date}</p>
+        </header>
+        <div className="letter-recipient">
+          <strong>Evergreen Medical Group</strong>
+          <span>Revenue Cycle Back End Operations</span>
+          <span>{scenario.patient.location}</span>
+        </div>
+        <div className="payer-reference-box">
+          <span>Member: {scenario.patient.name}</span>
+          <span>Member ID: {scenario.patient.memberId}</span>
+          <span>Claim: {scenario.portal.icn}</span>
+          <span>DOS: {scenario.patient.dos}</span>
+        </div>
+        <div className="payer-letter-copy">
+          <p>Dear Provider:</p>
+          <p>{document.body}</p>
+          <p>
+            When responding, include the claim number and this correspondence
+            reference: <strong>{document.reference}</strong>.
+          </p>
+          <p>Sincerely,<br />Provider Claims Resolution Unit</p>
+        </div>
+        <DocumentFooter />
+      </div>
+    );
+  }
+
+  if (isInternalReview) {
+    return (
+      <div className="pdf-document-sheet format-internal-review">
+        <div className="internal-review-head">
+          <span>INTERNAL</span>
+          <div>
+            <h3>Claim Review Memorandum</h3>
+            <p>Evergreen Medical Group · Revenue Integrity</p>
+          </div>
+          <strong>{document.date}</strong>
+        </div>
+        <dl>
+          <div><dt>Account</dt><dd>{scenario.patient.account}</dd></div>
+          <div><dt>Claim</dt><dd>{scenario.claim.claimId}</dd></div>
+          <div><dt>Reviewer reference</dt><dd>{document.reference}</dd></div>
+          <div><dt>Classification</dt><dd>{document.codes}</dd></div>
+        </dl>
+        <section>
+          <h4>Review findings</h4>
+          <p>{document.body}</p>
+        </section>
+        <section>
+          <h4>Claim service lines reviewed</h4>
+          <ul>
+            {scenario.claim.services.map((service) => (
+              <li key={service.cpt}>
+                {service.cpt} · {service.description} · {service.units} unit(s)
+              </li>
+            ))}
+          </ul>
+        </section>
+        <DocumentFooter />
+      </div>
+    );
+  }
+
+  return (
+    <div className="pdf-document-sheet format-provider-letter">
+      <header>
+        <div>
+          <strong>EVERGREEN</strong>
+          <span>Medical Group</span>
+        </div>
+        <small>{document.date}</small>
+      </header>
+      <div className="provider-letter-address">
+        <strong>{scenario.patient.payer} Provider Services</strong>
+        <span>Claims Review Department</span>
+      </div>
+      <div className="provider-letter-reference">
+        Re: {scenario.patient.name} · {scenario.patient.memberId} · DOS{" "}
+        {scenario.patient.dos} · Claim {scenario.portal.icn}
+      </div>
+      <div className="pdf-letter-body">
+        <p>To the Claims Review Team:</p>
+        <p>{document.body}</p>
+        <p>
+          Sincerely,
+          <br />
+          Revenue Cycle Back End Operations
+          <br />
+          Evergreen Medical Group
+        </p>
+      </div>
+      <DocumentFooter />
+    </div>
+  );
+}
+
+function DocumentFooter() {
+  return (
+    <footer>
+      Fictional training document · Not a real clinical, payer, or contract
+      record
+    </footer>
+  );
 }
 
 function TransactionsView({ scenario }: { scenario: ArScenario }) {
@@ -1771,10 +2240,19 @@ function ReimbursementView({
   onChange: (key: keyof CalculatorState, value: string) => void;
   onCalculate: () => void;
 }) {
+  const contractFields: {
+    key: keyof CalculatorState;
+    label: string;
+    suffix?: string;
+  }[] =
+    scenario.contract.method === "percent-charge"
+      ? [
+          { key: "billed", label: "Covered billed charges" },
+          { key: "percent", label: "Contract percentage", suffix: "%" },
+        ]
+      : [{ key: "rate", label: "Applicable contract rate" }];
   const fields: { key: keyof CalculatorState; label: string; suffix?: string }[] = [
-    { key: "billed", label: "Billed charges" },
-    { key: "rate", label: "Case / fee schedule rate" },
-    { key: "percent", label: "Percent of charge", suffix: "%" },
+    ...contractFields,
     { key: "patientResponsibility", label: "Patient responsibility" },
     { key: "otherInsurance", label: "Other insurance payment" },
     { key: "actualPayment", label: "Actual payer payment" },
@@ -1786,25 +2264,34 @@ function ReimbursementView({
         <span className="system-kicker">Built-in activity</span>
         <h3>Expected reimbursement calculator</h3>
         <p>
-          Select the correct contract methodology and enter values found
-          elsewhere in the account. The calculator will compute and validate the
-          expected plan payment and variance.
+          Match the claim’s billed codes to the full contract schedule, identify
+          the applicable method and rate, then enter the amounts needed to
+          compute the expected payment.
         </p>
-        <section className="reimbursement-evidence-card">
-          <div className="reimbursement-evidence-heading">
+        <section className="contract-document-view">
+          <header>
             <div>
-              <span className="system-kicker">Claim-specific contract evidence</span>
-              <h4>{scenario.contract.name}</h4>
+              <span>Evergreen Medical Group</span>
+              <h4>Participating Provider Reimbursement Schedule</h4>
+              <p>{scenario.contract.name}</p>
             </div>
-            <strong>
-              {scenario.contract.method === "case-rate"
-                ? "Case-rate reimbursement"
-                : scenario.contract.method === "percent-charge"
-                  ? "Percentage-of-charge reimbursement"
-                  : "Fee-schedule reimbursement"}
-            </strong>
+            <div>
+              <span>Effective</span>
+              <strong>{scenario.contract.effective}</strong>
+              <small>Exhibit B · Fictional training contract</small>
+            </div>
+          </header>
+          <ContractScheduleTable scenario={scenario} />
+          <footer>
+            Locate the claim codes in this schedule. Do not assume the claim’s
+            current allowed amount equals the contracted reimbursement.
+          </footer>
+        </section>
+        <section className="claim-code-reference">
+          <div>
+            <span className="system-kicker">Claim being analyzed</span>
+            <h4>Service-line code reference</h4>
           </div>
-          <p>{scenario.contract.terms}</p>
           <div className="system-table-wrap">
             <table className="system-table reimbursement-service-table">
               <thead>
@@ -1827,23 +2314,7 @@ function ReimbursementView({
               </tbody>
             </table>
           </div>
-          <small>
-            Contract effective {scenario.contract.effective}. Use only the
-            stipulation that applies to the billed services and units above.
-          </small>
         </section>
-        <label>
-          <span>Contract methodology</span>
-          <select
-            value={calculator.method}
-            onChange={(event) => onChange("method", event.target.value)}
-          >
-            <option value="">Select methodology…</option>
-            <option value="case-rate">Case rate</option>
-            <option value="percent-charge">Percent of billed charges</option>
-            <option value="fee-schedule">Fee schedule amount</option>
-          </select>
-        </label>
         <div className="calculator-grid">
           {fields.map((field) => (
             <label key={field.key}>
@@ -1972,26 +2443,32 @@ function ResolutionView({
             </button>
           ))}
         </div>
+        {selectedAction === "send-task" ? (
+          <label>
+            <span>Route / destination</span>
+            <select
+              value={selectedRoute}
+              onChange={(event) => onRoute(event.target.value)}
+            >
+              <option value="">Choose the responsible destination…</option>
+              {resolutionRoutes.map((route) => (
+                <option value={route.id} key={route.id}>
+                  {route.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
         <label>
-          <span>Route / destination</span>
-          <select
-            value={selectedRoute}
-            onChange={(event) => onRoute(event.target.value)}
-          >
-            <option value="">Choose the responsible destination…</option>
-            {resolutionRoutes.map((route) => (
-              <option value={route.id} key={route.id}>
-                {route.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>Decision rationale</span>
+          <span>Request note</span>
           <textarea
             value={decisionReason}
             onChange={(event) => onReason(event.target.value)}
-            placeholder="Cite the account findings, payer evidence, amount, and deadline that support your action."
+            placeholder={
+              selectedAction === "send-task"
+                ? "Write a clear request for the receiving department: state the issue, evidence reviewed, exact action needed, amount, and deadline."
+                : "Document the action requested, account evidence, amount, deadline, and expected follow-up."
+            }
           />
         </label>
         <button type="button" className="system-primary-button" onClick={onValidate}>
@@ -2004,7 +2481,7 @@ function ResolutionView({
         <h3>{valid ? "Decision supported" : "No answer revealed yet"}</h3>
         <p>
           {feedback ||
-            "The simulator will validate the action and destination only after you commit your rationale."}
+            "The simulator will validate the action, request note, and destination when an internal task is selected."}
         </p>
       </aside>
     </div>

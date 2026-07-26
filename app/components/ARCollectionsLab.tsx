@@ -1216,10 +1216,6 @@ function AccountReferenceStrip({ scenario }: { scenario: ArScenario }) {
             <dt>DOS</dt>
             <dd>{scenario.patient.dos}</dd>
           </div>
-          <div>
-            <dt>Member ID</dt>
-            <dd>{scenario.patient.memberId}</dd>
-          </div>
         </dl>
       </div>
       <div className="account-reference-group provider-reference">

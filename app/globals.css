@@ -4846,6 +4846,10 @@ button {
   margin: 9px 0 0;
 }
 
+.patient-reference dl {
+  grid-template-columns: repeat(3, minmax(0, auto));
+}
+
 .account-reference-group dl > div {
   min-width: 0;
 }

@@ -176,12 +176,6 @@ function contractMethodLabel(scenario: ArScenario) {
   return "Fee schedule";
 }
 
-function contractRateLabel(scenario: ArScenario) {
-  return scenario.contract.method === "percent-charge"
-    ? `${scenario.contract.percent}% of billed charges`
-    : money(scenario.contract.rate);
-}
-
 function serviceCategory(scenario: ArScenario) {
   const serviceText = scenario.claim.services
     .map((service) => service.description.toLowerCase())
@@ -205,60 +199,174 @@ function serviceCategory(scenario: ArScenario) {
 }
 
 function contractScheduleRows(scenario: ArScenario): ContractScheduleRow[] {
-  const claimCodes = scenario.claim.services
-    .map((service) => service.cpt)
-    .join(", ");
-  const relevantRow: ContractScheduleRow = {
-    category: serviceCategory(scenario),
-    codes: claimCodes,
-    method: contractMethodLabel(scenario),
-    rate: contractRateLabel(scenario),
-    rule: scenario.contract.terms,
-  };
-  return [
+  const claimCodeSet = new Set(
+    scenario.claim.services.map((service) => service.cpt),
+  );
+  const referenceRows: ContractScheduleRow[] = [
     {
       category: "Primary care office",
-      codes: "99202–99215",
+      codes: "99202",
       method: "Fee schedule",
-      rate: "$94–$312 by CPT",
-      rule: "Professional component only; separately payable services follow the applicable schedule.",
+      rate: "$102.00 per service",
+      rule: "New-patient office visit; separately payable services follow their own code rate.",
+    },
+    {
+      category: "Primary care office",
+      codes: "99203",
+      method: "Fee schedule",
+      rate: "$165.00 per service",
+      rule: "New-patient office visit; professional component only.",
+    },
+    {
+      category: "Primary care office",
+      codes: "99213",
+      method: "Fee schedule",
+      rate: "$128.00 per service",
+      rule: "Established-patient office visit; separately payable services use their own code rate.",
+    },
+    {
+      category: "Primary care office",
+      codes: "99214",
+      method: "Fee schedule",
+      rate: "$184.00 per service",
+      rule: "Established-patient office visit; professional component only.",
     },
     {
       category: "Preventive medicine",
-      codes: "99381–99397",
+      codes: "99395",
       method: "Fee schedule",
-      rate: "$118–$286 by age band",
-      rule: "Includes routine counseling and age-appropriate preventive work.",
+      rate: "$168.00 per service",
+      rule: "Preventive visit for an established adult; routine counseling is included.",
     },
-    relevantRow,
     {
-      category: "Basic diagnostic imaging",
-      codes: "70010–74022",
+      category: "Preventive medicine",
+      codes: "99396",
       method: "Fee schedule",
-      rate: "72% of 2026 plan schedule",
-      rule: "Professional and technical components follow modifier-specific rates.",
+      rate: "$190.00 per service",
+      rule: "Preventive visit for an established adult; age-appropriate preventive work is included.",
+    },
+    {
+      category: "Diagnostic imaging",
+      codes: "71046",
+      method: "Fee schedule",
+      rate: "$58.00 per service",
+      rule: "Two-view chest radiograph; modifier-specific professional or technical rates supersede this global rate.",
+    },
+    {
+      category: "Diagnostic imaging",
+      codes: "73562",
+      method: "Fee schedule",
+      rate: "$72.00 per service",
+      rule: "Three-view knee radiograph; global service rate.",
+    },
+    {
+      category: "Diagnostic imaging",
+      codes: "72148",
+      method: "Fee schedule",
+      rate: "$412.00 per service",
+      rule: "Lumbar MRI without contrast; authorization and modifier requirements apply.",
     },
     {
       category: "Standard laboratory",
-      codes: "80047–85025",
+      codes: "80053",
       method: "Fee schedule",
-      rate: "65% of billed, schedule cap applies",
-      rule: "Reimbursement cannot exceed the payer laboratory schedule.",
+      rate: "$31.00 per service",
+      rule: "Comprehensive metabolic panel; code-specific rate is the maximum allowed.",
+    },
+    {
+      category: "Standard laboratory",
+      codes: "85025",
+      method: "Fee schedule",
+      rate: "$18.00 per service",
+      rule: "Complete blood count; code-specific rate is the maximum allowed.",
+    },
+    {
+      category: "Pathology",
+      codes: "88305",
+      method: "Fee schedule",
+      rate: "$92.00 per service",
+      rule: "Surgical pathology examination; modifier-specific component rules apply.",
     },
     {
       category: "Physical medicine",
-      codes: "97110–97546",
+      codes: "97110",
       method: "Per-unit fee schedule",
-      rate: "$31–$68 per unit",
+      rate: "$42.00 per unit",
+      rule: "Daily therapy limits and multiple-procedure reductions may apply.",
+    },
+    {
+      category: "Physical medicine",
+      codes: "97140",
+      method: "Per-unit fee schedule",
+      rate: "$38.00 per unit",
       rule: "Daily therapy limits and multiple-procedure reductions may apply.",
     },
     {
       category: "Emergency department",
-      codes: "99281–99285",
+      codes: "99285",
       method: "Percentage of charges",
       rate: "74% of covered billed charges",
       rule: "Subject to outlier and coordination-of-benefits provisions.",
     },
+  ];
+
+  let relevantRows: ContractScheduleRow[];
+  if (scenario.contract.method === "case-rate") {
+    relevantRows = [
+      {
+        category: serviceCategory(scenario),
+        codes: scenario.claim.services.map((service) => service.cpt).join(" + "),
+        method: "Case rate",
+        rate: `${money(scenario.contract.rate)} per case`,
+        rule: scenario.contract.terms,
+      },
+    ];
+  } else if (scenario.contract.method === "percent-charge") {
+    relevantRows = scenario.claim.services.map((service) => ({
+      category: serviceCategory(scenario),
+      codes: service.cpt,
+      method: "Percentage of billed charges",
+      rate: `${scenario.contract.percent}% of the covered charge for CPT ${service.cpt}`,
+      rule: scenario.contract.terms,
+    }));
+  } else {
+    const totalCharges = scenario.claim.services.reduce(
+      (sum, service) => sum + service.charge,
+      0,
+    );
+    let assignedAllowance = 0;
+    relevantRows = scenario.claim.services.map((service, index) => {
+      const units = Math.max(1, service.units);
+      const isLast = index === scenario.claim.services.length - 1;
+      const unitRate = isLast
+        ? (scenario.contract.rate - assignedAllowance) / units
+        : Math.round(
+            ((scenario.contract.rate * service.charge) / totalCharges / units) *
+              100,
+          ) / 100;
+      const lineAllowance = unitRate * units;
+      assignedAllowance += lineAllowance;
+      return {
+        category: serviceCategory(scenario),
+        codes: service.cpt,
+        method: units > 1 ? "Per-unit fee schedule" : "Fee schedule",
+        rate:
+          units > 1
+            ? `${money(unitRate)} per unit`
+            : `${money(unitRate)} per service`,
+        rule: `${service.description}; ${units} billed ${units === 1 ? "unit" : "units"} produce an expected line allowance of ${money(lineAllowance)}. ${scenario.contract.terms}`,
+      };
+    });
+  }
+
+  const filteredReferenceRows = referenceRows.filter(
+    (row) => !claimCodeSet.has(row.codes),
+  );
+  const insertionPoint = Math.min(5, filteredReferenceRows.length);
+  return [
+    ...filteredReferenceRows.slice(0, insertionPoint),
+    ...relevantRows,
+    ...filteredReferenceRows.slice(insertionPoint),
   ];
 }
 
@@ -271,7 +379,7 @@ function ContractScheduleTable({ scenario }: { scenario: ArScenario }) {
             <th>Service category</th>
             <th>Covered codes</th>
             <th>Reimbursement method</th>
-            <th>Rate</th>
+            <th>Code-specific rate</th>
             <th>Contract provision</th>
           </tr>
         </thead>
@@ -2476,7 +2584,15 @@ function ReimbursementView({
           { key: "billed", label: "Covered billed charges" },
           { key: "percent", label: "Contract percentage", suffix: "%" },
         ]
-      : [{ key: "rate", label: "Applicable contract rate" }];
+      : [
+          {
+            key: "rate",
+            label:
+              scenario.contract.method === "case-rate"
+                ? "Applicable case rate"
+                : "Total code-specific fee-schedule allowance",
+          },
+        ];
   const fields: { key: keyof CalculatorState; label: string; suffix?: string }[] = [
     ...contractFields,
     { key: "patientResponsibility", label: "Patient responsibility" },
@@ -2491,8 +2607,8 @@ function ReimbursementView({
         <h3>Expected reimbursement calculator</h3>
         <p>
           Match the claim’s billed codes to the full contract schedule, identify
-          the applicable method and rate, then enter the amounts needed to
-          compute the expected payment.
+          each applicable rate, multiply per-unit rates by the billed units,
+          total the service-line allowances, then compute the expected payment.
         </p>
         <section className="contract-document-view">
           <header>
@@ -2509,8 +2625,9 @@ function ReimbursementView({
           </header>
           <ContractScheduleTable scenario={scenario} />
           <footer>
-            Locate the claim codes in this schedule. Do not assume the claim’s
-            current allowed amount equals the contracted reimbursement.
+            Locate each claim code in this schedule. Fee-schedule rates are
+            assigned to individual codes; add the applicable service-line
+            allowances before comparing them with the payer’s allowed amount.
           </footer>
         </section>
         <section className="claim-code-reference">

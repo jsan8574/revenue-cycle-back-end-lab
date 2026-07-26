@@ -308,85 +308,6 @@ export function PaymentPostingLab({
         onSelect={onSelectScenario}
       />
 
-      <PdfExportCenter
-        learnerName={learnerName}
-        moduleName={module.title}
-        scenarioName={`${scenario.id} · ${scenario.title}`}
-        reports={[
-          {
-            label: "Remittance review",
-            description: "ERA controls, claim identifiers, and service lines",
-            title: "Payment Posting Remittance Review",
-            sections: [
-              {
-                heading: "Payment controls",
-                lines: [
-                  `Payer: ${scenario.era.payer}`,
-                  `Trace: ${scenario.era.trace}`,
-                  `ERA total: ${money(scenario.era.eraTotal)}`,
-                  `Bank amount: ${money(scenario.bank.deposit)}`,
-                  `Patient control: ${scenario.era.patientControl}`,
-                  `Payer claim: ${scenario.era.payerClaim}`,
-                ],
-              },
-              {
-                heading: "Service lines",
-                lines: scenario.era.serviceLines.map(
-                  (line) =>
-                    `${line.dos} · CPT ${line.cpt} · charge ${money(line.billed)} · allowed ${money(line.allowed)} · paid ${money(line.paid)} · patient ${money(line.patientResponsibility)}`,
-                ),
-              },
-            ],
-          },
-          {
-            label: "Line posting worksheet",
-            description: "Amounts and codes entered for every service line",
-            title: "Service-Line Posting Worksheet",
-            sections: scenario.era.serviceLines.map((line) => {
-              const entered = form.lines[line.cpt] ?? emptyLinePosting();
-              return {
-                heading: `CPT ${line.cpt} · ${line.dos}`,
-                lines: [
-                  `Insurance payment: ${entered.payment || "Not entered"}`,
-                  `Contractual: ${entered.contractual || "Not entered"}`,
-                  `Deductible: ${entered.deductible || "Not entered"}`,
-                  `Coinsurance: ${entered.coinsurance || "Not entered"}`,
-                  `Copay: ${entered.copay || "Not entered"}`,
-                  `Denied amount: ${entered.denial || "Not entered"}`,
-                  `Codes: ${entered.code || "Not entered"}`,
-                ],
-              };
-            }),
-          },
-          {
-            label: "Batch completion",
-            description: "Validation, reconciliation, and final disposition",
-            title: "Payment Posting Completion Report",
-            sections: [
-              {
-                heading: "Posting validation",
-                lines: [
-                  `Posting action: ${form.action || "Not selected"}`,
-                  `Posting status: ${postingValid ? "Validated" : "Not validated"}`,
-                  ...feedback.map(
-                    (item) => `${item.label}: ${item.ok ? "Passed" : "Review"}`,
-                  ),
-                ],
-              },
-              {
-                heading: "Batch control",
-                lines: [
-                  `Controlled total: ${batchTotal || "Not entered"}`,
-                  `Variance treatment: ${varianceReason || "Not selected"}`,
-                  `Reconciliation: ${reconcileValid ? "Balanced" : "Not balanced"}`,
-                  `Batch status: ${closed ? "Closed" : "Open"}`,
-                ],
-              },
-            ],
-          },
-        ]}
-      />
-
       <section className="system-frame">
         <header className="system-titlebar">
           <div className="system-brand">
@@ -557,6 +478,85 @@ export function PaymentPostingLab({
           </aside>
         </div>
       </section>
+
+      <PdfExportCenter
+        learnerName={learnerName}
+        moduleName={module.title}
+        scenarioName={`${scenario.id} · ${scenario.title}`}
+        reports={[
+          {
+            label: "Remittance review",
+            description: "ERA controls, claim identifiers, and service lines",
+            title: "Payment Posting Remittance Review",
+            sections: [
+              {
+                heading: "Payment controls",
+                lines: [
+                  `Payer: ${scenario.era.payer}`,
+                  `Trace: ${scenario.era.trace}`,
+                  `ERA total: ${money(scenario.era.eraTotal)}`,
+                  `Bank amount: ${money(scenario.bank.deposit)}`,
+                  `Patient control: ${scenario.era.patientControl}`,
+                  `Payer claim: ${scenario.era.payerClaim}`,
+                ],
+              },
+              {
+                heading: "Service lines",
+                lines: scenario.era.serviceLines.map(
+                  (line) =>
+                    `${line.dos} · CPT ${line.cpt} · charge ${money(line.billed)} · allowed ${money(line.allowed)} · paid ${money(line.paid)} · patient ${money(line.patientResponsibility)}`,
+                ),
+              },
+            ],
+          },
+          {
+            label: "Line posting worksheet",
+            description: "Amounts and codes entered for every service line",
+            title: "Service-Line Posting Worksheet",
+            sections: scenario.era.serviceLines.map((line) => {
+              const entered = form.lines[line.cpt] ?? emptyLinePosting();
+              return {
+                heading: `CPT ${line.cpt} · ${line.dos}`,
+                lines: [
+                  `Insurance payment: ${entered.payment || "Not entered"}`,
+                  `Contractual: ${entered.contractual || "Not entered"}`,
+                  `Deductible: ${entered.deductible || "Not entered"}`,
+                  `Coinsurance: ${entered.coinsurance || "Not entered"}`,
+                  `Copay: ${entered.copay || "Not entered"}`,
+                  `Denied amount: ${entered.denial || "Not entered"}`,
+                  `Codes: ${entered.code || "Not entered"}`,
+                ],
+              };
+            }),
+          },
+          {
+            label: "Batch completion",
+            description: "Validation, reconciliation, and final disposition",
+            title: "Payment Posting Completion Report",
+            sections: [
+              {
+                heading: "Posting validation",
+                lines: [
+                  `Posting action: ${form.action || "Not selected"}`,
+                  `Posting status: ${postingValid ? "Validated" : "Not validated"}`,
+                  ...feedback.map(
+                    (item) => `${item.label}: ${item.ok ? "Passed" : "Review"}`,
+                  ),
+                ],
+              },
+              {
+                heading: "Batch control",
+                lines: [
+                  `Controlled total: ${batchTotal || "Not entered"}`,
+                  `Variance treatment: ${varianceReason || "Not selected"}`,
+                  `Reconciliation: ${reconcileValid ? "Balanced" : "Not balanced"}`,
+                  `Batch status: ${closed ? "Closed" : "Open"}`,
+                ],
+              },
+            ],
+          },
+        ]}
+      />
     </div>
   );
 }

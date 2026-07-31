@@ -1,4 +1,5 @@
 export type ModuleId =
+  | "billing"
   | "payment-posting"
   | "ar-collections"
   | "denial-management";
@@ -287,6 +288,19 @@ const denialSteps: WorkflowStep[] = [
 ];
 
 export const modules: TrainingModule[] = [
+  {
+    id: "billing",
+    navLabel: "Billing",
+    title: "Billing / Claim Form Mastery",
+    eyebrow: "Clean-claim workbench",
+    description:
+      "Prioritize claims, translate source records into CMS-1500 and UB-04 locators, correct clearinghouse edits, and transmit a clean claim.",
+    accent: "#287f71",
+    soft: "#e7f4f0",
+    metric: "2",
+    metricLabel: "claim form types",
+    scenarios: [],
+  },
   {
     id: "payment-posting",
     navLabel: "Payment Posting",

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { ARCollectionsLab } from "./ARCollectionsLab";
+import { BillingLab } from "./BillingLab";
 import { PaymentPostingLab } from "./PaymentPostingLab";
 import { PdfExportCenter } from "./PdfExportCenter";
 import {
@@ -16,6 +17,7 @@ import {
   denialScenarios,
   postingScenarios,
 } from "../data/exploration";
+import { billingScenarios } from "../data/billing";
 
 type Screen = "dashboard" | ModuleId;
 type WorkspaceTab = "brief" | "workflow" | "history" | "notes" | "complete";
@@ -31,6 +33,7 @@ type CompletionLog = (typeof startingLogs)[number];
 
 const navItems: { id: Screen; label: string; marker: string }[] = [
   { id: "dashboard", label: "Overview", marker: "01" },
+  { id: "billing", label: "Billing", marker: "BL" },
   { id: "payment-posting", label: "Payment Posting", marker: "PP" },
   { id: "ar-collections", label: "Insurance Follow-up", marker: "AR" },
   { id: "denial-management", label: "Denial Management", marker: "DM" },
@@ -64,6 +67,7 @@ function moduleInitial(module: TrainingModule) {
 }
 
 function moduleScenarioCount(module: TrainingModule) {
+  if (module.id === "billing") return billingScenarios.length;
   if (module.id === "payment-posting") return postingScenarios.length;
   if (module.id === "ar-collections") return arScenarios.length;
   if (module.id === "denial-management") return denialScenarios.length;
@@ -122,6 +126,7 @@ export function TrainingWorkspace() {
   const [nameEntry, setNameEntry] = useState("");
   const [screen, setScreen] = useState<Screen>("dashboard");
   const [activeScenario, setActiveScenario] = useState<Record<ModuleId, number>>({
+    billing: 0,
     "payment-posting": 0,
     "ar-collections": 0,
     "denial-management": 0,
@@ -321,6 +326,15 @@ export function TrainingWorkspace() {
             scenarioCount={scenarioCount}
             onOpenModule={(id) => selectScreen(id)}
           />
+        ) : activeModule?.id === "billing" ? (
+          <BillingLab
+            learnerName={learnerName}
+            scenarioIndex={activeScenario.billing}
+            onSelectScenario={(index) => selectScenario(activeModule, index)}
+            onComplete={(scenarioName, completionScore) =>
+              saveExplorationCompletion(activeModule.title, scenarioName, completionScore)
+            }
+          />
         ) : activeModule?.id === "payment-posting" ? (
           <PaymentPostingLab
             key={`payment-${activeScenario["payment-posting"]}`}
@@ -432,12 +446,12 @@ function Dashboard({
             <button
               className="primary-button"
               type="button"
-              onClick={() => onOpenModule("payment-posting")}
+              onClick={() => onOpenModule("billing")}
             >
               Start a practice case <span aria-hidden="true">↗</span>
             </button>
             <span className="hero-note">
-              <span className="pulse-dot" /> 3 learning paths ready
+              <span className="pulse-dot" /> 4 learning paths ready
             </span>
           </div>
         </div>
@@ -460,7 +474,7 @@ function Dashboard({
 
       <section className="dashboard-metrics" aria-label="Training summary">
         {[
-          ["03", "role-based modules"],
+          ["04", "role-based modules"],
           [`${scenarioCount}`, "fictional scenarios"],
           ["88%", "average score"],
           ["23", "completed this week"],

@@ -49,6 +49,7 @@ const cmsFields: BillingField[] = [
   ["policy", "11", "Policy or group number", "Coverage", true],
   ["patientSignature", "12", "Patient authorization", "Coverage", true],
   ["insuredSignature", "13", "Payment authorization", "Coverage", true],
+  ["icdIndicator", "21 · ICD Ind.", "ICD indicator (0 = ICD-10-CM)", "Clinical", true],
   ["diagnosis", "21A", "Primary diagnosis", "Clinical", true],
   ["dos1", "24A · line 1", "Date of service", "Services", true, "date", 1],
   ["pos1", "24B · line 1", "Place of service", "Services", true, "text", 1],
@@ -99,8 +100,8 @@ const ubStatic: BillingField[] = [
   ["insuredName", "58A", "Insured name", "Coverage", true],
   ["relationship", "59A", "Relationship to insured", "Coverage", true],
   ["memberId", "60A", "Insured unique ID / member ID", "Coverage", true],
-  ["groupName", "61A", "Insurance group name", "Coverage", true],
-  ["groupNumber", "62A", "Insurance group number", "Coverage", true],
+  ["groupName", "61A", "Insurance group name", "Coverage", false],
+  ["groupNumber", "62A", "Insurance group number", "Coverage", false],
   ["authorization", "63A", "Treatment authorization code", "Coverage", false],
   ["icdIndicator", "66", "Diagnosis version qualifier", "Clinical", true],
   ["diagnosis", "67", "Principal diagnosis", "Clinical", true],
@@ -155,16 +156,16 @@ function cmsCase(config: {
     complexity: config.complexity, total: config.total, age: config.age, filingDays: config.filingDays, expectedRank: config.rank,
     priorityReason: config.reason, serviceCount: config.services.length, initial: config.initial,
     sourceSections: [
-      section("Registration", "Patient registration", { Patient: config.patient, DOB: config.dob, Sex: config.sex, Address: config.address, Account: config.account, Relationship: "Self" }),
-      section("Coverage", "Electronic eligibility", { Payer: config.payer, "Member ID": config.memberId, Group: config.group, Assignment: "Accepted" }),
-      section("Clinical", "Signed encounter and charge ticket", { Provider: config.doctor, "Rendering NPI": config.doctorNpi, Diagnosis: config.diagnosis, Services: config.services.map((s) => `${s.dos} · POS ${s.pos} · ${s.cpt} · $${s.charge}`).join(" | ") }),
+      section("Registration", "Patient registration", { Patient: config.patient, DOB: config.dob, Sex: config.sex, Address: config.address, Account: config.account, Relationship: "Self", "Patient authorization": "Signature on file" }),
+      section("Coverage", "Electronic eligibility", { Payer: config.payer, "Member ID": config.memberId, Group: config.group, Assignment: "Accepted", "Insured authorization": "Signature on file" }),
+      section("Clinical", "Signed encounter and charge ticket", { Provider: config.doctor, "Rendering NPI": config.doctorNpi, "Diagnosis version": "ICD-10-CM · indicator 0", Diagnosis: config.diagnosis, Services: config.services.map((s) => `${s.dos} · POS ${s.pos} · ${s.cpt} · $${s.charge}`).join(" | ") }),
       section("Provider master", "Billing provider file", { Entity: clinic.provider, TIN: clinic.taxId, NPI: clinic.npi, Taxonomy: clinic.taxonomy }),
     ],
     answers: {
       coverage: config.payer === "Medicare" ? "Medicare" : "Group Health Plan", memberId: config.memberId,
       patientName: config.patient, patientDob: config.dob, patientSex: config.sex, patientAddress: config.address,
       relationship: "Self", policy: config.group, patientSignature: "Signature on file", insuredSignature: "Signature on file",
-      diagnosis: config.diagnosis, ...serviceAnswers, taxId: clinic.taxId, patientAccount: config.account, assignment: "Yes",
+      icdIndicator: "0", diagnosis: config.diagnosis, ...serviceAnswers, taxId: clinic.taxId, patientAccount: config.account, assignment: "Yes",
       totalCharges: String(config.total), providerSignature: config.doctor, facility: clinic.provider, facilityNpi: clinic.npi,
       billingProvider: clinic.provider, billingNpi: clinic.npi,
     },
@@ -173,7 +174,7 @@ function cmsCase(config: {
 
 function ubCase(config: {
   id: string; patient: string; dob: string; sex: string; address: string; payer: string; planId: string; memberId: string; groupName: string; groupNumber: string;
-  account: string; tob: string; from: string; through: string; diagnosis: string; other?: string; procedure?: string; authorization?: string;
+  account: string; tob: string; from: string; through: string; diagnosis: string; other?: string; procedure?: string; procedureDate?: string; authorization?: string;
   attending: string; attendingNpi: string; services: { rev: string; desc: string; hcpcs?: string; date: string; charge: string }[];
   total: number; age: number; filingDays: number; rank: number; status: string; complexity: BillingScenario["complexity"]; initial: Record<string, string>; reason: string;
 }): BillingScenario {
@@ -188,9 +189,9 @@ function ubCase(config: {
     status: config.status, complexity: config.complexity, total: config.total, age: config.age, filingDays: config.filingDays,
     expectedRank: config.rank, priorityReason: config.reason, serviceCount: config.services.length, initial: config.initial,
     sourceSections: [
-      section("Face sheet", "Hospital registration", { Patient: config.patient, DOB: config.dob, Sex: config.sex, Address: config.address, "Patient control": config.account }),
-      section("Coverage", "Electronic eligibility", { Payer: config.payer, "Plan ID": config.planId, "Member ID": config.memberId, Group: `${config.groupName} · ${config.groupNumber}`, Authorization: config.authorization || "Not required" }),
-      section("Coded abstract", "ADT and coding", { "Statement period": `${config.from} through ${config.through}`, "Type of bill": config.tob, "Admission hour": "14", "Admission priority": "1", "Discharge status": "1", Diagnosis: config.diagnosis, Procedure: config.procedure || "None", Attending: `${first} ${last} · ${config.attendingNpi}` }),
+      section("Face sheet", "Hospital registration", { Patient: config.patient, DOB: config.dob, Sex: config.sex, Address: config.address, "Patient control": config.account, "Relationship to insured": "Self · code 18" }),
+      section("Coverage", "Electronic eligibility", { Payer: config.payer, "Plan ID": config.planId, "Member ID": config.memberId, Group: config.groupName && config.groupNumber ? `${config.groupName} · ${config.groupNumber}` : "Not applicable", Authorization: config.authorization || "Not required" }),
+      section("Coded abstract", "ADT and coding", { "Statement period": `${config.from} through ${config.through}`, "Type of bill": config.tob, "Admission hour": "14", "Admission priority": "1", "Discharge status": "1", "Diagnosis version": "ICD-10-CM · qualifier 0", Diagnosis: config.diagnosis, Procedure: config.procedure || "None", "Procedure date": config.procedure ? (config.procedureDate || config.from) : "Not applicable", Attending: `${first} ${last} · ${config.attendingNpi}` }),
       section("Charge detail", "Patient accounting", Object.fromEntries(config.services.map((s, i) => [`Line ${i + 1}`, `${s.rev} · ${s.desc}${s.hcpcs ? ` · ${s.hcpcs}` : ""} · ${s.date} · $${s.charge}`]))),
       section("Provider master", "Hospital billing file", { Facility: hospital.provider, TIN: hospital.taxId, NPI: hospital.npi, Taxonomy: hospital.taxonomy }),
     ],
@@ -201,7 +202,7 @@ function ubCase(config: {
       ...serviceAnswers, totalCharges: String(config.total), payer: config.payer, planId: config.planId, insuredName: config.patient,
       relationship: "18", memberId: config.memberId, groupName: config.groupName, groupNumber: config.groupNumber,
       authorization: config.authorization || "", icdIndicator: "0", diagnosis: config.diagnosis, otherDiagnosis: config.other || "",
-      procedure: config.procedure || "", procedureDate: config.procedure ? config.from : "", attendingNpi: config.attendingNpi,
+      procedure: config.procedure || "", procedureDate: config.procedure ? (config.procedureDate || config.from) : "", attendingNpi: config.attendingNpi,
       attendingLast: last, attendingFirst: first, taxonomy: hospital.taxonomy,
     },
   };
@@ -211,9 +212,9 @@ export const billingScenarios: BillingScenario[] = [
   cmsCase({ id: "BIL-1501", patient: "Maria Santos", dob: "1985-03-15", sex: "F", address: "123 Mabini Street, San Diego, CA 92101", payer: "Harbor Blue PPO", memberId: "BC123456789", group: "HBP-44018", account: "AC-1501-MAS", diagnosis: "J06.9", doctor: "Dr. John Cruz", doctorNpi: "1234567890", services: [{ dos: "2026-02-10", pos: "11", cpt: "99203", charge: "150" }, { dos: "2026-02-10", pos: "11", cpt: "87880", charge: "40" }], total: 190, age: 9, filingDays: 25, rank: 5, status: "Draft claim", complexity: "Foundation", initial: { memberId: "BC12345678" }, reason: "Low balance with adequate filing time; work after deadline-sensitive and high-value claims." }),
   cmsCase({ id: "BIL-1502", patient: "Pedro Garcia", dob: "1975-09-25", sex: "M", address: "225 Willow Lane, Phoenix, AZ 85004", payer: "Medicare", memberId: "2HG5-LM8-OP22", group: "MEDICARE", account: "AC-1502-PEG", diagnosis: "I10", doctor: "Dr. Lisa Tan", doctorNpi: "2233445566", services: [{ dos: "2026-02-18", pos: "11", cpt: "99213", charge: "100" }], total: 100, age: 6, filingDays: 30, rank: 6, status: "Draft claim", complexity: "Foundation", initial: { diagnosis: "110" }, reason: "Lowest balance, newest age, and longest filing runway in the queue." }),
   cmsCase({ id: "BIL-1503", patient: "Carla Mendoza", dob: "1992-12-01", sex: "F", address: "901 Bayberry Court, Tampa, FL 33602", payer: "Aetna", memberId: "AET112233", group: "AET-7206", account: "AC-1503-CAM", diagnosis: "L02.91", doctor: "Dr. Kevin Lim", doctorNpi: "3344556677", services: [{ dos: "2026-03-05", pos: "24", cpt: "10060", charge: "250" }], total: 250, age: 87, filingDays: 3, rank: 3, status: "Rejected draft", complexity: "Intermediate", initial: { pos1: "11" }, reason: "Only three days remain to correct and transmit; filing exposure makes the low balance urgent." }),
-  ubCase({ id: "BIL-0401", patient: "Juan Dela Cruz", dob: "1970-07-22", sex: "M", address: "77 Pine Street, Seattle, WA 98104", payer: "Medicare", planId: "00450", memberId: "1EG4-TE5-MK73", groupName: "Original Medicare", groupNumber: "MEDICARE", account: "IP-0401-JDC", tob: "111", from: "2026-01-15", through: "2026-01-18", diagnosis: "I21.9", other: "E11.9", procedure: "027034Z", attending: "Chang, Robert", attendingNpi: "2233445566", services: [{ rev: "0450", desc: "Emergency room", hcpcs: "99285", date: "2026-01-15", charge: "500" }, { rev: "0360", desc: "Operating room", hcpcs: "92928", date: "2026-01-16", charge: "5000" }, { rev: "0250", desc: "Pharmacy", date: "2026-01-16", charge: "800" }, { rev: "0300", desc: "Laboratory", hcpcs: "80053", date: "2026-01-15", charge: "300" }], total: 6600, age: 74, filingDays: 12, rank: 2, status: "High-dollar draft", complexity: "Advanced", initial: { typeOfBill: "131" }, reason: "Highest balance with a short filing runway; second only to the already rejected surgery claim." }),
+  ubCase({ id: "BIL-0401", patient: "Juan Dela Cruz", dob: "1970-07-22", sex: "M", address: "77 Pine Street, Seattle, WA 98104", payer: "Medicare", planId: "00450", memberId: "1EG4-TE5-MK73", groupName: "", groupNumber: "", account: "IP-0401-JDC", tob: "111", from: "2026-01-15", through: "2026-01-18", diagnosis: "I21.9", other: "E11.9", procedure: "027034Z", procedureDate: "2026-01-16", attending: "Chang, Robert", attendingNpi: "2233445566", services: [{ rev: "0450", desc: "Emergency room", hcpcs: "99285", date: "2026-01-15", charge: "500" }, { rev: "0360", desc: "Operating room", hcpcs: "92928", date: "2026-01-16", charge: "5000" }, { rev: "0250", desc: "Pharmacy", date: "2026-01-16", charge: "800" }, { rev: "0300", desc: "Laboratory", hcpcs: "80053", date: "2026-01-15", charge: "300" }], total: 6600, age: 74, filingDays: 12, rank: 2, status: "High-dollar draft", complexity: "Advanced", initial: { typeOfBill: "131" }, reason: "Highest balance with a short filing runway; second only to the already rejected surgery claim." }),
   ubCase({ id: "BIL-0402", patient: "Mark Santos", dob: "1995-05-10", sex: "M", address: "44 Pearl Avenue, Seattle, WA 98115", payer: "Harbor Blue PPO", planId: "HB001", memberId: "BC99887766", groupName: "Harbor Tech", groupNumber: "HT-1902", account: "OP-0402-MAS", tob: "131", from: "2026-02-20", through: "2026-02-20", diagnosis: "S93.401A", attending: "Lim, Kevin", attendingNpi: "3344556677", services: [{ rev: "0450", desc: "Emergency room", hcpcs: "99284", date: "2026-02-20", charge: "400" }, { rev: "0320", desc: "Diagnostic radiology", hcpcs: "73610", date: "2026-02-20", charge: "250" }, { rev: "0250", desc: "Pharmacy", date: "2026-02-20", charge: "150" }], total: 800, age: 28, filingDays: 16, rank: 4, status: "Draft claim", complexity: "Intermediate", initial: { memberId: "BC9988776" }, reason: "Moderate value and filing runway; work after high-risk deadline items and the high-dollar inpatient claim." }),
-  ubCase({ id: "BIL-0403", patient: "Ana Reyes", dob: "1990-11-05", sex: "F", address: "1900 Cedar Way, Seattle, WA 98121", payer: "Aetna", planId: "AET01", memberId: "AET567890", groupName: "Northwest Retail", groupNumber: "NWR-771", authorization: "AET-AUTH-44192", account: "OP-0403-ANR", tob: "131", from: "2026-03-01", through: "2026-03-01", diagnosis: "K35.80", procedure: "0DTJ4ZZ", attending: "Reyes, Maya", attendingNpi: "5566778899", services: [{ rev: "0360", desc: "Operating room", hcpcs: "44970", date: "2026-03-01", charge: "4500" }, { rev: "0250", desc: "Pharmacy", date: "2026-03-01", charge: "600" }, { rev: "0270", desc: "Medical / surgical supplies", date: "2026-03-01", charge: "400" }], total: 5500, age: 91, filingDays: 7, rank: 1, status: "Clearinghouse rejected", complexity: "Advanced", initial: { attendingNpi: "556677889" }, reason: "Already rejected, high-value, and only seven days remain to correct and transmit; work first." }),
+  ubCase({ id: "BIL-0403", patient: "Ana Reyes", dob: "1990-11-05", sex: "F", address: "1900 Cedar Way, Seattle, WA 98121", payer: "Aetna", planId: "AET01", memberId: "AET567890", groupName: "Northwest Retail", groupNumber: "NWR-771", authorization: "AET-AUTH-44192", account: "OP-0403-ANR", tob: "131", from: "2026-03-01", through: "2026-03-01", diagnosis: "K35.80", procedure: "0DTJ4ZZ", procedureDate: "2026-03-01", attending: "Reyes, Maya", attendingNpi: "5566778899", services: [{ rev: "0360", desc: "Operating room", hcpcs: "44970", date: "2026-03-01", charge: "4500" }, { rev: "0250", desc: "Pharmacy", date: "2026-03-01", charge: "600" }, { rev: "0270", desc: "Medical / surgical supplies", date: "2026-03-01", charge: "400" }], total: 5500, age: 91, filingDays: 7, rank: 1, status: "Clearinghouse rejected", complexity: "Advanced", initial: { attendingNpi: "556677889" }, reason: "Already rejected, high-value, and only seven days remain to correct and transmit; work first." }),
 ];
 
 export function fieldsForScenario(scenario: BillingScenario) {

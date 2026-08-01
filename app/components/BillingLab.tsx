@@ -29,8 +29,10 @@ function editInfo(field: BillingField) {
   if (field.id === "memberId") return ["A7:21", "2010BA · NM109", "Subscriber identifier edit", "The subscriber identifier is missing or does not meet the payer format. Compare eligibility with the claim."];
   if (/Npi/i.test(field.id)) return ["A7:21", "2010AA / 2310A · NM109", "Provider identifier edit", "The provider identifier is incomplete or inconsistent with the provider role on the claim."];
   if (field.id === "typeOfBill") return ["A7:21", "2300 · CLM05-1", "Bill classification edit", "Type of bill is inconsistent with the facility setting or claim frequency."];
+  if (/^pos/.test(field.id)) return ["A7:21", "2400 · SV105", "Place of service edit", "The place of service is inconsistent with the encounter setting in the source record."];
   if (/^(rev)/.test(field.id)) return ["A7:21", "2400 · SV201", "Revenue code edit", "A service line contains an invalid or missing revenue code."];
   if (/^(cpt|hcpcs)/.test(field.id)) return ["A7:21", "2400 · SV101-2 / SV202-2", "Procedure code edit", "The procedure code does not match the coded charge detail for this line."];
+  if (field.id === "icdIndicator") return ["A7:21", "2300 · HI", "Diagnosis qualifier edit", "The ICD version indicator is missing or inconsistent with the diagnosis code set."];
   if (field.id === "diagnosis") return ["A7:21", "2300 · HI01-2", "Diagnosis edit", "The diagnosis is missing, invalid, or inconsistent with the coded encounter."];
   if (field.id === "totalCharges") return ["A3:78", "2300 · CLM02", "Claim balance edit", "Claim total does not balance to the submitted service-line charges."];
   if (field.type === "date") return ["A7:21", "DTP", "Date edit", "A required date is missing or inconsistent with the encounter or statement period."];
@@ -164,15 +166,21 @@ export function BillingLab({ learnerName, scenarioIndex, onSelectScenario, onCom
       const ink = rgb(0.02, 0.16, 0.2), v = (id: string) => (caseValues[id] || "").replace(/[’‘]/g, "'").replace(/[^\x20-\x7E]/g, "");
       const draw = (text: string, x: number, y: number, size = 7, heavy = false) => { if (text) page.drawText(text.slice(0, 80), { x, y, size, font: heavy ? bold : font, color: ink }); };
       if (scenario.form === "CMS-1500") {
-        const coverage: Record<string, number> = { medicare: 128, medicaid: 177, tricare: 228, champva: 292, grouphealthplan: 343, feca: 401, other: 444 };
-        draw("X", coverage[normalize(v("coverage"))] || 343, 929, 9, true); draw(v("memberId"), 478, 928);
-        draw(v("patientName"), 127, 906); draw(compactDate(v("patientDob")), 335, 906); draw("X", normalize(v("patientSex")) === "m" ? 420 : 455, 905, 9, true);
-        draw(v("patientAddress"), 127, 881, 6); draw("X", 356, 881, 9, true); draw(v("policy"), 478, 810);
-        draw(v("patientSignature"), 163, 669, 6); draw(v("insuredSignature"), 519, 669, 6); draw(v("diagnosis"), 140, 570);
-        [1, 2].forEach((line, i) => { const y = [497, 473][i]; if (!v(`cpt${line}`)) return; draw(compactDate(v(`dos${line}`)), 127, y); draw(v(`pos${line}`), 255, y); draw(v(`cpt${line}`), 299, y); draw(v(`pointer${line}`), 442, y); draw(v(`charge${line}`), 482, y); draw(v(`units${line}`), 543, y); draw(v(`renderingNpi${line}`), 607, y); });
-        draw(v("taxId"), 130, 355); draw(v("patientAccount"), 283, 355); draw("X", 392, 355, 9, true); draw(v("totalCharges"), 488, 355);
-        draw(v("providerSignature"), 128, 305, 6); draw(v("facility").slice(0, 50), 284, 325, 6); draw(v("facilityNpi"), 290, 294, 6); draw(v("billingProvider").slice(0, 52), 479, 325, 6); draw(v("billingNpi"), 485, 294, 6);
-        draw(`Training copy | Learner: ${learnerName} | ${scenario.id}`, 85, 188, 6, true);
+        const coverage: Record<string, number> = { medicare: 63, medicaid: 111, tricare: 160, champva: 225, grouphealthplan: 278, feca: 334, other: 379 };
+        const addressParts = v("patientAddress").split(",").map((part) => part.trim());
+        const stateZip = (addressParts[2] || "").match(/^([A-Z]{2})\s+(.+)$/i);
+        draw("X", coverage[normalize(v("coverage"))] || 278, 714, 9, true); draw(v("memberId"), 416, 714);
+        draw(v("patientName"), 64, 690); draw(compactDate(v("patientDob")), 279, 690); draw("X", normalize(v("patientSex")) === "m" ? 353 : 389, 689, 9, true);
+        draw(addressParts[0] || v("patientAddress"), 64, 667, 6); draw(addressParts[1] || "", 64, 642, 6); draw(stateZip?.[1] || "", 244, 642, 6); draw(stateZip?.[2] || "", 64, 618, 6);
+        draw("X", 284, 666, 9, true); draw(v("policy"), 416, 594); draw(v("patientSignature"), 92, 450, 6); draw(v("insuredSignature"), 454, 450, 6);
+        draw(v("icdIndicator"), 319, 358, 7, true); draw(v("diagnosis"), 165, 364);
+        [1, 2].forEach((line, i) => { const y = [280, 256][i]; if (!v(`cpt${line}`)) return; draw(compactDate(v(`dos${line}`)), 64, y); draw(v(`pos${line}`), 140, y); draw(v(`cpt${line}`), 185, y); draw(v(`pointer${line}`), 326, y); draw(v(`charge${line}`), 379, y); draw(v(`units${line}`), 430, y); draw(v(`renderingNpi${line}`), 542, y); });
+        draw(v("taxId"), 64, 138); draw("X", 142, 138, 8, true); draw(v("patientAccount"), 170, 138); draw("X", 330, 138, 9, true); draw(v("totalCharges"), 420, 138);
+        const facilityParts = v("facility").split(",").map((part) => part.trim());
+        const billingParts = v("billingProvider").split(",").map((part) => part.trim());
+        draw(v("providerSignature"), 78, 79, 6); draw(facilityParts[0] || "", 220, 107, 5.5); draw(facilityParts.slice(1).join(", ").slice(0, 46), 220, 95, 5); draw(v("facilityNpi"), 220, 82, 6);
+        draw(billingParts[0] || "", 415, 107, 5.5); draw(billingParts.slice(1).join(", ").slice(0, 46), 415, 95, 5); draw(v("billingNpi"), 415, 82, 6);
+        draw(`Training copy | Learner: ${learnerName} | ${scenario.id}`, 60, 22, 6, true);
       } else {
         draw(v("provider").split(",")[0], 114, 986, 6); draw(v("provider").split(",").slice(1).join(",").slice(0, 45), 114, 974, 6);
         draw(v("patientControl"), 492, 987, 6); draw(v("typeOfBill"), 660, 975, 7, true); draw(v("taxId"), 466, 951, 6);

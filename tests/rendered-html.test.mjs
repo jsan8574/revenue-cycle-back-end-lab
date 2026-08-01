@@ -52,5 +52,10 @@ test("includes the Billing claim-form mastery workflow", async () => {
   assert.match(billingData, /export const billingScenarios/);
   assert.match(billingData, /form:\s*"CMS-1500"/);
   assert.match(billingData, /form:\s*"UB-04"/);
+  assert.match(billingData, /\["icdIndicator", "21 · ICD Ind\."/);
+  assert.match(billingData, /\["memberId", "60A", "Insured unique ID \/ member ID"/);
+  assert.match(billingData, /\["authorization", "63A", "Treatment authorization code"/);
+  assert.match(billingData, /procedureDate:\s*"2026-01-16"/);
+  assert.match(billingData, /groupName:\s*"", groupNumber:\s*""/);
   assert.match(packageJson, /"pdf-lib"/);
 });

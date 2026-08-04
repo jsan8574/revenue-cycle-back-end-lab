@@ -7087,6 +7087,88 @@ button {
   white-space: nowrap !important;
 }
 
+.priority-rationale-panel {
+  align-items: start;
+  background: #f7faf8;
+  border: 1px solid #d6e2de;
+  border-left: 4px solid var(--module-accent);
+  border-radius: 12px;
+  display: grid;
+  gap: 18px;
+  grid-template-columns: minmax(220px, 0.75fr) minmax(360px, 1.25fr);
+  margin-top: 16px;
+  padding: 18px;
+}
+
+.priority-rationale-panel h3 {
+  font-size: 18px;
+  margin: 4px 0 6px;
+}
+
+.priority-rationale-panel > div:first-child p {
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.priority-rationale-panel label {
+  color: #40595a;
+  display: block;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.priority-rationale-panel textarea {
+  background: #fff;
+  border: 1px solid #c7d6d2;
+  border-radius: 9px;
+  color: var(--ink);
+  display: block;
+  line-height: 1.5;
+  margin-top: 6px;
+  min-height: 112px;
+  padding: 11px 12px;
+  resize: vertical;
+  width: 100%;
+}
+
+.priority-rationale-panel label small {
+  color: #708281;
+  display: block;
+  font-weight: 600;
+  margin-top: 5px;
+}
+
+.priority-rationale-actions {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  grid-column: 2;
+}
+
+.priority-rationale-actions button {
+  background: var(--module-accent);
+  border: 0;
+  border-radius: 9px;
+  color: #fff;
+  cursor: pointer;
+  flex: 0 0 auto;
+  font-size: 12px;
+  font-weight: 850;
+  min-height: 42px;
+  padding: 9px 13px;
+}
+
+.priority-rationale-actions p {
+  font-size: 12px;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.priority-rationale-actions .success-message { color: #267153; }
+.priority-rationale-actions .warning-message { color: #984b37; }
+
 .appeal-workbench {
   align-items: start;
   display: grid;
@@ -7509,6 +7591,21 @@ button {
 
   .priority-queue-panel {
     padding: 13px;
+  }
+
+  .priority-rationale-panel {
+    grid-template-columns: 1fr;
+    padding: 15px;
+  }
+
+  .priority-rationale-actions {
+    align-items: stretch;
+    flex-direction: column;
+    grid-column: 1;
+  }
+
+  .priority-rationale-actions button {
+    width: 100%;
   }
 
   .document-meta-grid > div,

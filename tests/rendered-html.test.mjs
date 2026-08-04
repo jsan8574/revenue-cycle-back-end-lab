@@ -59,3 +59,20 @@ test("includes the Billing claim-form mastery workflow", async () => {
   assert.match(billingData, /groupName:\s*"", groupNumber:\s*""/);
   assert.match(packageJson, /"pdf-lib"/);
 });
+
+test("requires prioritization rationale in Insurance Follow-up and Denial Management", async () => {
+  const [workspace, arLab, styles] = await Promise.all([
+    readFile(new URL("../app/components/TrainingWorkspace.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/ARCollectionsLab.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(workspace, /mode="denial"/);
+  assert.match(arLab, /Explain account prioritization/);
+  assert.match(arLab, /How would you prioritize the selected account\?/);
+  assert.match(arLab, /priorityRationale\.trim\(\)\.length >= 80/);
+  assert.match(arLab, /canPostNote =\s*notesComplete &&\s*priorityRationaleValid/);
+  assert.match(arLab, /heading: "Prioritization decision"/);
+  assert.match(arLab, /Prioritization rationale: \$\{priorityRationaleValid/);
+  assert.match(styles, /\.priority-rationale-panel/);
+});

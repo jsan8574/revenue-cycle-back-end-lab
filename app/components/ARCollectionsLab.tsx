@@ -441,6 +441,16 @@ function getPriorityReason(scenario: ArScenario) {
   return reasons.slice(0, 3).join(" · ") || "routine follow-up window";
 }
 
+function getPriorityFactorCount(value: string) {
+  const factorPatterns = [
+    /\b(balance|amount|dollar|financial|high[- ]?value)\b|\$/i,
+    /\b(age|aging|aged|days?\s+(old|in\s+ar))\b/i,
+    /\b(deadline|filing|appeal|timely)\b/i,
+    /\b(risk|status|reject|denial|pending|readiness|workable|operational)\b/i,
+  ];
+  return factorPatterns.filter((pattern) => pattern.test(value)).length;
+}
+
 export function ARCollectionsLab({
   module,
   learnerName,
@@ -520,6 +530,16 @@ export function ARCollectionsLab({
   >([]);
   const [notePosted, setNotePosted] = useState(false);
   const [closed, setClosed] = useState(false);
+  const [priorityRationale, setPriorityRationale] = useState("");
+  const [priorityRationaleValid, setPriorityRationaleValid] = useState(false);
+  const [priorityRationaleFeedback, setPriorityRationaleFeedback] =
+    useState("");
+
+  const rankedScenarioIds = [...scenarioList]
+    .sort((left, right) => getPriorityScore(right) - getPriorityScore(left))
+    .map((item) => item.id);
+  const selectedPriorityRank = rankedScenarioIds.indexOf(scenario.id) + 1;
+  const selectedPriorityScore = getPriorityScore(scenario);
 
   const investigationComplete = portalOpened && callClosed;
   const appealRequirementMet =
@@ -536,6 +556,10 @@ export function ARCollectionsLab({
     notes.resolution.trim().length >= 12;
   const checklist = [
     { label: "Access the account", done: true },
+    {
+      label: "Explain account prioritization",
+      done: priorityRationaleValid,
+    },
     { label: "Review the account balance", done: balanceReviewed },
     {
       label: "Review EOBs / correspondences",
@@ -569,10 +593,22 @@ export function ARCollectionsLab({
   const completedCount = checklist.filter((item) => item.done).length;
   const canPostNote =
     notesComplete &&
+    priorityRationaleValid &&
     actionValid &&
     reimbursementValid &&
     investigationComplete &&
     appealRequirementMet;
+
+  const validatePriorityRationale = () => {
+    const factorCount = getPriorityFactorCount(priorityRationale);
+    const valid = priorityRationale.trim().length >= 80 && factorCount >= 3;
+    setPriorityRationaleValid(valid);
+    setPriorityRationaleFeedback(
+      valid
+        ? `Prioritization rationale recorded for ${scenario.id}. It will be included in the learner PDF.`
+        : "Explain where this account belongs in the queue using at least three factors: balance, age, filing or appeal deadline, and operational risk or status.",
+    );
+  };
 
   const openTab = (next: ArDeskTab) => {
     setTab(next);
@@ -755,6 +791,15 @@ export function ARCollectionsLab({
         mode={mode}
         selected={scenarioIndex}
         onSelect={onSelectScenario}
+        rationale={priorityRationale}
+        rationaleValid={priorityRationaleValid}
+        rationaleFeedback={priorityRationaleFeedback}
+        onRationale={(value) => {
+          setPriorityRationale(value);
+          setPriorityRationaleValid(false);
+          setPriorityRationaleFeedback("");
+        }}
+        onSubmitRationale={validatePriorityRationale}
       />
 
       <section className="ar-system-frame">
@@ -982,6 +1027,15 @@ export function ARCollectionsLab({
                 : "Insurance Follow-up Account Investigation",
             sections: [
               {
+                heading: "Prioritization decision",
+                lines: [
+                  `Selected account queue position: ${selectedPriorityRank} of ${scenarioList.length}`,
+                  `System priority score: ${selectedPriorityScore}`,
+                  `Rationale validation: ${priorityRationaleValid ? "Passed" : "Not passed"}`,
+                  priorityRationale || "No prioritization rationale entered",
+                ],
+              },
+              {
                 heading: "Patient, provider, and claim",
                 lines: [
                   `${scenario.patient.name} · ${scenario.patient.account}`,
@@ -1096,6 +1150,7 @@ export function ARCollectionsLab({
                 heading: "Completion",
                 lines: [
                   `Checklist: ${completedCount} of ${checklist.length} complete`,
+                  `Prioritization rationale: ${priorityRationaleValid ? "Validated" : "Not validated"}`,
                   `Note status: ${notePosted ? "Posted" : "Draft"}`,
                   `Account status: ${closed ? "Completed" : "Open"}`,
                 ],
@@ -1113,11 +1168,21 @@ function ArScenarioRail({
   mode,
   selected,
   onSelect,
+  rationale,
+  rationaleValid,
+  rationaleFeedback,
+  onRationale,
+  onSubmitRationale,
 }: {
   scenarios: ArScenario[];
   mode: "ar" | "denial";
   selected: number;
   onSelect: (index: number) => void;
+  rationale: string;
+  rationaleValid: boolean;
+  rationaleFeedback: string;
+  onRationale: (value: string) => void;
+  onSubmitRationale: () => void;
 }) {
   const ranked = scenarios
     .map((scenario, originalIndex) => ({
@@ -1189,6 +1254,36 @@ function ArScenarioRail({
             </span>
           </button>
         ))}
+      </div>
+      <div className="priority-rationale-panel">
+        <div>
+          <span className="system-kicker">Required learner explanation</span>
+          <h3>How would you prioritize the selected account?</h3>
+          <p>
+            Explain where it belongs in the five-account queue and why. Support
+            your decision with at least three factors from the worklist.
+          </p>
+        </div>
+        <label>
+          <span>Prioritization rationale</span>
+          <textarea
+            value={rationale}
+            onChange={(event) => onRationale(event.target.value)}
+            placeholder="Explain your decision using balance, account age, filing or appeal deadline, and operational risk or status."
+            rows={4}
+          />
+          <small>{rationale.trim().length} characters · minimum 80</small>
+        </label>
+        <div className="priority-rationale-actions">
+          <button type="button" onClick={onSubmitRationale}>
+            Submit prioritization rationale
+          </button>
+          {rationaleFeedback ? (
+            <p className={rationaleValid ? "success-message" : "warning-message"}>
+              {rationaleFeedback}
+            </p>
+          ) : null}
+        </div>
       </div>
     </section>
   );

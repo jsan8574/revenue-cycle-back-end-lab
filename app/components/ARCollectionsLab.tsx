@@ -451,6 +451,28 @@ function getPriorityFactorCount(value: string) {
   return factorPatterns.filter((pattern) => pattern.test(value)).length;
 }
 
+function getPriorityCoachingAnswer(
+  scenario: ArScenario,
+  scenarios: ArScenario[],
+  mode: "ar" | "denial",
+) {
+  const rankedScenarioIds = [...scenarios]
+    .sort((left, right) => getPriorityScore(right) - getPriorityScore(left))
+    .map((item) => item.id);
+  const rank = rankedScenarioIds.indexOf(scenario.id) + 1;
+  const deadlineDays = getDeadlineDays(scenario);
+  const deadlineLabel = mode === "denial" ? "appeal deadline" : "filing or follow-up deadline";
+  const deadlineReason = Number.isFinite(Date.parse(scenario.claim.appealDeadline))
+    ? `Its ${deadlineLabel} is ${scenario.claim.appealDeadline}${
+        deadlineDays >= 0 ? `, with ${deadlineDays} days remaining` : ", and it is already overdue"
+      }.`
+    : `No formal deadline has been issued, so the unresolved ${scenario.status.toLowerCase()} status must be monitored as an operational risk.`;
+
+  return `Place ${scenario.id} at #${rank} of ${scenarios.length}. It has ${money(
+    scenario.claim.openAr,
+  )} in open insurance AR and is ${scenario.claim.aging}. ${deadlineReason} Its ${scenario.priority.toLowerCase()} designation adds operational risk. The queue position is supported by balance, age, deadline or status, and recovery risk—not by the priority score alone.`;
+}
+
 export function ARCollectionsLab({
   module,
   learnerName,
@@ -531,7 +553,10 @@ export function ARCollectionsLab({
   const [notePosted, setNotePosted] = useState(false);
   const [closed, setClosed] = useState(false);
   const [priorityRationale, setPriorityRationale] = useState("");
-  const [priorityRationaleValid, setPriorityRationaleValid] = useState(false);
+  const [priorityRationaleSubmitted, setPriorityRationaleSubmitted] =
+    useState(false);
+  const [priorityRationaleMeetsCriteria, setPriorityRationaleMeetsCriteria] =
+    useState(false);
   const [priorityRationaleFeedback, setPriorityRationaleFeedback] =
     useState("");
 
@@ -540,6 +565,11 @@ export function ARCollectionsLab({
     .map((item) => item.id);
   const selectedPriorityRank = rankedScenarioIds.indexOf(scenario.id) + 1;
   const selectedPriorityScore = getPriorityScore(scenario);
+  const priorityCoachingAnswer = getPriorityCoachingAnswer(
+    scenario,
+    scenarioList,
+    mode,
+  );
 
   const investigationComplete = portalOpened && callClosed;
   const appealRequirementMet =
@@ -558,7 +588,7 @@ export function ARCollectionsLab({
     { label: "Access the account", done: true },
     {
       label: "Explain account prioritization",
-      done: priorityRationaleValid,
+      done: priorityRationaleSubmitted,
     },
     { label: "Review the account balance", done: balanceReviewed },
     {
@@ -593,20 +623,30 @@ export function ARCollectionsLab({
   const completedCount = checklist.filter((item) => item.done).length;
   const canPostNote =
     notesComplete &&
-    priorityRationaleValid &&
+    priorityRationaleSubmitted &&
     actionValid &&
     reimbursementValid &&
     investigationComplete &&
     appealRequirementMet;
 
   const validatePriorityRationale = () => {
+    if (!priorityRationale.trim()) {
+      setPriorityRationaleSubmitted(false);
+      setPriorityRationaleMeetsCriteria(false);
+      setPriorityRationaleFeedback(
+        "Enter your prioritization decision before submitting.",
+      );
+      return;
+    }
     const factorCount = getPriorityFactorCount(priorityRationale);
-    const valid = priorityRationale.trim().length >= 80 && factorCount >= 3;
-    setPriorityRationaleValid(valid);
+    const meetsCriteria =
+      priorityRationale.trim().length >= 80 && factorCount >= 3;
+    setPriorityRationaleSubmitted(true);
+    setPriorityRationaleMeetsCriteria(meetsCriteria);
     setPriorityRationaleFeedback(
-      valid
-        ? `Prioritization rationale recorded for ${scenario.id}. It will be included in the learner PDF.`
-        : "Explain where this account belongs in the queue using at least three factors: balance, age, filing or appeal deadline, and operational risk or status.",
+      meetsCriteria
+        ? `Answer submitted for ${scenario.id}. You used at least three prioritization factors. Compare your reasoning with the coaching key below.`
+        : `Answer submitted for ${scenario.id}. The response used ${factorCount} of 4 recognized factors. Review the coaching key below, then continue or revise and resubmit.`,
     );
   };
 
@@ -792,11 +832,14 @@ export function ARCollectionsLab({
         selected={scenarioIndex}
         onSelect={onSelectScenario}
         rationale={priorityRationale}
-        rationaleValid={priorityRationaleValid}
+        rationaleSubmitted={priorityRationaleSubmitted}
+        rationaleMeetsCriteria={priorityRationaleMeetsCriteria}
         rationaleFeedback={priorityRationaleFeedback}
+        coachingAnswer={priorityCoachingAnswer}
         onRationale={(value) => {
           setPriorityRationale(value);
-          setPriorityRationaleValid(false);
+          setPriorityRationaleSubmitted(false);
+          setPriorityRationaleMeetsCriteria(false);
           setPriorityRationaleFeedback("");
         }}
         onSubmitRationale={validatePriorityRationale}
@@ -1031,8 +1074,10 @@ export function ARCollectionsLab({
                 lines: [
                   `Selected account queue position: ${selectedPriorityRank} of ${scenarioList.length}`,
                   `System priority score: ${selectedPriorityScore}`,
-                  `Rationale validation: ${priorityRationaleValid ? "Passed" : "Not passed"}`,
-                  priorityRationale || "No prioritization rationale entered",
+                  `Submission status: ${priorityRationaleSubmitted ? "Submitted" : "Not submitted"}`,
+                  `Coaching criteria: ${priorityRationaleMeetsCriteria ? "Met" : priorityRationaleSubmitted ? "Needs improvement" : "Not evaluated"}`,
+                  `Learner response: ${priorityRationale || "No prioritization rationale entered"}`,
+                  `Coaching key: ${priorityRationaleSubmitted ? priorityCoachingAnswer : "Revealed after submission"}`,
                 ],
               },
               {
@@ -1150,7 +1195,8 @@ export function ARCollectionsLab({
                 heading: "Completion",
                 lines: [
                   `Checklist: ${completedCount} of ${checklist.length} complete`,
-                  `Prioritization rationale: ${priorityRationaleValid ? "Validated" : "Not validated"}`,
+                  `Prioritization rationale: ${priorityRationaleSubmitted ? "Submitted" : "Not submitted"}`,
+                  `Prioritization coaching criteria: ${priorityRationaleMeetsCriteria ? "Met" : priorityRationaleSubmitted ? "Needs improvement" : "Not evaluated"}`,
                   `Note status: ${notePosted ? "Posted" : "Draft"}`,
                   `Account status: ${closed ? "Completed" : "Open"}`,
                 ],
@@ -1169,8 +1215,10 @@ function ArScenarioRail({
   selected,
   onSelect,
   rationale,
-  rationaleValid,
+  rationaleSubmitted,
+  rationaleMeetsCriteria,
   rationaleFeedback,
+  coachingAnswer,
   onRationale,
   onSubmitRationale,
 }: {
@@ -1179,8 +1227,10 @@ function ArScenarioRail({
   selected: number;
   onSelect: (index: number) => void;
   rationale: string;
-  rationaleValid: boolean;
+  rationaleSubmitted: boolean;
+  rationaleMeetsCriteria: boolean;
   rationaleFeedback: string;
+  coachingAnswer: string;
   onRationale: (value: string) => void;
   onSubmitRationale: () => void;
 }) {
@@ -1279,11 +1329,38 @@ function ArScenarioRail({
             Submit prioritization rationale
           </button>
           {rationaleFeedback ? (
-            <p className={rationaleValid ? "success-message" : "warning-message"}>
+            <p
+              className={
+                rationaleSubmitted ? "success-message" : "warning-message"
+              }
+              aria-live="polite"
+            >
               {rationaleFeedback}
             </p>
           ) : null}
         </div>
+        {rationaleSubmitted ? (
+          <aside
+            className={
+              rationaleMeetsCriteria
+                ? "priority-coaching-key meets-criteria"
+                : "priority-coaching-key needs-review"
+            }
+            aria-live="polite"
+          >
+            <span className="system-kicker">Coaching key</span>
+            <h4>
+              {rationaleMeetsCriteria
+                ? "Your rationale is well supported."
+                : "Here is the recommended prioritization approach."}
+            </h4>
+            <p>{coachingAnswer}</p>
+            <small>
+              Your answer has been recorded. You may continue now, or revise it
+              and submit again after comparing the four factors.
+            </small>
+          </aside>
+        ) : null}
       </div>
     </section>
   );

@@ -7169,6 +7169,42 @@ button {
 .priority-rationale-actions .success-message { color: #267153; }
 .priority-rationale-actions .warning-message { color: #984b37; }
 
+.priority-coaching-key {
+  background: #fff;
+  border: 1px solid #c8d9d4;
+  border-left: 4px solid #2b7763;
+  border-radius: 10px;
+  grid-column: 1 / -1;
+  padding: 16px 18px;
+}
+
+.priority-coaching-key.needs-review {
+  background: #fffaf0;
+  border-color: #e3c27a;
+  border-left-color: #d19a2b;
+}
+
+.priority-coaching-key h4 {
+  color: var(--ink);
+  font-size: 15px;
+  margin: 5px 0 7px;
+}
+
+.priority-coaching-key p {
+  color: #304a4b;
+  font-size: 13px;
+  line-height: 1.55;
+  margin: 0;
+}
+
+.priority-coaching-key small {
+  color: #647877;
+  display: block;
+  font-size: 11px;
+  line-height: 1.45;
+  margin-top: 9px;
+}
+
 .appeal-workbench {
   align-items: start;
   display: grid;

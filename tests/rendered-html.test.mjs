@@ -60,7 +60,7 @@ test("includes the Billing claim-form mastery workflow", async () => {
   assert.match(packageJson, /"pdf-lib"/);
 });
 
-test("requires prioritization rationale in Insurance Follow-up and Denial Management", async () => {
+test("records prioritization rationale and reveals coaching in Insurance Follow-up and Denial Management", async () => {
   const [workspace, arLab, styles] = await Promise.all([
     readFile(new URL("../app/components/TrainingWorkspace.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/ARCollectionsLab.tsx", import.meta.url), "utf8"),
@@ -70,9 +70,12 @@ test("requires prioritization rationale in Insurance Follow-up and Denial Manage
   assert.match(workspace, /mode="denial"/);
   assert.match(arLab, /Explain account prioritization/);
   assert.match(arLab, /How would you prioritize the selected account\?/);
-  assert.match(arLab, /priorityRationale\.trim\(\)\.length >= 80/);
-  assert.match(arLab, /canPostNote =\s*notesComplete &&\s*priorityRationaleValid/);
+  assert.match(arLab, /setPriorityRationaleSubmitted\(true\)/);
+  assert.match(arLab, /canPostNote =\s*notesComplete &&\s*priorityRationaleSubmitted/);
+  assert.match(arLab, /Here is the recommended prioritization approach\./);
+  assert.match(arLab, /Your answer has been recorded\. You may continue now/);
   assert.match(arLab, /heading: "Prioritization decision"/);
-  assert.match(arLab, /Prioritization rationale: \$\{priorityRationaleValid/);
+  assert.match(arLab, /Prioritization rationale: \$\{priorityRationaleSubmitted/);
   assert.match(styles, /\.priority-rationale-panel/);
+  assert.match(styles, /\.priority-coaching-key/);
 });

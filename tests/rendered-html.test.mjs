@@ -81,3 +81,19 @@ test("records prioritization rationale and reveals coaching in Insurance Follow-
   assert.match(styles, /\.priority-rationale-panel/);
   assert.match(styles, /\.priority-coaching-key/);
 });
+
+test("shows the fictional Summit insurance-card attachment in AR-3160 correspondence", async () => {
+  const [arLab, explorationData, styles] = await Promise.all([
+    readFile(new URL("../app/components/ARCollectionsLab.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/data/exploration.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(explorationData, /id: "AR-3160"[\s\S]*?type: "Patient correspondence"/);
+  assert.match(explorationData, /Member ID", value: "SEH-882-1047"/);
+  assert.match(explorationData, /Group number", value: "EMP-41760"/);
+  assert.match(explorationData, /Electronic payer ID", value: "SUMEH"/);
+  assert.match(arLab, /format-patient-correspondence/);
+  assert.match(arLab, /document\.attachments\?\.map/);
+  assert.match(styles, /\.insurance-card-attachments/);
+});

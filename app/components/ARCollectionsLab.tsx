@@ -1705,6 +1705,8 @@ function DocumentPreview({
     type.includes("277ca") ||
     type.includes("acknowledg") ||
     type.includes("clearinghouse");
+  const isPatientCorrespondence =
+    type.includes("patient correspondence") || type.includes("patient message");
   const isAuthorization =
     type.includes("authorization") || type.includes("referral");
   const isPayerLetter =
@@ -2053,6 +2055,81 @@ SE*7*0001~`}</pre>
           <p>{document.body}</p>
           <strong>{scenario.authorization.notes}</strong>
         </div>
+        <DocumentFooter />
+      </div>
+    );
+  }
+
+  if (isPatientCorrespondence) {
+    return (
+      <div className="pdf-document-sheet format-patient-correspondence">
+        <header className="patient-message-head">
+          <div>
+            <span className="patient-message-avatar">
+              {scenario.patient.name
+                .split(" ")
+                .map((part) => part[0])
+                .join("")}
+            </span>
+            <div>
+              <strong>Patient Portal Message</strong>
+              <small>Correspondence Center · Attachment received</small>
+            </div>
+          </div>
+          <div>
+            <span>Received</span>
+            <strong>{document.date}</strong>
+            <small>{document.reference}</small>
+          </div>
+        </header>
+        <div className="patient-message-metadata">
+          <div><span>From</span><strong>{scenario.patient.name}</strong></div>
+          <div><span>Account</span><strong>{scenario.patient.account}</strong></div>
+          <div><span>Subject</span><strong>Other insurance information</strong></div>
+        </div>
+        <section className="patient-message-body">
+          <span>Message</span>
+          <p>{document.body.replace(/^Patient message:\s*/i, "")}</p>
+        </section>
+        <section className="patient-attachment-section">
+          <div className="patient-attachment-heading">
+            <div>
+              <span>Attachments</span>
+              <strong>
+                {document.attachments?.length || 0} files · Insurance card
+              </strong>
+            </div>
+            <small>Uploaded through the fictional patient portal</small>
+          </div>
+          <div className="insurance-card-attachments">
+            {document.attachments?.map((attachment) => (
+              <article
+                className={`insurance-card-attachment card-${attachment.side.toLowerCase()}`}
+                key={`${attachment.name}-${attachment.side}`}
+              >
+                <header>
+                  <div>
+                    <span className="summit-card-mark">S</span>
+                    <div>
+                      <strong>SUMMIT</strong>
+                      <small>Employer Health</small>
+                    </div>
+                  </div>
+                  <span>{attachment.side}</span>
+                </header>
+                <dl>
+                  {attachment.fields.map((field) => (
+                    <div key={field.label}>
+                      <dt>{field.label}</dt>
+                      <dd>{field.value}</dd>
+                    </div>
+                  ))}
+                </dl>
+                <footer>Fictional training card · Not valid insurance</footer>
+              </article>
+            ))}
+          </div>
+        </section>
         <DocumentFooter />
       </div>
     );

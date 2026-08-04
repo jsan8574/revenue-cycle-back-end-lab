@@ -1265,6 +1265,11 @@ export type ArScenario = {
     summary: string;
     codes: string;
     body: string;
+    attachments?: {
+      name: string;
+      side: "Front" | "Back";
+      fields: { label: string; value: string }[];
+    }[];
   }[];
   transactions: {
     date: string;
@@ -1744,7 +1749,39 @@ export const arScenarios: ArScenario[] = [
     documents: [
       { type: "EOB / ERA", date: "May 27", reference: "ICN MCH-77182004", summary: "Claim denied because another payer may be primary. No patient responsibility assigned.", codes: "CO-22 · MA04", body: "Payment may be the responsibility of another payer under coordination-of-benefits rules. Submit primary payer adjudication or corrected coverage information. This EOB does not assign the denied amount to the member." },
       { type: "Eligibility response", date: "Jun 9", reference: "ELG-660441", summary: "Meridian coverage active on DOS with COB information requested.", codes: "Active · COB review", body: "Member eligibility was active from Jan 1 through Dec 31, 2026. Coordination-of-benefits information is incomplete. Provider should verify other insurance before resubmission." },
-      { type: "Patient correspondence", date: "Jul 14", reference: "MSG-220814", summary: "Patient supplied a Summit Employer Health card.", codes: "Effective Jan 1, 2026", body: "Patient message: I had employer insurance through Summit on the emergency visit date. I have attached the front and back of my card. Meridian is my secondary plan." },
+      {
+        type: "Patient correspondence",
+        date: "Jul 14",
+        reference: "MSG-220814",
+        summary: "Patient supplied a Summit Employer Health card.",
+        codes: "Effective Jan 1, 2026",
+        body: "Patient message: I had employer insurance through Summit on the emergency visit date. I have attached the front and back of my card. Meridian is my secondary plan.",
+        attachments: [
+          {
+            name: "Summit insurance card",
+            side: "Front",
+            fields: [
+              { label: "Plan", value: "Summit Employer Health PPO" },
+              { label: "Member ID", value: "SEH-882-1047" },
+              { label: "Group number", value: "EMP-41760" },
+              { label: "Subscriber", value: "Camille Foster" },
+              { label: "Effective date", value: "Jan 1, 2026" },
+              { label: "Coverage order", value: "Primary medical" },
+            ],
+          },
+          {
+            name: "Summit insurance card",
+            side: "Back",
+            fields: [
+              { label: "Electronic payer ID", value: "SUMEH" },
+              { label: "Provider services", value: "800-555-0188" },
+              { label: "Claims address", value: "PO Box 7714, Denver, CO 80201" },
+              { label: "Precertification", value: "800-555-0194" },
+              { label: "COB support", value: "800-555-0157" },
+            ],
+          },
+        ],
+      },
     ],
     transactions: [
       { date: "May 8", type: "Charge", amount: 3200, reference: "CHG-90518", status: "Posted" },

@@ -6686,6 +6686,219 @@ button {
   padding: 10px 13px;
 }
 
+.format-patient-correspondence {
+  background: #f8fbfc;
+  border: 1px solid #cbd9dd;
+  color: #263f47 !important;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.patient-message-head {
+  align-items: center !important;
+  background: #eaf3f5;
+  border-bottom: 4px solid #28717b !important;
+  margin: -30px -30px 20px !important;
+  padding: 21px 26px 17px !important;
+}
+
+.patient-message-head > div {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+}
+
+.patient-message-head > div:last-child {
+  align-items: flex-end;
+  flex-direction: column;
+  gap: 2px;
+  text-align: right;
+}
+
+.patient-message-avatar {
+  align-items: center;
+  background: #28717b;
+  border-radius: 50%;
+  color: #fff !important;
+  display: inline-flex !important;
+  font-size: 12px !important;
+  font-weight: 900;
+  height: 40px;
+  justify-content: center;
+  letter-spacing: 0 !important;
+  width: 40px;
+}
+
+.patient-message-metadata {
+  background: #eef4f5;
+  display: grid;
+  gap: 1px;
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.patient-message-metadata > div {
+  background: rgba(255, 255, 255, 0.78);
+  display: flex;
+  flex-direction: column;
+  padding: 10px;
+}
+
+.patient-message-metadata span,
+.patient-message-body > span,
+.patient-attachment-heading span {
+  color: #678087;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.patient-message-metadata strong {
+  font-size: 11px;
+  margin-top: 4px;
+}
+
+.patient-message-body {
+  background: #fff;
+  border: 1px solid #d7e2e4;
+  border-radius: 8px;
+  margin: 16px 0;
+  padding: 14px 15px;
+}
+
+.patient-message-body p {
+  font-size: 12px;
+  line-height: 1.65;
+  margin: 6px 0 0;
+}
+
+.patient-attachment-section {
+  border-top: 1px solid #d7e2e4;
+  padding-top: 14px;
+}
+
+.patient-attachment-heading {
+  align-items: flex-end;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.patient-attachment-heading > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.patient-attachment-heading small {
+  color: #71858a;
+  font-size: 9px;
+}
+
+.insurance-card-attachments {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.insurance-card-attachment {
+  background: linear-gradient(145deg, #f4fbfc, #dceef1);
+  border: 1px solid #a9c8cd;
+  border-radius: 13px;
+  box-shadow: 0 5px 12px rgba(36, 81, 88, 0.13);
+  min-height: 218px;
+  overflow: hidden;
+  padding: 15px;
+}
+
+.insurance-card-attachment.card-back {
+  background: linear-gradient(145deg, #f8fafb, #e5e9ec);
+  border-color: #bfc9cd;
+}
+
+.insurance-card-attachment > header {
+  align-items: flex-start;
+  border-bottom: 1px solid rgba(45, 104, 113, 0.24);
+  display: flex;
+  justify-content: space-between;
+  padding-bottom: 10px;
+}
+
+.insurance-card-attachment > header > div {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+.insurance-card-attachment > header > span {
+  background: rgba(255, 255, 255, 0.76);
+  border-radius: 999px;
+  color: #557278;
+  font-size: 8px;
+  font-weight: 850;
+  padding: 4px 7px;
+  text-transform: uppercase;
+}
+
+.summit-card-mark {
+  align-items: center;
+  background: #126e7a;
+  border-radius: 6px;
+  color: #fff;
+  display: inline-flex;
+  font-size: 16px;
+  font-weight: 900;
+  height: 33px;
+  justify-content: center;
+  width: 33px;
+}
+
+.insurance-card-attachment > header strong,
+.insurance-card-attachment > header small {
+  display: block;
+}
+
+.insurance-card-attachment > header strong {
+  color: #155862;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+}
+
+.insurance-card-attachment > header small {
+  color: #587279;
+  font-size: 8px;
+  margin-top: 2px;
+}
+
+.insurance-card-attachment dl {
+  display: grid;
+  gap: 8px 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 12px 0;
+}
+
+.insurance-card-attachment dt {
+  color: #668087;
+  font-size: 8px;
+  text-transform: uppercase;
+}
+
+.insurance-card-attachment dd {
+  color: #173f47;
+  font-size: 10px;
+  font-weight: 800;
+  margin: 3px 0 0;
+  overflow-wrap: anywhere;
+}
+
+.insurance-card-attachment footer {
+  border-top: 1px solid rgba(45, 104, 113, 0.2);
+  color: #6e8185;
+  font-size: 7px;
+  margin-top: 10px;
+  padding-top: 7px;
+  text-transform: uppercase;
+}
+
 .format-payer-letter {
   border: 1px solid #c8d3df;
   color: #293d52 !important;
@@ -7581,6 +7794,7 @@ button {
   .clinical-demographics,
   .ack-status-grid,
   .format-authorization dl,
+  .patient-message-metadata,
   .payer-reference-box,
   .format-internal-review dl {
     grid-template-columns: 1fr;
@@ -7590,6 +7804,7 @@ button {
   .eob-letterhead,
   .clinical-letterhead,
   .payer-correspondence-head,
+  .patient-message-head,
   .internal-review-head,
   .contract-document-view > header {
     align-items: flex-start !important;
@@ -7606,10 +7821,26 @@ button {
   }
 
   .payer-correspondence-head,
+  .patient-message-head,
   .internal-review-head,
   .ack-terminal-head {
     margin-left: -16px;
     margin-right: -16px;
+  }
+
+  .patient-message-head > div:last-child {
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  .patient-attachment-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .insurance-card-attachments {
+    grid-template-columns: 1fr;
   }
 
   .reimbursement-evidence-heading {

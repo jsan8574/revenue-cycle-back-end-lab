@@ -97,3 +97,19 @@ test("shows the fictional Summit insurance-card attachment in AR-3160 correspond
   assert.match(arLab, /document\.attachments\?\.map/);
   assert.match(styles, /\.insurance-card-attachments/);
 });
+
+test("routes Evelyn Brooks to a documented pricing reconsideration", async () => {
+  const [arLab, explorationData] = await Promise.all([
+    readFile(new URL("../app/components/ARCollectionsLab.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/data/exploration.ts", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(explorationData, /id: "AR-3106"[\s\S]*?action: "submit-appeal"/);
+  assert.match(explorationData, /category: "pricing-reconsideration"/);
+  assert.match(explorationData, /Prior pricing request closure — NS-884120/);
+  assert.match(explorationData, /label: "Request balance adjustment \/ write-off"/);
+  assert.match(explorationData, /label: "Submit appeal \/ reconsideration"/);
+  assert.match(arLab, /label: "Reconsideration letter"/);
+  assert.match(arLab, /openTab\("appeal"\)/);
+  assert.match(arLab, /Successful — the electronic \$\{isReconsideration \? "pricing reconsideration" : "appeal"\}/);
+});

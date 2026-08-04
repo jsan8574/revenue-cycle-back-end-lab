@@ -48,6 +48,9 @@ type PostedAccountNote = AccountNoteFields & {
 };
 
 type AccountHistoryFilter = "all" | "billing" | "financial" | "notes";
+type AppealScenario = ArScenario & {
+  appeal: NonNullable<ArScenario["appeal"]>;
+};
 
 const arTabs: { id: ArDeskTab; label: string }[] = [
   { id: "account", label: "Account" },
@@ -493,9 +496,17 @@ export function ARCollectionsLab({
   const scenario = scenarioList[scenarioIndex];
   const denialScenario =
     mode === "denial" ? (scenario as DenialScenario) : null;
-  const visibleTabs = arTabs.filter(
-    (item) => mode === "denial" || item.id !== "appeal",
-  );
+  const appealScenario = scenario.appeal
+    ? (scenario as AppealScenario)
+    : null;
+  const visibleTabs = arTabs
+    .filter((item) => item.id !== "appeal" || Boolean(appealScenario))
+    .map((item) =>
+      item.id === "appeal" &&
+      appealScenario?.appeal.category === "pricing-reconsideration"
+        ? { ...item, label: "Reconsideration letter" }
+        : item,
+    );
   const [tab, setTab] = useState<ArDeskTab>("account");
   const [visited, setVisited] = useState<ArDeskTab[]>(["account"]);
   const [balanceReviewed, setBalanceReviewed] = useState(false);
@@ -528,9 +539,9 @@ export function ARCollectionsLab({
   const [actionFeedback, setActionFeedback] = useState("");
   const [decisionAttempts, setDecisionAttempts] = useState(0);
   const [appealDraft, setAppealDraft] = useState(() => ({
-    recipient: denialScenario?.appeal.recipient ?? "",
-    subject: denialScenario?.appeal.subject ?? "",
-    body: denialScenario?.appeal.template ?? "",
+    recipient: appealScenario?.appeal.recipient ?? "",
+    subject: appealScenario?.appeal.subject ?? "",
+    body: appealScenario?.appeal.template ?? "",
   }));
   const [appealMethod, setAppealMethod] = useState<"electronic" | "mail" | "">(
     "",
@@ -573,8 +584,7 @@ export function ARCollectionsLab({
 
   const investigationComplete = portalOpened && callClosed;
   const appealRequirementMet =
-    mode !== "denial" ||
-    !denialScenario?.appeal.required ||
+    !appealScenario?.appeal.required ||
     appealSubmitted;
   const notesComplete =
     notes.source.length > 0 &&
@@ -608,10 +618,13 @@ export function ARCollectionsLab({
       done: investigationComplete,
     },
     { label: "Choose and validate a resolution", done: actionValid },
-    ...(mode === "denial"
+    ...(appealScenario
       ? [
           {
-            label: "Prepare the required denial response / appeal",
+            label:
+              appealScenario.appeal.category === "pricing-reconsideration"
+                ? "Prepare and submit the pricing reconsideration"
+                : "Prepare the required denial response / appeal",
             done: appealRequirementMet && actionValid,
           },
         ]
@@ -740,6 +753,13 @@ export function ARCollectionsLab({
           ? "The task or escalation, request note, or internal destination is not fully supported. Revisit the account evidence and deadlines before trying again."
           : "The selected action is not fully supported. Revisit the account evidence and deadlines before trying again.",
     );
+    if (
+      correct &&
+      selectedAction === "submit-appeal" &&
+      appealScenario
+    ) {
+      openTab("appeal");
+    }
   };
 
   const postNote = () => {
@@ -759,7 +779,7 @@ export function ARCollectionsLab({
 
   const submitAppealRequest = () => {
     if (
-      !denialScenario ||
+      !appealScenario ||
       !appealMethod ||
       appealDraft.recipient.trim().length < 4 ||
       appealDraft.subject.trim().length < 8 ||
@@ -771,20 +791,34 @@ export function ARCollectionsLab({
       return;
     }
     if (
-      denialScenario.appeal.required &&
-      appealAttachments.length !== denialScenario.appeal.attachments.length
+      appealScenario.appeal.required &&
+      appealAttachments.length !== appealScenario.appeal.attachments.length
     ) {
+      const requestType =
+        appealScenario.appeal.category === "pricing-reconsideration"
+          ? "pricing reconsideration"
+          : "appeal";
       setAppealFeedback(
-        "Confirm every required attachment before submitting the appeal request.",
+        `Confirm every required attachment before submitting the ${requestType} request.`,
       );
       return;
     }
-    const reference = `${appealMethod === "electronic" ? "APL" : "MAIL"}-${scenario.id.replace("DM-", "")}-${appealMethod === "electronic" ? "26" : "48"}`;
+    const isReconsideration =
+      appealScenario.appeal.category === "pricing-reconsideration";
+    const reference = `${
+      appealMethod === "electronic"
+        ? isReconsideration
+          ? "REC"
+          : "APL"
+        : "MAIL"
+    }-${scenario.id.replace(/^(DM|AR)-/, "")}-${
+      appealMethod === "electronic" ? "26" : "48"
+    }`;
     setAppealSubmitted(true);
     setAppealFeedback(
       appealMethod === "electronic"
-        ? `Successful — the electronic appeal request was sent to ${denialScenario.appeal.electronicRoute}. Confirmation ${reference}.`
-        : `Successful — the mail submission request was created for ${denialScenario.appeal.mailingAddress}. Tracking task ${reference}.`,
+        ? `Successful — the electronic ${isReconsideration ? "pricing reconsideration" : "appeal"} was sent to ${appealScenario.appeal.electronicRoute}. Confirmation ${reference}.`
+        : `Successful — the mail submission request was created for ${appealScenario.appeal.mailingAddress}. Tracking task ${reference}.`,
     );
   };
 
@@ -1003,6 +1037,8 @@ export function ARCollectionsLab({
                     valid={actionValid}
                     onAction={(value) => {
                       setSelectedAction(value);
+                      setActionValid(false);
+                      setActionFeedback("");
                       if (value !== "send-task") {
                         setSelectedRoute("");
                         setDecisionReason("");
@@ -1025,9 +1061,9 @@ export function ARCollectionsLab({
                   />
                 </div>
               ) : null}
-              {tab === "appeal" && denialScenario ? (
+              {tab === "appeal" && appealScenario ? (
                 <AppealView
-                  scenario={denialScenario}
+                  scenario={appealScenario}
                   draft={appealDraft}
                   method={appealMethod}
                   attachments={appealAttachments}
@@ -1121,14 +1157,22 @@ export function ARCollectionsLab({
           },
           {
             label:
-              mode === "denial" ? "Appeal & resolution" : "Resolution worksheet",
+              appealScenario
+                ? appealScenario.appeal.category === "pricing-reconsideration"
+                  ? "Reconsideration & resolution"
+                  : "Appeal & resolution"
+                : "Resolution worksheet",
             description:
-              mode === "denial"
-                ? "Reimbursement, denial action, and editable appeal package"
+              appealScenario
+                ? appealScenario.appeal.category === "pricing-reconsideration"
+                  ? "Reimbursement, underpayment decision, and editable reconsideration package"
+                  : "Reimbursement, denial action, and editable appeal package"
                 : "Reimbursement calculation and proposed next action",
             title:
-              mode === "denial"
-                ? "Denial Resolution and Appeal Package"
+              appealScenario
+                ? appealScenario.appeal.category === "pricing-reconsideration"
+                  ? "Insurance Underpayment Reconsideration Package"
+                  : "Denial Resolution and Appeal Package"
                 : "Insurance Follow-up Resolution Worksheet",
             sections: [
               {
@@ -1144,21 +1188,32 @@ export function ARCollectionsLab({
               {
                 heading: "Resolution decision",
                 lines: [
-                  `Action: ${selectedAction || "Not selected"}`,
+                  `Action: ${resolutionActions.find((action) => action.id === selectedAction)?.label || "Not selected"}`,
                   `Route: ${selectedAction === "send-task" ? selectedRoute || "Not selected" : "Not required"}`,
                   `Request note: ${selectedAction === "send-task" ? decisionReason || "Not entered" : "Not required"}`,
                 ],
               },
-              ...(denialScenario
+              ...(appealScenario
                 ? [
                     {
-                      heading: "Appeal request",
+                      heading:
+                        appealScenario.appeal.category ===
+                        "pricing-reconsideration"
+                          ? "Pricing reconsideration request"
+                          : "Appeal request",
                       lines: [
-                        `Denial: ${denialScenario.denial.carc} / ${denialScenario.denial.rarc}`,
+                        ...(denialScenario
+                          ? [
+                              `Denial: ${denialScenario.denial.carc} / ${denialScenario.denial.rarc}`,
+                            ]
+                          : [
+                              `Underpayment variance: ${money(scenario.expected.variance)}`,
+                              `Payer claim: ${scenario.portal.icn}`,
+                            ]),
                         `Recipient: ${appealDraft.recipient || "Not entered"}`,
                         `Subject: ${appealDraft.subject || "Not entered"}`,
                         `Method: ${appealMethod || "Not selected"}`,
-                        `Attachments: ${appealAttachments.length} of ${denialScenario.appeal.attachments.length} confirmed`,
+                        `Attachments: ${appealAttachments.length} of ${appealScenario.appeal.attachments.length} confirmed`,
                         `Status: ${appealSubmitted ? "Submitted successfully" : "Draft"}`,
                         "",
                         appealDraft.body || "No appeal letter drafted",
@@ -3086,7 +3141,7 @@ function AppealView({
   onAttachment,
   onSubmit,
 }: {
-  scenario: DenialScenario;
+  scenario: AppealScenario;
   draft: { recipient: string; subject: string; body: string };
   method: "electronic" | "mail" | "";
   attachments: string[];
@@ -3097,42 +3152,67 @@ function AppealView({
   onAttachment: (attachment: string) => void;
   onSubmit: () => void;
 }) {
+  const denial = "denial" in scenario
+    ? (scenario as DenialScenario).denial
+    : null;
+  const isReconsideration =
+    scenario.appeal.category === "pricing-reconsideration";
+
   return (
     <div className="appeal-workbench">
       <section className="appeal-editor-panel">
         <div className="system-section-heading">
           <div>
-            <span className="system-kicker">Editable appeal letter</span>
-            <h3>Build the argument from the account evidence</h3>
+            <span className="system-kicker">
+              {isReconsideration
+                ? "Editable pricing reconsideration letter"
+                : "Editable appeal letter"}
+            </span>
+            <h3>
+              {isReconsideration
+                ? "Document the underpayment and missing support"
+                : "Build the argument from the account evidence"}
+            </h3>
             <p>
               The template is a starting point. Edit it so the request,
-              evidence, dates, and claim identifiers support this account.
+              evidence, dates, claim identifiers, and requested payment support
+              this account.
             </p>
           </div>
           <span className={scenario.appeal.required ? "deadline-badge urgent" : "deadline-badge"}>
-            {scenario.appeal.required ? "Appeal indicated" : "Confirm the correct first action"}
+            {scenario.appeal.required
+              ? isReconsideration
+                ? "Pricing reconsideration indicated"
+                : "Appeal indicated"
+              : "Confirm the correct first action"}
           </span>
         </div>
 
         <div className="denial-fact-strip">
           <div>
-            <span>CARC / RARC</span>
+            <span>{denial ? "CARC / RARC" : "Dispute type"}</span>
             <strong>
-              {scenario.denial.carc} · {scenario.denial.rarc}
+              {denial
+                ? `${denial.carc} · ${denial.rarc}`
+                : "Contract pricing underpayment"}
             </strong>
           </div>
           <div>
-            <span>Denied amount</span>
-            <strong>{money(scenario.denial.deniedAmount)}</strong>
+            <span>{denial ? "Denied amount" : "Additional payment due"}</span>
+            <strong>
+              {money(denial ? denial.deniedAmount : scenario.expected.variance)}
+            </strong>
           </div>
           <div>
             <span>Submission deadline</span>
-            <strong>{scenario.denial.deadline}</strong>
+            <strong>
+              {denial ? denial.deadline : scenario.claim.appealDeadline}
+            </strong>
           </div>
         </div>
 
         <label>
-          <span>Appeal recipient</span>
+          <span>{isReconsideration ? "Reconsideration recipient" : "Appeal recipient"}</span>
           <input
             value={draft.recipient}
             onChange={(event) => onDraft("recipient", event.target.value)}
@@ -3146,7 +3226,7 @@ function AppealView({
           />
         </label>
         <label>
-          <span>Appeal letter</span>
+          <span>{isReconsideration ? "Pricing reconsideration letter" : "Appeal letter"}</span>
           <textarea
             className="appeal-letter-textarea"
             value={draft.body}
@@ -3160,7 +3240,7 @@ function AppealView({
         <h3>Choose the delivery channel</h3>
         <p>
           Confirm the payer destination and include every document named in the
-          appeal.
+          {isReconsideration ? " reconsideration request." : " appeal."}
         </p>
 
         <div className="submission-methods">

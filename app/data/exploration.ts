@@ -1337,6 +1337,16 @@ export type ArScenario = {
     route: string;
     rationale: string;
   };
+  appeal?: {
+    required: boolean;
+    category?: "denial-appeal" | "pricing-reconsideration";
+    recipient: string;
+    electronicRoute: string;
+    mailingAddress: string;
+    subject: string;
+    template: string;
+    attachments: string[];
+  };
 };
 
 export const arScenarios: ArScenario[] = [
@@ -1455,9 +1465,25 @@ export const arScenarios: ArScenario[] = [
       expectedAllowed: 12600,
       expectedPayment: 12600,
       variance: 2480,
-      action: "request-adjustment",
+      action: "submit-appeal",
       route: "payer-contract-review",
-      rationale: "The paid allowed amount is $2,480 below the contracted case rate; submit pricing reconsideration with contract support.",
+      rationale: "The paid allowed amount is $2,480 below the contracted case rate. Submit a pricing reconsideration with the contract page and the support missing from the prior request.",
+    },
+    appeal: {
+      required: true,
+      category: "pricing-reconsideration",
+      recipient: "Northstar Health Pricing Review Unit",
+      electronicRoute: "Northstar Provider Portal > Claims > Pricing Reconsideration",
+      mailingAddress: "Northstar Health Pricing Review, PO Box 4408, Portland, OR 97208",
+      subject: "Pricing reconsideration — $2,480 underpayment — ICN NS-44029118",
+      template: "RE: Evelyn Brooks | Member NSH-188-2044 | DOS 04/18/2026 | ICN NS-44029118\n\nTo the Pricing Review Unit:\n\nEvergreen Surgical Center requests reconsideration of the reimbursement for CPT 27447. The claim was allowed and paid at $10,120.00 using the standard outpatient grouper. Section 4.2 of the Northstar / Evergreen 2026 participating-provider agreement reimburses covered total knee arthroplasty services at a $12,600.00 facility case rate.\n\nPrior pricing request NS-884120 closed without change because the contract support was not attached. The enclosed ERA, contract section, expected reimbursement calculation, variance worksheet, and prior-request closure demonstrate an additional $2,480.00 due. Please reprice the claim under the contracted case rate and issue the remaining payment. No amount should be transferred to the patient.\n\nSincerely,\nRevenue Cycle Back End Team",
+      attachments: [
+        "ERA / EOB — ICN NS-44029118",
+        "Northstar / Evergreen 2026 contract — Section 4.2",
+        "Expected reimbursement calculation — $12,600.00 case rate",
+        "Underpayment variance worksheet — $2,480.00",
+        "Prior pricing request closure — NS-884120",
+      ],
     },
   },
   {
@@ -1983,15 +2009,7 @@ export type DenialScenario = ArScenario & {
     deadline: string;
     evidence: string;
   };
-  appeal: {
-    required: boolean;
-    recipient: string;
-    electronicRoute: string;
-    mailingAddress: string;
-    subject: string;
-    template: string;
-    attachments: string[];
-  };
+  appeal: NonNullable<ArScenario["appeal"]>;
 };
 
 export const denialScenarios: DenialScenario[] = [
@@ -2716,8 +2734,8 @@ export const denialScenarios: DenialScenario[] = [
 ];
 
 export const resolutionActions = [
-  { id: "request-adjustment", label: "Request for adjustment" },
-  { id: "submit-appeal", label: "Submit an appeal" },
+  { id: "request-adjustment", label: "Request balance adjustment / write-off" },
+  { id: "submit-appeal", label: "Submit appeal / reconsideration" },
   { id: "rebill-claim", label: "Rebill claim" },
   { id: "balance-transfer", label: "Balance transfer" },
   { id: "insurance-update", label: "Insurance update" },

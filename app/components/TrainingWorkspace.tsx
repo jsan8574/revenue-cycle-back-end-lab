@@ -150,7 +150,7 @@ export function TrainingWorkspace() {
   const [progressByCase, setProgressByCase] = useState<
     Record<string, CaseProgress>
   >({});
-  const [logs, setLogs] = useState<CompletionLog[]>(startingLogs);
+  const [logs, setLogs] = useState<CompletionLog[]>([]);
   const [priorityActivities, setPriorityActivities] = useState<
     Record<"ar-collections" | "denial-management", PriorityActivityState>
   >({
@@ -465,6 +465,47 @@ function Dashboard({
   scenarioCount: number;
   onOpenModule: (id: ModuleId) => void;
 }) {
+  const moduleProgress = modules.map((module) => {
+    const moduleLogs = logs.filter((log) => log.module === module.title);
+    const completedScenarios = new Set(moduleLogs.map((log) => log.scenario));
+    const total = moduleScenarioCount(module);
+    const completed = completedScenarios.size;
+    const bestScore = moduleLogs.length
+      ? Math.max(...moduleLogs.map((log) => log.score))
+      : null;
+    return {
+      module,
+      completed,
+      total,
+      bestScore,
+      latest: moduleLogs[0] ?? null,
+      percent: total ? Math.round((completed / total) * 100) : 0,
+    };
+  });
+  const completedCases = moduleProgress.reduce(
+    (sum, item) => sum + item.completed,
+    0,
+  );
+  const practicedModules = moduleProgress.filter(
+    (item) => item.completed > 0,
+  ).length;
+  const readinessPercent = Math.round(
+    (practicedModules / modules.length) * 100,
+  );
+  const averageScore = logs.length
+    ? Math.round(logs.reduce((sum, log) => sum + log.score, 0) / logs.length)
+    : null;
+  const nextModule =
+    moduleProgress.find((item) => item.completed === 0)?.module ??
+    moduleProgress.find((item) => item.completed < item.total)?.module ??
+    modules[0];
+  const readinessEvidence: Record<ModuleId, string> = {
+    billing: "Submit a clean CMS-1500 or UB-04 claim",
+    "payment-posting": "Close a fully reconciled posting batch",
+    "ar-collections": "Complete payer research, resolution, and account notation",
+    "denial-management": "Resolve a denial and complete any required appeal work",
+  };
+
   return (
     <div className="dashboard-page page-enter">
       <section className="hero-panel">
@@ -490,17 +531,17 @@ function Dashboard({
           </div>
         </div>
         <div className="hero-score-card">
-          <span className="mini-label">Team readiness</span>
-          <div className="readiness-number">88%</div>
+          <span className="mini-label">Session readiness</span>
+          <div className="readiness-number">{readinessPercent}%</div>
           <div className="readiness-track">
-            <span style={{ width: "88%" }} />
+            <span style={{ width: `${readinessPercent}%` }} />
           </div>
           <div className="readiness-details">
             <span>
-              <strong>+6%</strong> this month
+              <strong>{completedCases}</strong> cases completed
             </span>
             <span>
-              <strong>23</strong> completed
+              <strong>{practicedModules}/4</strong> modules practiced
             </span>
           </div>
         </div>
@@ -510,8 +551,8 @@ function Dashboard({
         {[
           ["04", "role-based modules"],
           [`${scenarioCount}`, "fictional scenarios"],
-          ["88%", "average score"],
-          ["23", "completed this week"],
+          [averageScore === null ? "—" : `${averageScore}%`, "session average"],
+          [`${completedCases}`, "completed this session"],
         ].map(([value, label]) => (
           <div className="metric-cell" key={label}>
             <strong>{value}</strong>
@@ -568,54 +609,85 @@ function Dashboard({
       </section>
 
       <section className="dashboard-lower">
-        <div className="activity-panel">
+        <div className="session-progress-panel">
           <div className="section-heading compact">
             <div>
-              <span className="section-kicker">Completion stream</span>
-              <h2>Recent coaching sessions</h2>
+              <span className="section-kicker">Your learning record</span>
+              <h2>Session progress by workflow</h2>
             </div>
-            <button className="text-button" type="button">
-              View all
-            </button>
+            <span className="session-completion-count">
+              {completedCases} of {scenarioCount} cases completed
+            </span>
           </div>
-          <div className="activity-list">
-            {logs.slice(0, 4).map((log) => (
-              <div className="activity-row" key={log.id}>
-                <span className="activity-avatar">
-                  {log.learner
-                    .split(" ")
-                    .map((part) => part[0])
-                    .join("")
-                    .slice(0, 2)}
+          <div className="module-progress-list">
+            {moduleProgress.map((item) => (
+              <article
+                className="module-progress-row"
+                key={item.module.id}
+                style={
+                  {
+                    "--progress-accent": item.module.accent,
+                    "--progress-soft": item.module.soft,
+                  } as React.CSSProperties
+                }
+              >
+                <span className="module-progress-marker">
+                  {moduleInitial(item.module)}
                 </span>
-                <div>
-                  <strong>{log.scenario}</strong>
+                <div className="module-progress-main">
+                  <div>
+                    <strong>{item.module.title}</strong>
+                    <span>
+                      {item.latest
+                        ? `Latest: ${item.latest.scenario}`
+                        : readinessEvidence[item.module.id]}
+                    </span>
+                  </div>
+                  <div className="module-progress-track" aria-label={`${item.percent}% complete`}>
+                    <span style={{ width: `${item.percent}%` }} />
+                  </div>
+                </div>
+                <div className="module-progress-result">
+                  <strong>{item.completed}/{item.total}</strong>
                   <span>
-                    {log.learner} · {log.module}
+                    {item.bestScore === null
+                      ? "Not started"
+                      : `Best ${item.bestScore}%`}
                   </span>
                 </div>
-                <span className="activity-time">{log.time}</span>
-                <strong className="score-chip">{log.score}</strong>
-              </div>
+                <button type="button" onClick={() => onOpenModule(item.module.id)}>
+                  {item.completed ? "Continue" : "Start"} <span aria-hidden="true">→</span>
+                </button>
+              </article>
             ))}
           </div>
         </div>
 
-        <div className="coach-brief">
-          <span className="section-kicker light">Coach’s brief</span>
-          <div className="quote-mark">“</div>
-          <blockquote>
-            Ask for the reasoning, not only the answer. The moment a trainee can
-            explain the evidence behind an action, the workflow starts to stick.
-          </blockquote>
-          <div className="coach-signoff">
-            <span className="avatar warm">QA</span>
-            <span>
-              <strong>Quality enablement</strong>
-              <small>Today’s facilitation cue</small>
-            </span>
+        <aside className="readiness-action-panel">
+          <span className="section-kicker light">RCM readiness evidence</span>
+          <h2>Build one complete work sample in every workflow.</h2>
+          <p>
+            A module counts as practiced after at least one scenario is fully
+            completed and scored during this session.
+          </p>
+          <div className="readiness-evidence-list">
+            {moduleProgress.map((item) => (
+              <div className={item.completed ? "complete" : ""} key={item.module.id}>
+                <span>{item.completed ? "✓" : "○"}</span>
+                <div>
+                  <strong>{item.module.navLabel}</strong>
+                  <small>{readinessEvidence[item.module.id]}</small>
+                </div>
+              </div>
+            ))}
           </div>
-        </div>
+          <button type="button" onClick={() => onOpenModule(nextModule.id)}>
+            {practicedModules === modules.length
+              ? `Continue ${nextModule.navLabel}`
+              : `Next: ${nextModule.navLabel}`}
+            <span aria-hidden="true">→</span>
+          </button>
+        </aside>
       </section>
     </div>
   );

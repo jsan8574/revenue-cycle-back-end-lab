@@ -36,6 +36,27 @@ test("server-renders the learner entry screen", async () => {
   assert.match(html, /All accounts and payer records in this lab are fictional\./);
 });
 
+test("uses real current-session progress instead of fictional dashboard activity", async () => {
+  const [workspace, styles] = await Promise.all([
+    readFile(new URL("../app/components/TrainingWorkspace.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(workspace, /useState<CompletionLog\[\]>\(\[\]\)/);
+  assert.match(workspace, /Session readiness/);
+  assert.match(workspace, /completed this session/);
+  assert.match(workspace, /Session progress by workflow/);
+  assert.match(workspace, /RCM readiness evidence/);
+  assert.match(workspace, /Build one complete work sample in every workflow\./);
+  assert.match(workspace, /const readinessEvidence: Record<ModuleId, string>/);
+  assert.match(workspace, /Next: \$\{nextModule\.navLabel\}/);
+  assert.doesNotMatch(workspace, /Recent coaching sessions/);
+  assert.doesNotMatch(workspace, /Team readiness/);
+  assert.doesNotMatch(workspace, /completed this week/);
+  assert.match(styles, /\.module-progress-row/);
+  assert.match(styles, /\.readiness-action-panel/);
+});
+
 test("includes the Billing claim-form mastery workflow", async () => {
   const [workspace, billingLab, billingData, packageJson] = await Promise.all([
     readFile(new URL("../app/components/TrainingWorkspace.tsx", import.meta.url), "utf8"),

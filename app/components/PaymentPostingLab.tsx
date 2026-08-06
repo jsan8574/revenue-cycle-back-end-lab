@@ -122,6 +122,7 @@ export function PaymentPostingLab({
   const [reconcileValid, setReconcileValid] = useState(false);
   const [attempts, setAttempts] = useState(0);
   const [closed, setClosed] = useState(false);
+  const caseLabel = `Posting case ${String(scenarioIndex + 1).padStart(2, "0")}`;
 
   const selectedAccount = scenario.accounts.find(
     (account) => account.id === selectedAccountId,
@@ -154,7 +155,9 @@ export function PaymentPostingLab({
   const milestones = [
     {
       label: "Review source evidence",
-      done: viewedDocuments.includes("era") && viewedDocuments.includes("bank"),
+      done: (["era", "bank", "proof"] as SourceDocument[]).every((item) =>
+        viewedDocuments.includes(item),
+      ),
     },
     { label: "Locate the patient account", done: Boolean(selectedAccountId) },
     {
@@ -164,6 +167,7 @@ export function PaymentPostingLab({
     { label: "Submit a posting decision", done: postingValid },
     { label: "Reconcile the batch", done: reconcileValid },
   ];
+  const allTasksComplete = milestones.every((item) => item.done);
 
   const openDocument = (next: SourceDocument) => {
     setDocument(next);
@@ -279,7 +283,7 @@ export function PaymentPostingLab({
   };
 
   const closeBatch = () => {
-    if (!postingValid || !reconcileValid || closed) return;
+    if (!allTasksComplete || closed) return;
     const score = Math.max(72, 100 - Math.max(0, attempts - 2) * 4);
     setClosed(true);
     onComplete(scenario.title, score);
@@ -303,7 +307,7 @@ export function PaymentPostingLab({
       />
 
       <ScenarioRail
-        scenarios={postingScenarios}
+        count={postingScenarios.length}
         selected={scenarioIndex}
         onSelect={onSelectScenario}
       />
@@ -314,12 +318,12 @@ export function PaymentPostingLab({
             <span className="system-logo">PM</span>
             <div>
               <strong>Payment Management</strong>
-              <small>Batch {scenario.id} · Training tenant</small>
+              <small>{caseLabel} · Training tenant</small>
             </div>
           </div>
           <div className="system-title-meta">
-            <span>{scenario.status}</span>
-            <strong>{scenario.amount}</strong>
+            <span>{closed ? "Scenario unlocked" : "Diagnosis locked"}</span>
+            <strong>{closed ? scenario.amount : "Evidence active"}</strong>
           </div>
         </header>
 
@@ -366,12 +370,20 @@ export function PaymentPostingLab({
           <div className="system-workarea">
             <div className="system-context">
               <div>
-                <span className="system-kicker">{scenario.id}</span>
-                <h2>{scenario.title}</h2>
-                <p>{scenario.objective}</p>
+                <span className="system-kicker">
+                  {closed ? scenario.id : caseLabel}
+                </span>
+                <h2>{closed ? scenario.title : "Unclassified remittance"}</h2>
+                <p>
+                  {closed
+                    ? scenario.objective
+                    : "Review every source, locate and verify the account, post each service line, and reconcile the batch. The scenario remains hidden until the complete workflow passes."}
+                </p>
               </div>
               <span className="difficulty-chip">
-                {scenario.priority} · independent
+                {closed
+                  ? `${scenario.priority} · ${scenario.status}`
+                  : "Analysis locked"}
               </span>
             </div>
 
@@ -443,6 +455,7 @@ export function PaymentPostingLab({
                 feedback={reconcileFeedback}
                 valid={reconcileValid}
                 postingValid={postingValid}
+                allTasksComplete={allTasksComplete}
                 closed={closed}
                 onBatchTotal={setBatchTotal}
                 onVarianceReason={setVarianceReason}
@@ -479,10 +492,14 @@ export function PaymentPostingLab({
         </div>
       </section>
 
+      {closed ? <PostingScenarioReveal scenario={scenario} /> : null}
+
       <PdfExportCenter
         learnerName={learnerName}
         moduleName={module.title}
-        scenarioName={`${scenario.id} · ${scenario.title}`}
+        scenarioName={
+          closed ? `${scenario.id} · ${scenario.title}` : `${caseLabel} · diagnosis locked`
+        }
         reports={[
           {
             label: "Remittance review",
@@ -553,6 +570,24 @@ export function PaymentPostingLab({
                   `Batch status: ${closed ? "Closed" : "Open"}`,
                 ],
               },
+              {
+                heading: "Scenario analysis",
+                lines: closed
+                  ? [
+                      `Diagnosis: ${scenario.reveal.diagnosis}`,
+                      "Why this is the correct conclusion:",
+                      ...scenario.reveal.justification.map(
+                        (item, index) => `${index + 1}. ${item}`,
+                      ),
+                      "How to prevent posting errors:",
+                      ...scenario.reveal.preventionTips.map(
+                        (item, index) => `${index + 1}. ${item}`,
+                      ),
+                    ]
+                  : [
+                      "Locked until all source, account, posting, and reconciliation tasks are completed and the practice batch is closed.",
+                    ],
+              },
             ],
           },
         ]}
@@ -585,22 +620,19 @@ function ExplorationHeader({
 }
 
 function ScenarioRail({
-  scenarios,
+  count,
   selected,
   onSelect,
 }: {
-  scenarios: Pick<
-    PostingScenario,
-    "id" | "title" | "subtitle" | "priority" | "status"
-  >[];
+  count: number;
   selected: number;
   onSelect: (index: number) => void;
 }) {
   return (
     <section className="scenario-rail exploration-scenarios" aria-label="Posting scenarios">
-      {scenarios.map((item, index) => (
+      {Array.from({ length: count }, (_, index) => (
         <button
-          key={item.id}
+          key={index}
           className={
             index === selected
               ? "scenario-card scenario-card-active"
@@ -609,20 +641,53 @@ function ScenarioRail({
           onClick={() => onSelect(index)}
           type="button"
         >
-          <span className="scenario-number">0{index + 1}</span>
+          <span className="scenario-number">
+            {String(index + 1).padStart(2, "0")}
+          </span>
           <span className="scenario-card-copy">
-            <strong>{item.title}</strong>
-            <small>{item.subtitle}</small>
+            <strong>Posting case {String(index + 1).padStart(2, "0")}</strong>
+            <small>Evidence-based work item</small>
           </span>
-          <span
-            className={`priority-tag priority-${item.priority
-              .toLowerCase()
-              .replace(" ", "-")}`}
-          >
-            {item.priority} · {item.status}
-          </span>
+          <span className="priority-tag posting-locked-tag">Diagnosis locked</span>
         </button>
       ))}
+    </section>
+  );
+}
+
+function PostingScenarioReveal({ scenario }: { scenario: PostingScenario }) {
+  return (
+    <section className="posting-scenario-reveal" aria-live="polite">
+      <div className="posting-reveal-heading">
+        <div>
+          <span className="section-kicker">Scenario unlocked</span>
+          <h2>{scenario.reveal.diagnosis}</h2>
+          <p>
+            You completed the evidence review, account verification, line posting,
+            and batch reconciliation. Compare your reasoning with the case analysis.
+          </p>
+        </div>
+        <span className="posting-reveal-status">Batch closed ✓</span>
+      </div>
+
+      <div className="posting-reveal-grid">
+        <article>
+          <span className="system-kicker">Why this is correct</span>
+          <ol>
+            {scenario.reveal.justification.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ol>
+        </article>
+        <article>
+          <span className="system-kicker">How to prevent posting errors</span>
+          <ul>
+            {scenario.reveal.preventionTips.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </article>
+      </div>
     </section>
   );
 }
@@ -1580,6 +1645,7 @@ function ReconciliationDesk({
   feedback,
   valid,
   postingValid,
+  allTasksComplete,
   closed,
   onBatchTotal,
   onVarianceReason,
@@ -1592,6 +1658,7 @@ function ReconciliationDesk({
   feedback: string;
   valid: boolean;
   postingValid: boolean;
+  allTasksComplete: boolean;
   closed: boolean;
   onBatchTotal: (value: string) => void;
   onVarianceReason: (value: string) => void;
@@ -1676,10 +1743,21 @@ function ReconciliationDesk({
             <small>{valid ? "Validated" : "Not yet validated"}</small>
           </div>
         </div>
+        <div className="release-check">
+          <span>{allTasksComplete ? "✓" : "○"}</span>
+          <div>
+            <strong>Full workflow</strong>
+            <small>
+              {allTasksComplete
+                ? "All five tasks complete"
+                : "Open all sources and complete every task"}
+            </small>
+          </div>
+        </div>
         <button
           type="button"
           className="system-primary-button full-system-button"
-          disabled={!postingValid || !valid || closed}
+          disabled={!allTasksComplete || closed}
           onClick={onClose}
         >
           {closed ? "Practice batch closed ✓" : "Close practice batch"}

@@ -113,3 +113,24 @@ test("routes Evelyn Brooks to a documented pricing reconsideration", async () =>
   assert.match(arLab, /openTab\("appeal"\)/);
   assert.match(arLab, /Successful — the electronic \$\{isReconsideration \? "pricing reconsideration" : "appeal"\}/);
 });
+
+test("keeps Payment Posting diagnoses hidden until the full workflow is closed", async () => {
+  const [postingLab, explorationData, styles] = await Promise.all([
+    readFile(new URL("../app/components/PaymentPostingLab.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/data/exploration.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(postingLab, /Posting case \{String\(index \+ 1\)\.padStart\(2, "0"\)\}/);
+  assert.match(postingLab, /Evidence-based work item/);
+  assert.match(postingLab, /Diagnosis locked/);
+  assert.doesNotMatch(postingLab, /\{item\.priority\} · \{item\.status\}/);
+  assert.match(postingLab, /\["era", "bank", "proof"\]/);
+  assert.match(postingLab, /const allTasksComplete = milestones\.every/);
+  assert.match(postingLab, /closed \? <PostingScenarioReveal scenario=\{scenario\}/);
+  assert.match(postingLab, /Why this is correct/);
+  assert.match(postingLab, /How to prevent posting errors/);
+  assert.equal((explorationData.match(/diagnosis:/g) ?? []).length, 7);
+  assert.equal((explorationData.match(/preventionTips:/g) ?? []).length, 7);
+  assert.match(styles, /\.posting-scenario-reveal/);
+});

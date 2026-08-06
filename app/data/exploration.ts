@@ -24,6 +24,11 @@ export type PostingScenario = {
   status: string;
   amount: string;
   objective: string;
+  reveal: {
+    diagnosis: string;
+    justification: string[];
+    preventionTips: string[];
+  };
   era: {
     payer: string;
     payee: string;
@@ -104,6 +109,19 @@ export const postingScenarios: PostingScenario[] = [
     amount: "$28,430.12",
     objective:
       "Use the source documents to identify the account and encounter, post the selected claim, and reconcile the full deposit.",
+    reveal: {
+      diagnosis: "ERA-to-bank variance caused by provider-level interest",
+      justification: [
+        "The bank deposit is $28,430.12 while the 835 claim-payment total is $28,280.12, leaving a supported $150.00 difference.",
+        "The proof-of-payment detail identifies that $150.00 as a PLB L6 prompt-pay interest adjustment, not as payment for Maria Santos's claim.",
+        "The two service lines support $707.85 in insurance payment, $930.00 contractual adjustment, and $842.15 in patient responsibility.",
+      ],
+      preventionTips: [
+        "Reconcile the EFT, TRN, 835 control total, and every PLB segment before releasing a batch.",
+        "Post provider-level interest to the designated interest ledger instead of forcing it into a patient account.",
+        "Retain the trace number and PLB reference so the difference remains auditable.",
+      ],
+    },
     era: {
       payer: "Harbor Blue PPO",
       payee: "Evergreen Medical Group · NPI 1992881044",
@@ -320,6 +338,19 @@ export const postingScenarios: PostingScenario[] = [
     amount: "−$1,275.00",
     objective:
       "Analyze the negative remittance and original transaction evidence, then determine the correct account and posting treatment.",
+    reveal: {
+      diagnosis: "Payer recoupment that reverses a previously posted payment",
+      justification: [
+        "The remittance contains a negative $1,275.00 payment and points to the original batch and transaction that previously closed the claim.",
+        "The correct account has a $0.00 balance before the reversal because the original payer payment was already posted there.",
+        "Posting the negative payment restores $1,275.00 to insurance AR for review; CO-18 alone does not create patient responsibility.",
+      ],
+      preventionTips: [
+        "Match every takeback to the original claim, ICN, batch, and transaction before posting it.",
+        "Never force a negative remittance onto a different open account or transfer it to the patient without separate support.",
+        "Link the reversal to the recoupment evidence and route the restored insurance balance to follow-up.",
+      ],
+    },
     era: {
       payer: "Crescent Choice",
       payee: "Evergreen Medical Group · NPI 1992881044",
@@ -484,6 +515,19 @@ export const postingScenarios: PostingScenario[] = [
     amount: "$7,864.58",
     objective:
       "Match the secondary claim to the correct primary-adjudicated encounter and post only the remaining liability.",
+    reveal: {
+      diagnosis: "Secondary-payer posting with unmatched funds held for research",
+      justification: [
+        "Primary Medicare payment of $575.00 was already posted, and the secondary ERA pays another $155.00 across the two service lines.",
+        "The remaining $60.00 is supported as PR-2 coinsurance rather than an additional insurance balance.",
+        "The $286.40 batch difference has no valid patient control number, so it belongs in unapplied-cash research instead of a patient account.",
+      ],
+      preventionTips: [
+        "Verify the primary adjudication and crossover identifiers before posting a secondary remittance.",
+        "Allocate patient responsibility only when the secondary service-line detail supports it.",
+        "Hold unidentified funds in the approved unapplied account until a valid patient and claim match is established.",
+      ],
+    },
     era: {
       payer: "Northstar Health",
       payee: "Evergreen Medical Group · NPI 1992881044",
@@ -688,6 +732,19 @@ export const postingScenarios: PostingScenario[] = [
     amount: "$11,840.00",
     objective:
       "Use the remittance to post each service independently and route any unresolved line correctly.",
+    reveal: {
+      diagnosis: "Partial payment with a bundled service-line denial",
+      justification: [
+        "CPT 99214 is paid at $144.00 with a $100.00 contractual adjustment and $36.00 PR-2 coinsurance.",
+        "CPT 93000 is separately denied for $95.00 with CO-97 and M15 because the payer considers it included in another adjudicated service.",
+        "The denied ECG line has no patient responsibility and must remain distinct from the paid office-visit line.",
+      ],
+      preventionTips: [
+        "Post and validate every SVC loop independently on multi-line claims.",
+        "Check bundling and NCCI edits before rebilling or transferring a denied line to the patient.",
+        "Route unresolved bundling denials to the appropriate coding or insurance follow-up workflow.",
+      ],
+    },
     era: {
       payer: "Meridian Community Health",
       payee: "Evergreen Medical Group · NPI 1992881044",
@@ -877,6 +934,19 @@ export const postingScenarios: PostingScenario[] = [
     amount: "$4,680.24",
     objective:
       "Use the zero-pay service detail to determine the correct allocation for each line.",
+    reveal: {
+      diagnosis: "Zero-pay claim fully applied to the patient's deductible",
+      justification: [
+        "Both service lines have allowed amounts, but the plan pays $0.00 because the full $84.00 allowed total is assigned to PR-1 deductible.",
+        "CO-45 supports $86.00 in contractual reductions, which remain provider responsibility.",
+        "The $4,680.24 EFT belongs to other claims in the batch and must not be allocated to this zero-pay claim.",
+      ],
+      preventionTips: [
+        "Do not treat every zero-pay claim as a denial; read the CAS group and reason codes first.",
+        "Keep contractual adjustments and patient-responsibility amounts in their correct categories for each line.",
+        "Use claim-level and service-line controls so a full batch deposit is never forced onto one claim.",
+      ],
+    },
     era: {
       payer: "Harbor Blue PPO",
       payee: "Evergreen Medical Group · NPI 1992881044",
@@ -1072,6 +1142,19 @@ export const postingScenarios: PostingScenario[] = [
     amount: "$9,244.16",
     objective:
       "Review the zero-pay claim response, post the service-line outcome, and choose the appropriate transaction path.",
+    reveal: {
+      diagnosis: "Full claim denial for missing precertification or authorization",
+      justification: [
+        "CPT 72148 has $0.00 allowed and paid, with the full $1,800.00 assigned to CO-197 and remark N130.",
+        "The claim was accepted and adjudicated, so this is a payer denial rather than a clearinghouse rejection.",
+        "No patient responsibility is assigned, and the $9,244.16 EFT belongs to other claims in the same ERA.",
+      ],
+      preventionTips: [
+        "Verify authorization requirements, effective dates, CPT coverage, and servicing provider before the service is rendered.",
+        "Transmit the authorization number and supporting information on the original claim when required.",
+        "Route authorization denials to denial management for correction or appeal instead of billing the patient automatically.",
+      ],
+    },
     era: {
       payer: "Crescent Choice",
       payee: "Evergreen Medical Group · NPI 1992881044",

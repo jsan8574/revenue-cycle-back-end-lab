@@ -52,6 +52,13 @@ type AppealScenario = ArScenario & {
   appeal: NonNullable<ArScenario["appeal"]>;
 };
 
+type PriorityActivityState = {
+  order: string[];
+  rationale: string;
+  finalized: boolean;
+  openedScenarioId: string;
+};
+
 const arTabs: { id: ArDeskTab; label: string }[] = [
   { id: "account", label: "Account" },
   { id: "eobs", label: "EOBs & correspondence" },
@@ -430,20 +437,6 @@ function getPriorityScore(scenario: ArScenario) {
   return Math.round(balancePoints + agePoints + deadlinePoints + riskPoints);
 }
 
-function getPriorityReason(scenario: ArScenario) {
-  const reasons: string[] = [];
-  const age = getAgeDays(scenario);
-  const deadline = getDeadlineDays(scenario);
-  if (scenario.claim.openAr >= 5000) reasons.push("high balance");
-  else if (scenario.claim.openAr >= 2000) reasons.push("material balance");
-  if (age >= 90) reasons.push("aged 90+ days");
-  else if (age >= 60) reasons.push("aged 60+ days");
-  if (deadline <= 7) reasons.push("deadline within 7 days");
-  else if (deadline <= 21) reasons.push("deadline within 21 days");
-  else if (deadline <= 45) reasons.push("near-term filing risk");
-  return reasons.slice(0, 3).join(" · ") || "routine follow-up window";
-}
-
 function getPriorityFactorCount(value: string) {
   const factorPatterns = [
     /\b(balance|amount|dollar|financial|high[- ]?value)\b|\$/i,
@@ -481,6 +474,8 @@ export function ARCollectionsLab({
   learnerName,
   scenarioIndex,
   onSelectScenario,
+  priorityActivity,
+  onPriorityActivity,
   onComplete,
   mode = "ar",
 }: {
@@ -488,6 +483,8 @@ export function ARCollectionsLab({
   learnerName: string;
   scenarioIndex: number;
   onSelectScenario: (index: number) => void;
+  priorityActivity: PriorityActivityState;
+  onPriorityActivity: (next: PriorityActivityState) => void;
   onComplete: (scenario: string, score: number) => void;
   mode?: "ar" | "denial";
 }) {
@@ -563,18 +560,33 @@ export function ARCollectionsLab({
   >([]);
   const [notePosted, setNotePosted] = useState(false);
   const [closed, setClosed] = useState(false);
-  const [priorityRationale, setPriorityRationale] = useState("");
-  const [priorityRationaleSubmitted, setPriorityRationaleSubmitted] =
-    useState(false);
-  const [priorityRationaleMeetsCriteria, setPriorityRationaleMeetsCriteria] =
-    useState(false);
-  const [priorityRationaleFeedback, setPriorityRationaleFeedback] =
-    useState("");
+  const [prioritySubmitAttempted, setPrioritySubmitAttempted] = useState(false);
+
+  const defaultPriorityOrder = scenarioList.map((item) => item.id);
+  const priorityOrder =
+    priorityActivity.order.length === scenarioList.length &&
+    priorityActivity.order.every((id) =>
+      scenarioList.some((item) => item.id === id),
+    )
+      ? priorityActivity.order
+      : defaultPriorityOrder;
+  const priorityRationale = priorityActivity.rationale;
+  const priorityRationaleSubmitted = priorityActivity.finalized;
+  const priorityFactorCount = getPriorityFactorCount(priorityRationale);
+  const priorityRationaleMeetsCriteria =
+    priorityRationale.trim().length >= 80 && priorityFactorCount >= 3;
+  const accountOpened =
+    priorityActivity.finalized &&
+    priorityActivity.openedScenarioId === scenario.id;
 
   const rankedScenarioIds = [...scenarioList]
     .sort((left, right) => getPriorityScore(right) - getPriorityScore(left))
     .map((item) => item.id);
-  const selectedPriorityRank = rankedScenarioIds.indexOf(scenario.id) + 1;
+  const priorityOrderCorrect = rankedScenarioIds.every(
+    (id, index) => priorityOrder[index] === id,
+  );
+  const recommendedPriorityRank = rankedScenarioIds.indexOf(scenario.id) + 1;
+  const learnerPriorityRank = priorityOrder.indexOf(scenario.id) + 1;
   const selectedPriorityScore = getPriorityScore(scenario);
   const priorityCoachingAnswer = getPriorityCoachingAnswer(
     scenario,
@@ -595,7 +607,7 @@ export function ARCollectionsLab({
     notes.findings.trim().length >= 12 &&
     notes.resolution.trim().length >= 12;
   const checklist = [
-    { label: "Access the account", done: true },
+    { label: "Access the account", done: accountOpened },
     {
       label: "Explain account prioritization",
       done: priorityRationaleSubmitted,
@@ -644,23 +656,28 @@ export function ARCollectionsLab({
 
   const validatePriorityRationale = () => {
     if (!priorityRationale.trim()) {
-      setPriorityRationaleSubmitted(false);
-      setPriorityRationaleMeetsCriteria(false);
-      setPriorityRationaleFeedback(
-        "Enter your prioritization decision before submitting.",
-      );
+      setPrioritySubmitAttempted(true);
       return;
     }
-    const factorCount = getPriorityFactorCount(priorityRationale);
-    const meetsCriteria =
-      priorityRationale.trim().length >= 80 && factorCount >= 3;
-    setPriorityRationaleSubmitted(true);
-    setPriorityRationaleMeetsCriteria(meetsCriteria);
-    setPriorityRationaleFeedback(
-      meetsCriteria
-        ? `Answer submitted for ${scenario.id}. You used at least three prioritization factors. Compare your reasoning with the coaching key below.`
-        : `Answer submitted for ${scenario.id}. The response used ${factorCount} of 4 recognized factors. Review the coaching key below, then continue or revise and resubmit.`,
-    );
+    setPrioritySubmitAttempted(false);
+    onPriorityActivity({
+      order: priorityOrder,
+      rationale: priorityRationale,
+      finalized: true,
+      openedScenarioId: "",
+    });
+  };
+
+  const openPrioritizedAccount = (scenarioId: string) => {
+    if (!priorityActivity.finalized) return;
+    const nextIndex = scenarioList.findIndex((item) => item.id === scenarioId);
+    if (nextIndex < 0) return;
+    onPriorityActivity({
+      ...priorityActivity,
+      order: priorityOrder,
+      openedScenarioId: scenarioId,
+    });
+    onSelectScenario(nextIndex);
   };
 
   const openTab = (next: ArDeskTab) => {
@@ -824,7 +841,13 @@ export function ARCollectionsLab({
 
   const closeAccount = () => {
     if (!notePosted || closed) return;
-    const score = Math.max(74, 100 - decisionAttempts * 4);
+    const priorityPenalty =
+      (priorityOrderCorrect ? 0 : 4) +
+      (priorityRationaleMeetsCriteria ? 0 : 4);
+    const score = Math.max(
+      74,
+      100 - decisionAttempts * 4 - priorityPenalty,
+    );
     setClosed(true);
     onComplete(scenario.title, score);
   };
@@ -864,21 +887,36 @@ export function ARCollectionsLab({
         scenarios={scenarioList}
         mode={mode}
         selected={scenarioIndex}
-        onSelect={onSelectScenario}
+        order={priorityOrder}
+        finalized={priorityRationaleSubmitted}
+        openedScenarioId={priorityActivity.openedScenarioId}
         rationale={priorityRationale}
-        rationaleSubmitted={priorityRationaleSubmitted}
         rationaleMeetsCriteria={priorityRationaleMeetsCriteria}
-        rationaleFeedback={priorityRationaleFeedback}
-        coachingAnswer={priorityCoachingAnswer}
         onRationale={(value) => {
-          setPriorityRationale(value);
-          setPriorityRationaleSubmitted(false);
-          setPriorityRationaleMeetsCriteria(false);
-          setPriorityRationaleFeedback("");
+          setPrioritySubmitAttempted(false);
+          onPriorityActivity({
+            ...priorityActivity,
+            order: priorityOrder,
+            rationale: value,
+            finalized: false,
+            openedScenarioId: "",
+          });
         }}
+        onOrder={(order) =>
+          onPriorityActivity({
+            ...priorityActivity,
+            order,
+            finalized: false,
+            openedScenarioId: "",
+          })
+        }
+        onOpen={openPrioritizedAccount}
+        submitAttempted={prioritySubmitAttempted}
         onSubmitRationale={validatePriorityRationale}
       />
 
+      {accountOpened ? (
+        <>
       <section className="ar-system-frame">
         <header className="ar-system-titlebar">
           <div className="system-brand">
@@ -1108,12 +1146,24 @@ export function ARCollectionsLab({
               {
                 heading: "Prioritization decision",
                 lines: [
-                  `Selected account queue position: ${selectedPriorityRank} of ${scenarioList.length}`,
+                  `Learner queue position for this account: ${learnerPriorityRank} of ${scenarioList.length}`,
+                  `Recommended queue position for this account: ${recommendedPriorityRank} of ${scenarioList.length}`,
                   `System priority score: ${selectedPriorityScore}`,
                   `Submission status: ${priorityRationaleSubmitted ? "Submitted" : "Not submitted"}`,
                   `Coaching criteria: ${priorityRationaleMeetsCriteria ? "Met" : priorityRationaleSubmitted ? "Needs improvement" : "Not evaluated"}`,
+                  `Queue accuracy: ${priorityOrderCorrect ? "Matches recommended order" : "Differs from recommended order"}`,
                   `Learner response: ${priorityRationale || "No prioritization rationale entered"}`,
-                  `Coaching key: ${priorityRationaleSubmitted ? priorityCoachingAnswer : "Revealed after submission"}`,
+                  "Learner queue order:",
+                  ...priorityOrder.map((id, index) => {
+                    const itemIndex = scenarioList.findIndex((item) => item.id === id);
+                    return `${index + 1}. Queue case ${String(itemIndex + 1).padStart(2, "0")} · ${id}`;
+                  }),
+                  "Recommended queue order:",
+                  ...rankedScenarioIds.map((id, index) => {
+                    const itemIndex = scenarioList.findIndex((item) => item.id === id);
+                    return `${index + 1}. Queue case ${String(itemIndex + 1).padStart(2, "0")} · ${id}`;
+                  }),
+                  `Selected-account coaching: ${priorityRationaleSubmitted ? priorityCoachingAnswer : "Revealed after submission"}`,
                 ],
               },
               {
@@ -1260,6 +1310,31 @@ export function ARCollectionsLab({
           },
         ]}
       />
+        </>
+      ) : (
+        <section className="priority-account-gate" aria-live="polite">
+          <span className="priority-gate-icon" aria-hidden="true">
+            {priorityRationaleSubmitted ? "✓" : "↕"}
+          </span>
+          <div>
+            <span className="section-kicker">
+              {priorityRationaleSubmitted
+                ? "Queue finalized"
+                : "Account workspace locked"}
+            </span>
+            <h2>
+              {priorityRationaleSubmitted
+                ? "Choose an account from your finalized queue."
+                : "Prioritize the worklist before opening an account."}
+            </h2>
+            <p>
+              {priorityRationaleSubmitted
+                ? "Each queue card now has an Open account button. Select one to load its patient, provider, claim, history, documents, payer tools, reimbursement activity, and resolution workflow below."
+                : "Arrange all five cards, explain the order in the rationale box, and finalize your decision. Patient, provider, claim, and historical details remain hidden during prioritization."}
+            </p>
+          </div>
+        </section>
+      )}
     </div>
   );
 }
@@ -1268,34 +1343,72 @@ function ArScenarioRail({
   scenarios,
   mode,
   selected,
-  onSelect,
+  order,
+  finalized,
+  openedScenarioId,
   rationale,
-  rationaleSubmitted,
   rationaleMeetsCriteria,
-  rationaleFeedback,
-  coachingAnswer,
   onRationale,
+  onOrder,
+  onOpen,
+  submitAttempted,
   onSubmitRationale,
 }: {
   scenarios: ArScenario[];
   mode: "ar" | "denial";
   selected: number;
-  onSelect: (index: number) => void;
+  order: string[];
+  finalized: boolean;
+  openedScenarioId: string;
   rationale: string;
-  rationaleSubmitted: boolean;
   rationaleMeetsCriteria: boolean;
-  rationaleFeedback: string;
-  coachingAnswer: string;
   onRationale: (value: string) => void;
+  onOrder: (order: string[]) => void;
+  onOpen: (scenarioId: string) => void;
+  submitAttempted: boolean;
   onSubmitRationale: () => void;
 }) {
-  const ranked = scenarios
+  const [draggedId, setDraggedId] = useState("");
+  const ordered = order.flatMap((id) => {
+    const originalIndex = scenarios.findIndex((item) => item.id === id);
+    return originalIndex >= 0
+      ? [{ scenario: scenarios[originalIndex], originalIndex }]
+      : [];
+  });
+  const recommended = scenarios
     .map((scenario, originalIndex) => ({
       scenario,
       originalIndex,
       score: getPriorityScore(scenario),
     }))
     .sort((left, right) => right.score - left.score);
+  const exactOrder = recommended.every(
+    (item, index) => order[index] === item.scenario.id,
+  );
+
+  const reorder = (sourceId: string, targetId: string) => {
+    if (finalized || sourceId === targetId) return;
+    const next = [...order];
+    const sourceIndex = next.indexOf(sourceId);
+    const targetIndex = next.indexOf(targetId);
+    if (sourceIndex < 0 || targetIndex < 0) return;
+    next.splice(sourceIndex, 1);
+    next.splice(targetIndex, 0, sourceId);
+    onOrder(next);
+  };
+
+  const move = (scenarioId: string, direction: -1 | 1) => {
+    if (finalized) return;
+    const currentIndex = order.indexOf(scenarioId);
+    const nextIndex = currentIndex + direction;
+    if (currentIndex < 0 || nextIndex < 0 || nextIndex >= order.length) return;
+    const next = [...order];
+    [next[currentIndex], next[nextIndex]] = [
+      next[nextIndex],
+      next[currentIndex],
+    ];
+    onOrder(next);
+  };
 
   return (
     <section className="priority-queue-panel">
@@ -1308,8 +1421,9 @@ function ArScenarioRail({
               : "Insurance Follow-up priority queue"}
           </h2>
           <p>
-            Worklist rank weighs open balance, account age, filing or appeal
-            deadline, and operational risk. The underlying issue stays hidden.
+            Drag all five cards into your intended work order, or use the arrow
+            controls. Base the sequence on balance, age, filing or appeal
+            deadline, and operational risk. Account details remain locked.
           </p>
         </div>
         <div className="priority-legend">
@@ -1323,50 +1437,97 @@ function ArScenarioRail({
         className="scenario-rail exploration-scenarios"
         aria-label={
           mode === "denial"
-            ? "Ranked denial scenarios"
-            : "Ranked insurance follow-up scenarios"
+            ? "Learner-arranged denial queue"
+            : "Learner-arranged insurance follow-up queue"
         }
       >
-        {ranked.map(({ scenario: item, originalIndex, score }, rank) => (
-          <button
+        {ordered.map(({ scenario: item, originalIndex }, rank) => (
+          <article
             key={item.id}
             className={
-              originalIndex === selected
-                ? "scenario-card scenario-card-active"
-                : "scenario-card"
+              openedScenarioId === item.id && originalIndex === selected
+                ? "priority-queue-card priority-queue-card-open"
+                : draggedId === item.id
+                  ? "priority-queue-card priority-queue-card-dragging"
+                  : "priority-queue-card"
             }
-            onClick={() => onSelect(originalIndex)}
-            type="button"
+            data-queue-id={item.id}
+            draggable={!finalized}
+            onDragStart={(event) => {
+              if (finalized) return;
+              event.dataTransfer.effectAllowed = "move";
+              event.dataTransfer.setData("text/plain", item.id);
+              setDraggedId(item.id);
+            }}
+            onDragOver={(event) => {
+              if (!finalized) event.preventDefault();
+            }}
+            onDrop={(event) => {
+              event.preventDefault();
+              reorder(
+                event.dataTransfer.getData("text/plain") || draggedId,
+                item.id,
+              );
+              setDraggedId("");
+            }}
+            onDragEnd={() => setDraggedId("")}
           >
             <span className="scenario-number">#{rank + 1}</span>
             <span className="scenario-card-copy">
-              <strong>{item.title}</strong>
-              <small>{item.subtitle}</small>
-              <small className="priority-reason">
-                {getPriorityReason(item)}
+              <strong>
+                {finalized
+                  ? item.title
+                  : `Queue case ${String(originalIndex + 1).padStart(2, "0")}`}
+              </strong>
+              <small>
+                {finalized ? item.subtitle : "Account details hidden"}
               </small>
             </span>
-            <span className="queue-score">
-              <strong>{score}</strong>
-              <small>priority score</small>
-            </span>
-            <span
-              className={`priority-tag priority-${item.priority
-                .toLowerCase()
-                .replace(" ", "-")}`}
-            >
-              {item.claim.aging} · {money(item.claim.openAr)}
-            </span>
-          </button>
+            <div className="priority-factor-grid">
+              <div><span>Balance</span><strong>{money(item.claim.openAr)}</strong></div>
+              <div><span>Age</span><strong>{item.claim.aging}</strong></div>
+              <div><span>Deadline</span><strong>{item.claim.appealDeadline}</strong></div>
+              <div><span>Risk</span><strong>{item.priority}</strong></div>
+            </div>
+            {!finalized ? (
+              <div className="priority-drag-controls" aria-label={`Move queue case ${originalIndex + 1}`}>
+                <span aria-hidden="true">Drag ↕</span>
+                <button
+                  type="button"
+                  onClick={() => move(item.id, -1)}
+                  disabled={rank === 0}
+                  aria-label={`Move queue case ${originalIndex + 1} earlier`}
+                >
+                  ↑
+                </button>
+                <button
+                  type="button"
+                  onClick={() => move(item.id, 1)}
+                  disabled={rank === ordered.length - 1}
+                  aria-label={`Move queue case ${originalIndex + 1} later`}
+                >
+                  ↓
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className="priority-open-account"
+                onClick={() => onOpen(item.id)}
+              >
+                {openedScenarioId === item.id ? "Account open ✓" : "Open account"}
+              </button>
+            )}
+          </article>
         ))}
       </div>
       <div className="priority-rationale-panel">
         <div>
           <span className="system-kicker">Required learner explanation</span>
-          <h3>How would you prioritize the selected account?</h3>
+          <h3>Why did you choose this five-account order?</h3>
           <p>
-            Explain where it belongs in the five-account queue and why. Support
-            your decision with at least three factors from the worklist.
+            Explain the full sequence in one response. Support the arrangement
+            with at least three factors from the worklist.
           </p>
         </div>
         <label>
@@ -1374,30 +1535,37 @@ function ArScenarioRail({
           <textarea
             value={rationale}
             onChange={(event) => onRationale(event.target.value)}
-            placeholder="Explain your decision using balance, account age, filing or appeal deadline, and operational risk or status."
+            placeholder="Explain why you placed the five queue cases in this order using balance, account age, filing or appeal deadline, and operational risk."
             rows={4}
+            disabled={finalized}
           />
           <small>{rationale.trim().length} characters · minimum 80</small>
         </label>
         <div className="priority-rationale-actions">
-          <button type="button" onClick={onSubmitRationale}>
-            Submit prioritization rationale
+          <button type="button" onClick={onSubmitRationale} disabled={finalized}>
+            {finalized ? "Queue finalized ✓" : "Finalize queue and rationale"}
           </button>
-          {rationaleFeedback ? (
+          {submitAttempted && !rationale.trim() ? (
+            <p className="warning-message" aria-live="polite">
+              Enter your rationale before finalizing the queue.
+            </p>
+          ) : finalized ? (
             <p
               className={
-                rationaleSubmitted ? "success-message" : "warning-message"
+                rationaleMeetsCriteria ? "success-message" : "warning-message"
               }
               aria-live="polite"
             >
-              {rationaleFeedback}
+              {rationaleMeetsCriteria
+                ? "Your arrangement and rationale were recorded. Open an account from any card above."
+                : "Your arrangement was recorded. Review the coaching key, then open an account from any card above."}
             </p>
           ) : null}
         </div>
-        {rationaleSubmitted ? (
+        {finalized ? (
           <aside
             className={
-              rationaleMeetsCriteria
+              rationaleMeetsCriteria && exactOrder
                 ? "priority-coaching-key meets-criteria"
                 : "priority-coaching-key needs-review"
             }
@@ -1405,14 +1573,23 @@ function ArScenarioRail({
           >
             <span className="system-kicker">Coaching key</span>
             <h4>
-              {rationaleMeetsCriteria
-                ? "Your rationale is well supported."
-                : "Here is the recommended prioritization approach."}
+              {exactOrder
+                ? "Your queue matches the recommended order."
+                : "Compare your queue with the recommended order."}
             </h4>
-            <p>{coachingAnswer}</p>
+            <ol className="priority-coaching-order">
+              {recommended.map(({ scenario: item, originalIndex, score }, rank) => (
+                <li key={item.id}>
+                  <strong>
+                    #{rank + 1} · Queue case {String(originalIndex + 1).padStart(2, "0")} · score {score}
+                  </strong>
+                  <p>{getPriorityCoachingAnswer(item, scenarios, mode)}</p>
+                </li>
+              ))}
+            </ol>
             <small>
-              Your answer has been recorded. You may continue now, or revise it
-              and submit again after comparing the four factors.
+              Your original arrangement and explanation remain recorded. The
+              buttons above now open the corresponding account workspaces.
             </small>
           </aside>
         ) : null}

@@ -7353,26 +7353,138 @@ button {
   justify-self: start;
 }
 
-.priority-reason {
-  color: #6a7a79 !important;
-  white-space: normal !important;
+.priority-queue-card {
+  background: rgba(255, 254, 250, 0.92);
+  border: 1px solid #d5ddda;
+  border-radius: 13px;
+  cursor: grab;
+  display: grid;
+  gap: 11px;
+  grid-template-columns: 36px minmax(0, 1fr);
+  min-width: 220px;
+  padding: 13px;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    opacity 160ms ease,
+    transform 160ms ease;
 }
 
-.queue-score {
-  align-items: flex-end;
+.priority-queue-card:hover {
+  border-color: var(--module-accent);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--module-accent) 10%, transparent);
+}
+
+.priority-queue-card:active {
+  cursor: grabbing;
+}
+
+.priority-queue-card-dragging {
+  border-style: dashed;
+  opacity: 0.55;
+  transform: scale(0.98);
+}
+
+.priority-queue-card-open {
+  border-color: var(--module-accent);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--module-accent) 14%, transparent);
+  cursor: default;
+}
+
+.priority-queue-card .scenario-number {
+  height: 36px;
+}
+
+.priority-queue-card .scenario-card-copy strong {
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.priority-queue-card .scenario-card-copy small {
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: normal;
+}
+
+.priority-factor-grid {
+  display: grid;
+  gap: 7px;
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.priority-factor-grid > div {
+  background: #f2f6f4;
+  border: 1px solid #e1e8e5;
+  border-radius: 8px;
   display: flex;
   flex-direction: column;
+  min-width: 0;
+  padding: 8px;
 }
 
-.queue-score strong {
-  color: var(--module-accent);
-  font-size: 18px !important;
+.priority-factor-grid span {
+  color: #708180;
+  font-size: 9px;
+  font-weight: 750;
+  text-transform: uppercase;
 }
 
-.queue-score small {
-  font-size: 9px !important;
-  margin-top: 0 !important;
-  white-space: nowrap !important;
+.priority-factor-grid strong {
+  color: #274748;
+  font-size: 11px;
+  line-height: 1.35;
+  margin-top: 3px;
+  overflow-wrap: anywhere;
+}
+
+.priority-drag-controls {
+  align-items: center;
+  display: flex;
+  gap: 6px;
+  grid-column: 1 / -1;
+}
+
+.priority-drag-controls > span {
+  color: #6a7d7b;
+  font-size: 10px;
+  font-weight: 800;
+  margin-right: auto;
+}
+
+.priority-drag-controls button {
+  align-items: center;
+  background: #fff;
+  border: 1px solid #cbd8d4;
+  border-radius: 7px;
+  color: #315a58;
+  cursor: pointer;
+  display: flex;
+  font-size: 15px;
+  font-weight: 900;
+  height: 31px;
+  justify-content: center;
+  width: 34px;
+}
+
+.priority-drag-controls button:disabled {
+  cursor: not-allowed;
+  opacity: 0.35;
+}
+
+.priority-open-account {
+  background: var(--module-accent);
+  border: 0;
+  border-radius: 8px;
+  color: #fff;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 850;
+  grid-column: 1 / -1;
+  min-height: 37px;
+  padding: 8px 10px;
+  width: 100%;
 }
 
 .priority-rationale-panel {
@@ -7448,6 +7560,12 @@ button {
   padding: 9px 13px;
 }
 
+.priority-rationale-actions button:disabled,
+.priority-rationale-panel textarea:disabled {
+  cursor: default;
+  opacity: 0.72;
+}
+
 .priority-rationale-actions p {
   font-size: 12px;
   line-height: 1.45;
@@ -7491,6 +7609,73 @@ button {
   font-size: 11px;
   line-height: 1.45;
   margin-top: 9px;
+}
+
+.priority-coaching-order {
+  display: grid;
+  gap: 10px;
+  list-style: none;
+  margin: 13px 0 11px;
+  padding: 0;
+}
+
+.priority-coaching-order li {
+  background: rgba(247, 250, 248, 0.92);
+  border: 1px solid #dbe5e1;
+  border-radius: 8px;
+  padding: 11px 12px;
+}
+
+.priority-coaching-order li > strong {
+  color: #245b56;
+  display: block;
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.priority-coaching-order li p {
+  font-size: 12px;
+}
+
+.priority-account-gate {
+  align-items: center;
+  background: linear-gradient(135deg, #f1f7f4, #fffdf7);
+  border: 1px dashed #b9cdc7;
+  border-radius: 18px;
+  display: grid;
+  gap: 18px;
+  grid-template-columns: 58px minmax(0, 1fr);
+  margin-bottom: 18px;
+  min-height: 210px;
+  padding: 28px;
+}
+
+.priority-gate-icon {
+  align-items: center;
+  background: var(--module-soft);
+  border-radius: 15px;
+  color: var(--module-accent);
+  display: flex;
+  font-size: 25px;
+  font-weight: 900;
+  height: 58px;
+  justify-content: center;
+  width: 58px;
+}
+
+.priority-account-gate h2 {
+  color: var(--ink);
+  font-size: 25px;
+  letter-spacing: -0.04em;
+  margin: 5px 0 7px;
+}
+
+.priority-account-gate p {
+  color: #5f7472;
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 0;
+  max-width: 860px;
 }
 
 .appeal-workbench {
@@ -7935,6 +8120,15 @@ button {
     padding: 13px;
   }
 
+  .priority-queue-panel .scenario-rail {
+    grid-template-columns: repeat(5, minmax(240px, 82vw));
+    scroll-snap-type: x proximity;
+  }
+
+  .priority-queue-card {
+    scroll-snap-align: start;
+  }
+
   .priority-rationale-panel {
     grid-template-columns: 1fr;
     padding: 15px;
@@ -7948,6 +8142,12 @@ button {
 
   .priority-rationale-actions button {
     width: 100%;
+  }
+
+  .priority-account-gate {
+    align-items: start;
+    grid-template-columns: 1fr;
+    padding: 20px;
   }
 
   .document-meta-grid > div,

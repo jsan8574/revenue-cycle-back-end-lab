@@ -62,7 +62,7 @@ test("includes the Billing claim-form mastery workflow", async () => {
   assert.match(packageJson, /"pdf-lib"/);
 });
 
-test("records prioritization rationale and reveals coaching in Insurance Follow-up and Denial Management", async () => {
+test("gates both account workspaces behind draggable prioritization and queue coaching", async () => {
   const [workspace, arLab, styles] = await Promise.all([
     readFile(new URL("../app/components/TrainingWorkspace.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/ARCollectionsLab.tsx", import.meta.url), "utf8"),
@@ -70,16 +70,28 @@ test("records prioritization rationale and reveals coaching in Insurance Follow-
   ]);
 
   assert.match(workspace, /mode="denial"/);
-  assert.match(arLab, /Explain account prioritization/);
-  assert.match(arLab, /How would you prioritize the selected account\?/);
-  assert.match(arLab, /setPriorityRationaleSubmitted\(true\)/);
+  assert.match(workspace, /priorityActivities/);
+  assert.match(workspace, /priorityActivity=\{priorityActivities\["ar-collections"\]\}/);
+  assert.match(workspace, /priorityActivity=\{priorityActivities\["denial-management"\]\}/);
+  assert.match(arLab, /Why did you choose this five-account order\?/);
+  assert.match(arLab, /draggable=\{!finalized\}/);
+  assert.match(arLab, /onDrop=\{\(event\) =>/);
+  assert.match(arLab, /Move queue case/);
+  assert.match(arLab, /Finalize queue and rationale/);
+  assert.match(arLab, /accountOpened \? \(/);
+  assert.match(arLab, /Account workspace locked/);
+  assert.match(arLab, /Patient, provider, claim, and historical details remain hidden/);
+  assert.match(arLab, /Open account/);
   assert.match(arLab, /canPostNote =\s*notesComplete &&\s*priorityRationaleSubmitted/);
-  assert.match(arLab, /Here is the recommended prioritization approach\./);
-  assert.match(arLab, /Your answer has been recorded\. You may continue now/);
+  assert.match(arLab, /Compare your queue with the recommended order\./);
+  assert.match(arLab, /Learner queue order:/);
+  assert.match(arLab, /Recommended queue order:/);
   assert.match(arLab, /heading: "Prioritization decision"/);
   assert.match(arLab, /Prioritization rationale: \$\{priorityRationaleSubmitted/);
   assert.match(styles, /\.priority-rationale-panel/);
   assert.match(styles, /\.priority-coaching-key/);
+  assert.match(styles, /\.priority-queue-card/);
+  assert.match(styles, /\.priority-account-gate/);
 });
 
 test("shows the fictional Summit insurance-card attachment in AR-3160 correspondence", async () => {

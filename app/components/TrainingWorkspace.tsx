@@ -29,6 +29,13 @@ type CaseProgress = {
   disposition: string;
 };
 
+type PriorityActivityState = {
+  order: string[];
+  rationale: string;
+  finalized: boolean;
+  openedScenarioId: string;
+};
+
 type CompletionLog = (typeof startingLogs)[number];
 
 const navItems: { id: Screen; label: string; marker: string }[] = [
@@ -51,6 +58,13 @@ const defaultProgress = (): CaseProgress => ({
   completedSteps: [],
   notes: "",
   disposition: "",
+});
+
+const defaultPriorityActivity = (): PriorityActivityState => ({
+  order: [],
+  rationale: "",
+  finalized: false,
+  openedScenarioId: "",
 });
 
 function calculateScore(progress: CaseProgress) {
@@ -137,6 +151,12 @@ export function TrainingWorkspace() {
     Record<string, CaseProgress>
   >({});
   const [logs, setLogs] = useState<CompletionLog[]>(startingLogs);
+  const [priorityActivities, setPriorityActivities] = useState<
+    Record<"ar-collections" | "denial-management", PriorityActivityState>
+  >({
+    "ar-collections": defaultPriorityActivity(),
+    "denial-management": defaultPriorityActivity(),
+  });
   const [toast, setToast] = useState("");
   const [mobileMenu, setMobileMenu] = useState(false);
 
@@ -356,6 +376,13 @@ export function TrainingWorkspace() {
             module={activeModule}
             learnerName={learnerName}
             scenarioIndex={activeScenario["ar-collections"]}
+            priorityActivity={priorityActivities["ar-collections"]}
+            onPriorityActivity={(next) =>
+              setPriorityActivities((current) => ({
+                ...current,
+                "ar-collections": next,
+              }))
+            }
             onSelectScenario={(index) => selectScenario(activeModule, index)}
             onComplete={(scenarioName, completionScore) =>
               saveExplorationCompletion(
@@ -372,6 +399,13 @@ export function TrainingWorkspace() {
             module={activeModule}
             learnerName={learnerName}
             scenarioIndex={activeScenario["denial-management"]}
+            priorityActivity={priorityActivities["denial-management"]}
+            onPriorityActivity={(next) =>
+              setPriorityActivities((current) => ({
+                ...current,
+                "denial-management": next,
+              }))
+            }
             onSelectScenario={(index) => selectScenario(activeModule, index)}
             onComplete={(scenarioName, completionScore) =>
               saveExplorationCompletion(

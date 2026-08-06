@@ -1401,6 +1401,8 @@ export type ArScenario = {
     claimPatientResponsibility: number;
     serviceLines: {
       cpt: string;
+      serviceFrom?: string;
+      serviceTo?: string;
       billed: number;
       allowed: number;
       paid: number;
@@ -2348,7 +2350,7 @@ export const denialScenarios: DenialScenario[] = [
       claimPatientResponsibility: 0,
       serviceLines: [
         { cpt: "99223", billed: 1640, allowed: 0, paid: 0, adjustment: 1640, patientResponsibility: 0, codes: "CO-197 · N130", status: "Denied" },
-        { cpt: "G0378", billed: 9000, allowed: 0, paid: 0, adjustment: 9000, patientResponsibility: 0, codes: "CO-197 · N130", status: "Denied" },
+        { cpt: "G0378", serviceFrom: "May 15, 2026", serviceTo: "May 16, 2026", billed: 9000, allowed: 0, paid: 0, adjustment: 9000, patientResponsibility: 0, codes: "CO-197 · N130", status: "Denied" },
         { cpt: "71046", billed: 2000, allowed: 0, paid: 0, adjustment: 2000, patientResponsibility: 0, codes: "CO-197 · N130", status: "Denied with encounter" },
       ],
     },

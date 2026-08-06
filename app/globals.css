@@ -2816,6 +2816,31 @@ button {
   margin-top: 3px;
 }
 
+.pdf-eob-table .eob-service-date {
+  font-variant-numeric: tabular-nums;
+  line-height: 1.3;
+  min-width: 70px;
+  white-space: nowrap;
+}
+
+.format-eob .pdf-eob-table th,
+.format-eob .pdf-eob-table td {
+  font-size: 9px;
+  padding: 6px;
+}
+
+.portal-service-lines table {
+  min-width: 1080px;
+}
+
+.portal-service-lines th:first-child,
+.portal-service-lines th:nth-child(2),
+.portal-service-lines td:first-child,
+.portal-service-lines td:nth-child(2) {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 .pdf-document-explanation,
 .denial-pdf-message {
   border-left: 4px solid #d79333;

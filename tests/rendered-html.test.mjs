@@ -146,3 +146,23 @@ test("keeps Payment Posting diagnoses hidden until the full workflow is closed",
   assert.equal((explorationData.match(/preventionTips:/g) ?? []).length, 7);
   assert.match(styles, /\.posting-scenario-reveal/);
 });
+
+test("shows service-from and service-to dates on every Insurance Follow-up and Denial EOB line", async () => {
+  const [arLab, explorationData, styles] = await Promise.all([
+    readFile(new URL("../app/components/ARCollectionsLab.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/data/exploration.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(explorationData, /serviceFrom\?: string/);
+  assert.match(explorationData, /serviceTo\?: string/);
+  assert.match(explorationData, /cpt: "G0378", serviceFrom: "May 15, 2026", serviceTo: "May 16, 2026"/);
+  assert.match(arLab, /function serviceDateRange/);
+  assert.match(arLab, /line\.serviceFrom \?\? scenario\.patient\.dos/);
+  assert.match(arLab, /line\.serviceTo \?\? serviceFrom/);
+  assert.match(arLab, /<th>Service From<\/th>/);
+  assert.match(arLab, /<th>Service To<\/th>/);
+  assert.match(arLab, /heading: "EOB service-line detail"/);
+  assert.match(styles, /\.pdf-eob-table \.eob-service-date/);
+  assert.match(styles, /\.portal-service-lines table/);
+});

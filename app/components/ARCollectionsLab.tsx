@@ -170,6 +170,17 @@ const dateBefore = (value: string, days: number) => {
   }).format(date);
 };
 
+function serviceDateRange(
+  scenario: ArScenario,
+  line: ArScenario["portal"]["serviceLines"][number],
+) {
+  const serviceFrom = line.serviceFrom ?? scenario.patient.dos;
+  return {
+    serviceFrom,
+    serviceTo: line.serviceTo ?? serviceFrom,
+  };
+}
+
 type ContractScheduleRow = {
   category: string;
   codes: string;
@@ -1182,6 +1193,13 @@ export function ARCollectionsLab({
                 ],
               },
               {
+                heading: "EOB service-line detail",
+                lines: scenario.portal.serviceLines.map((line) => {
+                  const dates = serviceDateRange(scenario, line);
+                  return `Service from ${dates.serviceFrom} · service to ${dates.serviceTo} · CPT/HCPCS ${line.cpt} · billed ${money(line.billed)} · allowed ${money(line.allowed)} · paid ${money(line.paid)} · adjustment ${money(line.adjustment)} · patient ${money(line.patientResponsibility)} · ${line.codes} · ${line.status}`;
+                }),
+              },
+              {
                 heading: "Account notes",
                 lines: [
                   ...scenario.previousNotes.map(
@@ -1999,7 +2017,9 @@ function DocumentPreview({
         <table className="pdf-eob-table">
           <thead>
             <tr>
-              <th>Service</th>
+              <th>Service From</th>
+              <th>Service To</th>
+              <th>CPT / HCPCS</th>
               <th>Billed</th>
               <th>Allowed</th>
               <th>Paid</th>
@@ -2011,6 +2031,12 @@ function DocumentPreview({
           <tbody>
             {scenario.portal.serviceLines.map((line) => (
               <tr key={line.cpt}>
+                <td className="eob-service-date">
+                  {serviceDateRange(scenario, line).serviceFrom}
+                </td>
+                <td className="eob-service-date">
+                  {serviceDateRange(scenario, line).serviceTo}
+                </td>
                 <td>{line.cpt}</td>
                 <td>{money(line.billed)}</td>
                 <td>{money(line.allowed)}</td>
@@ -2907,6 +2933,8 @@ function InvestigationView({
               <table className="system-table">
                 <thead>
                   <tr>
+                    <th>Service From</th>
+                    <th>Service To</th>
                     <th>CPT</th>
                     <th>Billed</th>
                     <th>Allowed</th>
@@ -2920,6 +2948,8 @@ function InvestigationView({
                 <tbody>
                   {scenario.portal.serviceLines.map((line) => (
                     <tr key={line.cpt}>
+                      <td>{serviceDateRange(scenario, line).serviceFrom}</td>
+                      <td>{serviceDateRange(scenario, line).serviceTo}</td>
                       <td>{line.cpt}</td>
                       <td>{money(line.billed)}</td>
                       <td>{money(line.allowed)}</td>

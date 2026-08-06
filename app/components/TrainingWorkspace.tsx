@@ -33,6 +33,8 @@ type PriorityActivityState = {
   order: string[];
   rationale: string;
   finalized: boolean;
+  acknowledged: boolean;
+  acknowledgedAt: string;
   openedScenarioId: string;
 };
 
@@ -64,6 +66,8 @@ const defaultPriorityActivity = (): PriorityActivityState => ({
   order: [],
   rationale: "",
   finalized: false,
+  acknowledged: false,
+  acknowledgedAt: "",
   openedScenarioId: "",
 });
 
@@ -159,6 +163,7 @@ export function TrainingWorkspace() {
   });
   const [toast, setToast] = useState("");
   const [mobileMenu, setMobileMenu] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const activeModule = modules.find((module) => module.id === screen);
   const scenario = activeModule
@@ -258,7 +263,11 @@ export function TrainingWorkspace() {
   }
 
   return (
-    <div className="app-shell">
+    <div
+      className={
+        sidebarCollapsed ? "app-shell sidebar-is-collapsed" : "app-shell"
+      }
+    >
       <aside className={`sidebar ${mobileMenu ? "sidebar-open" : ""}`}>
         <div className="brand-lockup">
           <span className="brand-mark" aria-hidden="true">
@@ -277,6 +286,7 @@ export function TrainingWorkspace() {
               className={screen === item.id ? "nav-item nav-item-active" : "nav-item"}
               key={item.id}
               onClick={() => selectScreen(item.id)}
+              title={sidebarCollapsed ? item.label : undefined}
               type="button"
             >
               <span className="nav-marker">{item.marker}</span>
@@ -325,6 +335,16 @@ export function TrainingWorkspace() {
           >
             <span />
             <span />
+          </button>
+          <button
+            className="sidebar-toggle-button"
+            type="button"
+            aria-label={sidebarCollapsed ? "Show workspace navigation" : "Hide workspace navigation"}
+            aria-pressed={sidebarCollapsed}
+            onClick={() => setSidebarCollapsed((collapsed) => !collapsed)}
+          >
+            <span aria-hidden="true">{sidebarCollapsed ? "›" : "‹"}</span>
+            {sidebarCollapsed ? "Show menu" : "Hide menu"}
           </button>
           <div className="topbar-copy">
             <span className="eyebrow">Back End training environment</span>

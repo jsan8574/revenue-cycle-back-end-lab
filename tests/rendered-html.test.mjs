@@ -57,6 +57,32 @@ test("uses real current-session progress instead of fictional dashboard activity
   assert.match(styles, /\.readiness-action-panel/);
 });
 
+test("supports a compact workspace, required coaching acknowledgment, and full document review", async () => {
+  const [workspace, arLab, styles] = await Promise.all([
+    readFile(new URL("../app/components/TrainingWorkspace.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/ARCollectionsLab.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(workspace, /const \[sidebarCollapsed, setSidebarCollapsed\]/);
+  assert.match(workspace, /sidebar-is-collapsed/);
+  assert.match(workspace, /Hide workspace navigation/);
+  assert.match(workspace, /Show menu/);
+  assert.match(arLab, /acknowledgedAt: string/);
+  assert.match(arLab, /Acknowledge and unlock accounts/);
+  assert.match(arLab, /disabled=\{!acknowledged\}/);
+  assert.match(arLab, /Coaching key acknowledgement:/);
+  assert.match(arLab, /Complete coaching key:/);
+  assert.match(arLab, /Workflow activity record/);
+  assert.match(arLab, /Document accessed:/);
+  assert.match(arLab, /Expand document ↗/);
+  assert.match(arLab, /document-fullscreen-dialog/);
+  assert.match(styles, /\.sidebar-is-collapsed \.sidebar/);
+  assert.match(styles, /\.priority-coaching-acknowledgment/);
+  assert.match(styles, /\.document-fullscreen-backdrop/);
+  assert.match(styles, /\.document-fullscreen-scroll \.pdf-document-sheet/);
+});
+
 test("includes the Billing claim-form mastery workflow", async () => {
   const [workspace, billingLab, billingData, packageJson] = await Promise.all([
     readFile(new URL("../app/components/TrainingWorkspace.tsx", import.meta.url), "utf8"),

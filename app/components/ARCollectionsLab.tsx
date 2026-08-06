@@ -56,6 +56,8 @@ type PriorityActivityState = {
   order: string[];
   rationale: string;
   finalized: boolean;
+  acknowledged: boolean;
+  acknowledgedAt: string;
   openedScenarioId: string;
 };
 
@@ -569,6 +571,7 @@ export function ARCollectionsLab({
   const [postedAccountNotes, setPostedAccountNotes] = useState<
     PostedAccountNote[]
   >([]);
+  const [reviewedDocuments, setReviewedDocuments] = useState<string[]>([]);
   const [notePosted, setNotePosted] = useState(false);
   const [closed, setClosed] = useState(false);
   const [prioritySubmitAttempted, setPrioritySubmitAttempted] = useState(false);
@@ -588,6 +591,7 @@ export function ARCollectionsLab({
     priorityRationale.trim().length >= 80 && priorityFactorCount >= 3;
   const accountOpened =
     priorityActivity.finalized &&
+    priorityActivity.acknowledged &&
     priorityActivity.openedScenarioId === scenario.id;
 
   const rankedScenarioIds = [...scenarioList]
@@ -599,12 +603,6 @@ export function ARCollectionsLab({
   const recommendedPriorityRank = rankedScenarioIds.indexOf(scenario.id) + 1;
   const learnerPriorityRank = priorityOrder.indexOf(scenario.id) + 1;
   const selectedPriorityScore = getPriorityScore(scenario);
-  const priorityCoachingAnswer = getPriorityCoachingAnswer(
-    scenario,
-    scenarioList,
-    mode,
-  );
-
   const investigationComplete = portalOpened && callClosed;
   const appealRequirementMet =
     !appealScenario?.appeal.required ||
@@ -622,6 +620,10 @@ export function ARCollectionsLab({
     {
       label: "Explain account prioritization",
       done: priorityRationaleSubmitted,
+    },
+    {
+      label: "Review and acknowledge the coaching key",
+      done: priorityActivity.acknowledged,
     },
     { label: "Review the account balance", done: balanceReviewed },
     {
@@ -675,12 +677,25 @@ export function ARCollectionsLab({
       order: priorityOrder,
       rationale: priorityRationale,
       finalized: true,
+      acknowledged: false,
+      acknowledgedAt: "",
+      openedScenarioId: "",
+    });
+  };
+
+  const acknowledgePriorityCoaching = () => {
+    if (!priorityActivity.finalized || priorityActivity.acknowledged) return;
+    onPriorityActivity({
+      ...priorityActivity,
+      order: priorityOrder,
+      acknowledged: true,
+      acknowledgedAt: new Date().toLocaleString(),
       openedScenarioId: "",
     });
   };
 
   const openPrioritizedAccount = (scenarioId: string) => {
-    if (!priorityActivity.finalized) return;
+    if (!priorityActivity.finalized || !priorityActivity.acknowledged) return;
     const nextIndex = scenarioList.findIndex((item) => item.id === scenarioId);
     if (nextIndex < 0) return;
     onPriorityActivity({
@@ -696,6 +711,17 @@ export function ARCollectionsLab({
     setVisited((current) =>
       current.includes(next) ? current : [...current, next],
     );
+    if (next === "eobs") {
+      const firstDocument = scenario.documents.find(
+        (item) => !item.type.toLowerCase().includes("contract"),
+      );
+      if (firstDocument) {
+        const entry = `${firstDocument.type} · ${firstDocument.date} · ${firstDocument.reference}`;
+        setReviewedDocuments((current) =>
+          current.includes(entry) ? current : [...current, entry],
+        );
+      }
+    }
   };
 
   const authenticatePortal = () => {
@@ -900,6 +926,8 @@ export function ARCollectionsLab({
         selected={scenarioIndex}
         order={priorityOrder}
         finalized={priorityRationaleSubmitted}
+        acknowledged={priorityActivity.acknowledged}
+        acknowledgedAt={priorityActivity.acknowledgedAt}
         openedScenarioId={priorityActivity.openedScenarioId}
         rationale={priorityRationale}
         rationaleMeetsCriteria={priorityRationaleMeetsCriteria}
@@ -910,6 +938,8 @@ export function ARCollectionsLab({
             order: priorityOrder,
             rationale: value,
             finalized: false,
+            acknowledged: false,
+            acknowledgedAt: "",
             openedScenarioId: "",
           });
         }}
@@ -918,10 +948,13 @@ export function ARCollectionsLab({
             ...priorityActivity,
             order,
             finalized: false,
+            acknowledged: false,
+            acknowledgedAt: "",
             openedScenarioId: "",
           })
         }
         onOpen={openPrioritizedAccount}
+        onAcknowledge={acknowledgePriorityCoaching}
         submitAttempted={prioritySubmitAttempted}
         onSubmitRationale={validatePriorityRationale}
       />
@@ -1028,7 +1061,16 @@ export function ARCollectionsLab({
                   onReviewed={() => setBalanceReviewed(true)}
                 />
               ) : null}
-              {tab === "eobs" ? <DocumentsView scenario={scenario} /> : null}
+              {tab === "eobs" ? (
+                <DocumentsView
+                  scenario={scenario}
+                  onDocumentReviewed={(entry) =>
+                    setReviewedDocuments((current) =>
+                      current.includes(entry) ? current : [...current, entry],
+                    )
+                  }
+                />
+              ) : null}
               {tab === "transactions" ? (
                 <AccountNotesView
                   scenario={scenario}
@@ -1161,6 +1203,8 @@ export function ARCollectionsLab({
                   `Recommended queue position for this account: ${recommendedPriorityRank} of ${scenarioList.length}`,
                   `System priority score: ${selectedPriorityScore}`,
                   `Submission status: ${priorityRationaleSubmitted ? "Submitted" : "Not submitted"}`,
+                  `Coaching key acknowledgement: ${priorityActivity.acknowledged ? "Acknowledged" : "Not acknowledged"}`,
+                  `Acknowledged at: ${priorityActivity.acknowledgedAt || "Not recorded"}`,
                   `Coaching criteria: ${priorityRationaleMeetsCriteria ? "Met" : priorityRationaleSubmitted ? "Needs improvement" : "Not evaluated"}`,
                   `Queue accuracy: ${priorityOrderCorrect ? "Matches recommended order" : "Differs from recommended order"}`,
                   `Learner response: ${priorityRationale || "No prioritization rationale entered"}`,
@@ -1174,7 +1218,13 @@ export function ARCollectionsLab({
                     const itemIndex = scenarioList.findIndex((item) => item.id === id);
                     return `${index + 1}. Queue case ${String(itemIndex + 1).padStart(2, "0")} · ${id}`;
                   }),
-                  `Selected-account coaching: ${priorityRationaleSubmitted ? priorityCoachingAnswer : "Revealed after submission"}`,
+                  "Complete coaching key:",
+                  ...rankedScenarioIds.map((id, index) => {
+                    const item = scenarioList.find((scenarioItem) => scenarioItem.id === id);
+                    if (!item) return `${index + 1}. Coaching unavailable`;
+                    const itemIndex = scenarioList.findIndex((scenarioItem) => scenarioItem.id === id);
+                    return `${index + 1}. Queue case ${String(itemIndex + 1).padStart(2, "0")} · score ${getPriorityScore(item)} — ${getPriorityCoachingAnswer(item, scenarioList, mode)}`;
+                  }),
                 ],
               },
               {
@@ -1218,6 +1268,9 @@ export function ARCollectionsLab({
                   `Portal claim detail: ${portalOpened ? "Reviewed" : "Not reviewed"}`,
                   `Payer call: ${callClosed ? "Closed" : "Not completed"}`,
                   `Documents reviewed: ${visited.includes("eobs") ? "Yes" : "No"}`,
+                  ...(reviewedDocuments.length
+                    ? reviewedDocuments.map((entry) => `Document accessed: ${entry}`)
+                    : ["Document accessed: None recorded"]),
                   `Account history reviewed: ${visited.includes("transactions") ? "Yes" : "No"}`,
                 ],
               },
@@ -1315,11 +1368,19 @@ export function ARCollectionsLab({
                 lines: [notes.resolution || "Not entered"],
               },
               {
+                heading: "Workflow activity record",
+                lines: checklist.map(
+                  (item) => `${item.done ? "Complete" : "Incomplete"} — ${item.label}`,
+                ),
+              },
+              {
                 heading: "Completion",
                 lines: [
                   `Checklist: ${completedCount} of ${checklist.length} complete`,
                   `Prioritization rationale: ${priorityRationaleSubmitted ? "Submitted" : "Not submitted"}`,
                   `Prioritization coaching criteria: ${priorityRationaleMeetsCriteria ? "Met" : priorityRationaleSubmitted ? "Needs improvement" : "Not evaluated"}`,
+                  `Coaching key acknowledgement: ${priorityActivity.acknowledged ? "Acknowledged" : "Not acknowledged"}`,
+                  `Coaching acknowledgement time: ${priorityActivity.acknowledgedAt || "Not recorded"}`,
                   `Note status: ${notePosted ? "Posted" : "Draft"}`,
                   `Account status: ${closed ? "Completed" : "Open"}`,
                 ],
@@ -1332,22 +1393,28 @@ export function ARCollectionsLab({
       ) : (
         <section className="priority-account-gate" aria-live="polite">
           <span className="priority-gate-icon" aria-hidden="true">
-            {priorityRationaleSubmitted ? "✓" : "↕"}
+            {priorityActivity.acknowledged ? "✓" : priorityRationaleSubmitted ? "!" : "↕"}
           </span>
           <div>
             <span className="section-kicker">
-              {priorityRationaleSubmitted
-                ? "Queue finalized"
+              {priorityActivity.acknowledged
+                ? "Coaching acknowledged"
+                : priorityRationaleSubmitted
+                  ? "Acknowledgment required"
                 : "Account workspace locked"}
             </span>
             <h2>
-              {priorityRationaleSubmitted
+              {priorityActivity.acknowledged
                 ? "Choose an account from your finalized queue."
+                : priorityRationaleSubmitted
+                  ? "Review and acknowledge the coaching key."
                 : "Prioritize the worklist before opening an account."}
             </h2>
             <p>
-              {priorityRationaleSubmitted
+              {priorityActivity.acknowledged
                 ? "Each queue card now has an Open account button. Select one to load its patient, provider, claim, history, documents, payer tools, reimbursement activity, and resolution workflow below."
+                : priorityRationaleSubmitted
+                  ? "The coaching key is displayed beneath your rationale. Acknowledge that you reviewed it to unlock all five account workspaces."
                 : "Arrange all five cards, explain the order in the rationale box, and finalize your decision. Patient, provider, claim, and historical details remain hidden during prioritization."}
             </p>
           </div>
@@ -1363,12 +1430,15 @@ function ArScenarioRail({
   selected,
   order,
   finalized,
+  acknowledged,
+  acknowledgedAt,
   openedScenarioId,
   rationale,
   rationaleMeetsCriteria,
   onRationale,
   onOrder,
   onOpen,
+  onAcknowledge,
   submitAttempted,
   onSubmitRationale,
 }: {
@@ -1377,12 +1447,15 @@ function ArScenarioRail({
   selected: number;
   order: string[];
   finalized: boolean;
+  acknowledged: boolean;
+  acknowledgedAt: string;
   openedScenarioId: string;
   rationale: string;
   rationaleMeetsCriteria: boolean;
   onRationale: (value: string) => void;
   onOrder: (order: string[]) => void;
   onOpen: (scenarioId: string) => void;
+  onAcknowledge: () => void;
   submitAttempted: boolean;
   onSubmitRationale: () => void;
 }) {
@@ -1532,8 +1605,13 @@ function ArScenarioRail({
                 type="button"
                 className="priority-open-account"
                 onClick={() => onOpen(item.id)}
+                disabled={!acknowledged}
               >
-                {openedScenarioId === item.id ? "Account open ✓" : "Open account"}
+                {!acknowledged
+                  ? "Acknowledge key first"
+                  : openedScenarioId === item.id
+                    ? "Account open ✓"
+                    : "Open account"}
               </button>
             )}
           </article>
@@ -1575,8 +1653,12 @@ function ArScenarioRail({
               aria-live="polite"
             >
               {rationaleMeetsCriteria
-                ? "Your arrangement and rationale were recorded. Open an account from any card above."
-                : "Your arrangement was recorded. Review the coaching key, then open an account from any card above."}
+                ? acknowledged
+                  ? "Your arrangement, rationale, and coaching acknowledgment were recorded. Open an account from any card above."
+                  : "Your arrangement and rationale were recorded. Review and acknowledge the coaching key to unlock the accounts."
+                : acknowledged
+                  ? "Your arrangement and coaching acknowledgment were recorded. Open an account from any card above."
+                  : "Your arrangement was recorded. Review and acknowledge the coaching key to unlock the accounts."}
             </p>
           ) : null}
         </div>
@@ -1606,9 +1688,32 @@ function ArScenarioRail({
               ))}
             </ol>
             <small>
-              Your original arrangement and explanation remain recorded. The
-              buttons above now open the corresponding account workspaces.
+              Your original arrangement and explanation remain recorded. Review
+              the entire recommended order before acknowledging.
             </small>
+            <div className="priority-coaching-acknowledgment">
+              <div>
+                <strong>
+                  {acknowledged
+                    ? "Coaching key acknowledged ✓"
+                    : "Required acknowledgment"}
+                </strong>
+                <span>
+                  {acknowledged
+                    ? `Recorded ${acknowledgedAt || "during this learner session"}. Account access is unlocked.`
+                    : "I reviewed the complete coaching key and understand that balance, age, deadline or status, and recovery risk determine the recommended order."}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={onAcknowledge}
+                disabled={acknowledged}
+              >
+                {acknowledged
+                  ? "Acknowledged"
+                  : "Acknowledge and unlock accounts"}
+              </button>
+            </div>
           </aside>
         ) : null}
       </div>
@@ -1822,8 +1927,15 @@ function AccountView({
   );
 }
 
-function DocumentsView({ scenario }: { scenario: ArScenario }) {
+function DocumentsView({
+  scenario,
+  onDocumentReviewed,
+}: {
+  scenario: ArScenario;
+  onDocumentReviewed: (entry: string) => void;
+}) {
   const [selectedDocument, setSelectedDocument] = useState(0);
+  const [documentExpanded, setDocumentExpanded] = useState(false);
   const supplementalLetters = [
     {
       type: "Electronic eligibility response",
@@ -1869,6 +1981,9 @@ function DocumentsView({ scenario }: { scenario: ArScenario }) {
     ...supplementalLetters,
   ];
   const document = documents[selectedDocument];
+  const recordDocumentReview = (item: (typeof documents)[number]) => {
+    onDocumentReviewed(`${item.type} · ${item.date} · ${item.reference}`);
+  };
 
   return (
     <div className="ar-section">
@@ -1896,7 +2011,10 @@ function DocumentsView({ scenario }: { scenario: ArScenario }) {
               type="button"
               key={item.reference}
               className={selectedDocument === index ? "selected" : ""}
-              onClick={() => setSelectedDocument(index)}
+              onClick={() => {
+                setSelectedDocument(index);
+                recordDocumentReview(item);
+              }}
             >
               <span className="document-type-icon" aria-hidden="true">
                 {item.type.toLowerCase().includes("eligibility")
@@ -1921,11 +2039,51 @@ function DocumentsView({ scenario }: { scenario: ArScenario }) {
         <article className="pdf-document-page">
           <div className="pdf-document-toolbar">
             <span>Document preview · Page 1 of 1</span>
-            <strong>{document.reference}</strong>
+            <div className="document-toolbar-actions">
+              <strong>{document.reference}</strong>
+              <button
+                type="button"
+                onClick={() => {
+                  recordDocumentReview(document);
+                  setDocumentExpanded(true);
+                }}
+              >
+                Expand document ↗
+              </button>
+            </div>
           </div>
           <DocumentPreview scenario={scenario} document={document} />
         </article>
       </div>
+      {documentExpanded ? (
+        <div
+          className="document-fullscreen-backdrop"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.currentTarget === event.target) setDocumentExpanded(false);
+          }}
+        >
+          <section
+            className="document-fullscreen-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-label={`Full document view: ${document.type}`}
+          >
+            <header>
+              <div>
+                <span>Full document view</span>
+                <strong>{document.type} · {document.reference}</strong>
+              </div>
+              <button type="button" onClick={() => setDocumentExpanded(false)}>
+                Close full view ×
+              </button>
+            </header>
+            <div className="document-fullscreen-scroll">
+              <DocumentPreview scenario={scenario} document={document} />
+            </div>
+          </section>
+        </div>
+      ) : null}
     </div>
   );
 }

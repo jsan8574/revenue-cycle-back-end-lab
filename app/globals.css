@@ -6429,6 +6429,14 @@ button {
   resize: vertical;
 }
 
+.resolution-route-guidance {
+  color: #667a79;
+  display: block;
+  font-size: 10px;
+  line-height: 1.5;
+  margin-top: 6px;
+}
+
 .decision-validation {
   align-items: center;
   display: flex;

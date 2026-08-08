@@ -83,6 +83,32 @@ test("supports a compact workspace, required coaching acknowledgment, and full d
   assert.match(styles, /\.document-fullscreen-scroll \.pdf-document-sheet/);
 });
 
+test("separates internal task routing from payer-side escalation", async () => {
+  const [arLab, explorationData, styles] = await Promise.all([
+    readFile(new URL("../app/components/ARCollectionsLab.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/data/exploration.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+  const internalRoutes = explorationData.match(
+    /export const resolutionRoutes = \[([\s\S]*?)\];/,
+  )?.[1] ?? "";
+  const payerRoutes = explorationData.match(
+    /export const payerEscalationRoutes = \[([\s\S]*?)\];/,
+  )?.[1] ?? "";
+
+  assert.match(explorationData, /label: "Send internal task \/ escalation"/);
+  assert.match(explorationData, /label: "Escalate with payer \/ adjuster"/);
+  assert.doesNotMatch(internalRoutes, /Payer adjuster supervisor/);
+  assert.match(internalRoutes, /Internal billing team/);
+  assert.match(payerRoutes, /Payer adjuster supervisor/);
+  assert.match(explorationData, /action: "payer-escalation",\s*route: "payer-supervisor-escalation"/);
+  assert.match(arLab, /Payer escalation route/);
+  assert.match(arLab, /Internal route \/ destination/);
+  assert.match(arLab, /External payer-side escalation/);
+  assert.match(arLab, /payerEscalationSelected/);
+  assert.match(styles, /\.resolution-route-guidance/);
+});
+
 test("includes the Billing claim-form mastery workflow", async () => {
   const [workspace, billingLab, billingData, packageJson] = await Promise.all([
     readFile(new URL("../app/components/TrainingWorkspace.tsx", import.meta.url), "utf8"),

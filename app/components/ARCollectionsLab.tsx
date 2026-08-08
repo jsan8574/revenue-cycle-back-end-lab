@@ -4,6 +4,7 @@ import { useState } from "react";
 import {
   arScenarios,
   denialScenarios,
+  payerEscalationRoutes,
   resolutionActions,
   resolutionRoutes,
   type ArScenario,
@@ -603,6 +604,9 @@ export function ARCollectionsLab({
   const recommendedPriorityRank = rankedScenarioIds.indexOf(scenario.id) + 1;
   const learnerPriorityRank = priorityOrder.indexOf(scenario.id) + 1;
   const selectedPriorityScore = getPriorityScore(scenario);
+  const selectedRouteLabel = [...resolutionRoutes, ...payerEscalationRoutes].find(
+    (route) => route.id === selectedRoute,
+  )?.label;
   const investigationComplete = portalOpened && callClosed;
   const appealRequirementMet =
     !appealScenario?.appeal.required ||
@@ -794,7 +798,9 @@ export function ARCollectionsLab({
 
   const validateAction = () => {
     setDecisionAttempts((count) => count + 1);
-    const routeRequired = selectedAction === "send-task";
+    const internalTaskSelected = selectedAction === "send-task";
+    const payerEscalationSelected = selectedAction === "payer-escalation";
+    const routeRequired = internalTaskSelected || payerEscalationSelected;
     const correct =
       selectedAction === scenario.expected.action &&
       (!routeRequired || selectedRoute === scenario.expected.route) &&
@@ -803,8 +809,10 @@ export function ARCollectionsLab({
     setActionFeedback(
       correct
         ? `Decision supported. ${scenario.expected.rationale}`
-        : routeRequired
-          ? "The task or escalation, request note, or internal destination is not fully supported. Revisit the account evidence and deadlines before trying again."
+        : internalTaskSelected
+          ? "The internal task, request note, or internal destination is not fully supported. Revisit the account evidence and deadlines before trying again."
+          : payerEscalationSelected
+            ? "The payer-side escalation route or escalation note is not fully supported. Revisit the payer status, contact history, and response deadline before trying again."
           : "The selected action is not fully supported. Revisit the account evidence and deadlines before trying again.",
     );
     if (
@@ -1130,7 +1138,10 @@ export function ARCollectionsLab({
                       setSelectedAction(value);
                       setActionValid(false);
                       setActionFeedback("");
-                      if (value !== "send-task") {
+                      if (
+                        value !== selectedAction ||
+                        (value !== "send-task" && value !== "payer-escalation")
+                      ) {
                         setSelectedRoute("");
                         setDecisionReason("");
                       }
@@ -1310,8 +1321,9 @@ export function ARCollectionsLab({
                 heading: "Resolution decision",
                 lines: [
                   `Action: ${resolutionActions.find((action) => action.id === selectedAction)?.label || "Not selected"}`,
-                  `Route: ${selectedAction === "send-task" ? selectedRoute || "Not selected" : "Not required"}`,
-                  `Request note: ${selectedAction === "send-task" ? decisionReason || "Not entered" : "Not required"}`,
+                  `Route type: ${selectedAction === "send-task" ? "Internal destination" : selectedAction === "payer-escalation" ? "External payer-side escalation" : "Not required"}`,
+                  `Route: ${selectedAction === "send-task" || selectedAction === "payer-escalation" ? selectedRouteLabel || "Not selected" : "Not required"}`,
+                  `${selectedAction === "payer-escalation" ? "Payer escalation note" : "Internal request note"}: ${selectedAction === "send-task" || selectedAction === "payer-escalation" ? decisionReason || "Not entered" : "Not required"}`,
                 ],
               },
               ...(appealScenario
@@ -3429,6 +3441,12 @@ function ResolutionView({
   onReason: (value: string) => void;
   onValidate: () => void;
 }) {
+  const internalTaskSelected = selectedAction === "send-task";
+  const payerEscalationSelected = selectedAction === "payer-escalation";
+  const routeOptions = payerEscalationSelected
+    ? payerEscalationRoutes
+    : resolutionRoutes;
+
   return (
     <div className="resolution-layout">
       <div className="resolution-decision">
@@ -3451,28 +3469,49 @@ function ResolutionView({
             </button>
           ))}
         </div>
-        {selectedAction === "send-task" ? (
+        {internalTaskSelected || payerEscalationSelected ? (
           <>
             <label>
-              <span>Route / destination</span>
+              <span>
+                {payerEscalationSelected
+                  ? "Payer escalation route"
+                  : "Internal route / destination"}
+              </span>
               <select
                 value={selectedRoute}
                 onChange={(event) => onRoute(event.target.value)}
               >
-                <option value="">Choose the responsible destination…</option>
-                {resolutionRoutes.map((route) => (
+                <option value="">
+                  {payerEscalationSelected
+                    ? "Choose the payer-side escalation path…"
+                    : "Choose the responsible internal destination…"}
+                </option>
+                {routeOptions.map((route) => (
                   <option value={route.id} key={route.id}>
                     {route.label}
                   </option>
                 ))}
               </select>
+              <small className="resolution-route-guidance">
+                {payerEscalationSelected
+                  ? "External payer action. Use this for an overdue adjuster, payer claims escalation, or payer provider-services follow-up."
+                  : "Internal workflow only. Route work to billing, coding, registration, authorization, the provider office, contracting, or patient services."}
+              </small>
             </label>
             <label>
-              <span>Request note</span>
+              <span>
+                {payerEscalationSelected
+                  ? "Payer escalation note"
+                  : "Internal request note"}
+              </span>
               <textarea
                 value={decisionReason}
                 onChange={(event) => onReason(event.target.value)}
-                placeholder="Write a clear request for the receiving department: state the issue, evidence reviewed, exact action needed, amount, and deadline."
+                placeholder={
+                  payerEscalationSelected
+                    ? "Document the payer contact, overdue status, evidence already supplied, requested payer action, amount, deadline, and call reference number."
+                    : "Write a clear request for the receiving department: state the issue, evidence reviewed, exact action needed, amount, and deadline."
+                }
               />
             </label>
           </>
@@ -3487,7 +3526,7 @@ function ResolutionView({
         <h3>{valid ? "Decision supported" : "No answer revealed yet"}</h3>
         <p>
           {feedback ||
-            "The simulator will validate the action. A destination and request note are checked only when Send task / escalation is selected."}
+            "The simulator distinguishes internal task routing from external payer-side escalation and validates the applicable destination and note."}
         </p>
       </aside>
     </div>

@@ -1686,7 +1686,7 @@ export const arScenarios: ArScenario[] = [
       expectedAllowed: 5536,
       expectedPayment: 5536,
       variance: 5536,
-      action: "send-task",
+      action: "payer-escalation",
       route: "payer-supervisor-escalation",
       rationale: "All records and utilization review are present; escalate the overdue liability determination rather than rebilling or billing the patient.",
     },
@@ -2825,16 +2825,14 @@ export const resolutionActions = [
   { id: "balance-transfer", label: "Balance transfer" },
   { id: "insurance-update", label: "Insurance update" },
   { id: "patient-letter", label: "Send patient letter" },
-  { id: "send-task", label: "Send task / escalation" },
+  { id: "send-task", label: "Send internal task / escalation" },
+  { id: "payer-escalation", label: "Escalate with payer / adjuster" },
   { id: "reprocess", label: "Send claim for reprocessing" },
   { id: "allow-time", label: "Allow more time / claim in process" },
   { id: "skip-account", label: "Skip account / non-workable" },
 ];
 
 export const resolutionRoutes = [
-  { id: "payer-contract-review", label: "Payer contract / pricing review" },
-  { id: "payer-appeals", label: "Payer appeals unit" },
-  { id: "payer-supervisor-escalation", label: "Payer adjuster supervisor" },
   { id: "billing", label: "Internal billing team" },
   { id: "coding", label: "Coding / CDI" },
   { id: "front-end", label: "Front-end registration" },
@@ -2842,4 +2840,11 @@ export const resolutionRoutes = [
   { id: "provider-office", label: "Provider / doctor’s office" },
   { id: "contracting", label: "Contract management" },
   { id: "patient-services", label: "Patient financial services" },
+];
+
+export const payerEscalationRoutes = [
+  { id: "payer-adjuster", label: "Assigned payer adjuster" },
+  { id: "payer-supervisor-escalation", label: "Payer adjuster supervisor" },
+  { id: "payer-claims-escalation", label: "Payer claims escalation unit" },
+  { id: "payer-provider-services", label: "Payer provider services escalation" },
 ];

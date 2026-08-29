@@ -6764,6 +6764,111 @@ button {
   overflow: hidden;
 }
 
+.format-claim-form {
+  display: grid;
+  gap: 18px;
+}
+
+.claim-form-preview-heading {
+  align-items: center !important;
+}
+
+.claim-form-preview-heading > div:first-child {
+  display: grid;
+  gap: 4px;
+}
+
+.claim-form-preview-heading span,
+.claim-form-context span {
+  color: #6e7e80;
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.claim-form-preview-heading strong {
+  color: #123b43;
+  font-size: 1.55rem;
+}
+
+.claim-form-preview-heading small {
+  color: #667779;
+}
+
+.claim-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.claim-form-actions a {
+  background: #176c74;
+  border: 1px solid #176c74;
+  border-radius: 10px;
+  color: #fff;
+  font-weight: 700;
+  padding: 10px 14px;
+  text-decoration: none;
+}
+
+.claim-form-actions a + a {
+  background: #fff;
+  color: #176c74;
+}
+
+.claim-form-context {
+  background: #d5e0de;
+  border: 1px solid #d5e0de;
+  border-radius: 12px;
+  display: grid;
+  gap: 1px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  overflow: hidden;
+}
+
+.claim-form-context > div {
+  background: #f7faf9;
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+}
+
+.claim-form-pdf-frame {
+  background: #eef2f1;
+  border: 1px solid #cbd8d6;
+  border-radius: 12px;
+  height: min(880px, 76vh);
+  width: 100%;
+}
+
+.claim-form-review-note {
+  background: #fff8e9;
+  border-left: 4px solid #d99c2b;
+  border-radius: 8px;
+  color: #41585b;
+  padding: 14px 16px;
+}
+
+.claim-form-review-note p {
+  margin: 4px 0 0;
+}
+
+@media (max-width: 880px) {
+  .claim-form-preview-heading {
+    align-items: flex-start !important;
+    flex-direction: column;
+  }
+
+  .claim-form-actions {
+    justify-content: flex-start;
+  }
+
+  .claim-form-context {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 .eob-letterhead,
 .clinical-letterhead {
   align-items: center !important;

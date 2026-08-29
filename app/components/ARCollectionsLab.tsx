@@ -10,6 +10,10 @@ import {
   type ArScenario,
   type DenialScenario,
 } from "../data/exploration";
+import {
+  getTrainingClaimForm,
+  type TrainingClaimForm,
+} from "../data/claimForms";
 import type { TrainingModule } from "../data/training";
 import { PdfExportCenter } from "./PdfExportCenter";
 
@@ -51,6 +55,10 @@ type PostedAccountNote = AccountNoteFields & {
 type AccountHistoryFilter = "all" | "billing" | "financial" | "notes";
 type AppealScenario = ArScenario & {
   appeal: NonNullable<ArScenario["appeal"]>;
+};
+
+type AccountDocument = ArScenario["documents"][number] & {
+  claimForm?: TrainingClaimForm;
 };
 
 type PriorityActivityState = {
@@ -1948,7 +1956,17 @@ function DocumentsView({
 }) {
   const [selectedDocument, setSelectedDocument] = useState(0);
   const [documentExpanded, setDocumentExpanded] = useState(false);
-  const supplementalLetters = [
+  const claimForm = getTrainingClaimForm(scenario.id);
+  const submittedClaim: AccountDocument = {
+    type: claimForm.label,
+    date: dateBefore(scenario.patient.dos, -3),
+    reference: scenario.claim.claimId,
+    summary: `Completed ${claimForm.form} claim image with a second-page detail attachment for locator validation.`,
+    codes: `${claimForm.form} · Original billed claim`,
+    body: `Review the submitted claim against registration, insurance, provider, authorization, diagnosis, service-line, and charge records. Page 2 contains the complete fictional source-data attachment for training validation.`,
+    claimForm,
+  };
+  const supplementalLetters: AccountDocument[] = [
     {
       type: "Electronic eligibility response",
       date: dateBefore(scenario.patient.dos, 14),
@@ -1986,7 +2004,8 @@ function DocumentsView({
       body: `To ${scenario.patient.payer} Provider Services: Evergreen Medical Group requests detailed review of claim ${scenario.portal.icn} for ${scenario.patient.name}, DOS ${scenario.patient.dos}. The account reflects ${money(scenario.claim.openAr)} in open insurance receivables. Please review the attached claim history, remittance, and supporting account records, then issue a written determination or reprocess the claim as supported. Direct correspondence to Evergreen Medical Group, Revenue Cycle Back End Operations.`,
     },
   ];
-  const documents = [
+  const documents: AccountDocument[] = [
+    submittedClaim,
     ...scenario.documents.filter(
       (item) => !item.type.toLowerCase().includes("contract"),
     ),
@@ -2031,6 +2050,8 @@ function DocumentsView({
               <span className="document-type-icon" aria-hidden="true">
                 {item.type.toLowerCase().includes("eligibility")
                   ? "ELG"
+                  : item.claimForm
+                    ? item.claimForm.form === "CMS-1500" ? "1500" : "UB"
                   : item.type.toLowerCase().includes("contract")
                     ? "CTR"
                   : item.type.toLowerCase().includes("letter")
@@ -2110,7 +2131,7 @@ function DocumentPreview({
   document,
 }: {
   scenario: ArScenario;
-  document: ArScenario["documents"][number];
+  document: AccountDocument;
 }) {
   const type = document.type.toLowerCase();
   const isEob = isDocumentEob(type);
@@ -2133,6 +2154,52 @@ function DocumentPreview({
     type.includes("payer") || type.includes("determination");
   const isInternalReview =
     type.includes("coding review") || type.includes("claim image");
+
+  if (document.claimForm) {
+    return (
+      <div className="pdf-document-sheet format-claim-form">
+        <header className="claim-form-preview-heading">
+          <div>
+            <span>Submitted claim image</span>
+            <strong>{document.claimForm.form}</strong>
+            <small>{scenario.claim.claimId} · DOS {scenario.patient.dos}</small>
+          </div>
+          <div className="claim-form-actions">
+            <a
+              href={document.claimForm.path}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Open full PDF ↗
+            </a>
+            <a href={document.claimForm.path} download>
+              Download PDF ↓
+            </a>
+          </div>
+        </header>
+        <div className="claim-form-context">
+          <div><span>Patient</span><strong>{scenario.patient.name}</strong></div>
+          <div><span>Provider</span><strong>{scenario.patient.provider}</strong></div>
+          <div><span>Total billed</span><strong>{money(scenario.claim.billed)}</strong></div>
+          <div><span>Service lines</span><strong>{scenario.claim.services.length}</strong></div>
+        </div>
+        <iframe
+          className="claim-form-pdf-frame"
+          src={`${document.claimForm.path}#page=1&view=FitH`}
+          title={`${scenario.id} completed ${document.claimForm.form} claim`}
+        />
+        <div className="claim-form-review-note">
+          <strong>Review both pages.</strong>
+          <p>
+            Page 1 is the completed claim image. Page 2 provides the full
+            fictional claim-detail attachment so you can validate every field
+            without being given the account resolution.
+          </p>
+        </div>
+        <DocumentFooter />
+      </div>
+    );
+  }
 
   if (isEob) {
     return (

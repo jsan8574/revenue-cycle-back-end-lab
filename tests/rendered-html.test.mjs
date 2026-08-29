@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import test from "node:test";
 
 async function render() {
@@ -238,4 +238,31 @@ test("shows service-from and service-to dates on every Insurance Follow-up and D
   assert.match(arLab, /heading: "EOB service-line detail"/);
   assert.match(styles, /\.pdf-eob-table \.eob-service-date/);
   assert.match(styles, /\.portal-service-lines table/);
+});
+
+test("provides a completed claim packet for every follow-up and denial account", async () => {
+  const [arLab, mapping, styles] = await Promise.all([
+    readFile(new URL("../app/components/ARCollectionsLab.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/data/claimForms.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+  const scenarioIds = [
+    "AR-3106", "AR-3119", "AR-3142", "AR-3160", "AR-3174",
+    "DM-5101", "DM-5102", "DM-5103", "DM-5104", "DM-5105",
+  ];
+
+  for (const scenarioId of scenarioIds) {
+    assert.match(mapping, new RegExp(scenarioId));
+    const form = mapping.match(new RegExp(`\\["${scenarioId}", "(CMS-1500|UB-04)"\\]`))?.[1];
+    assert.ok(form);
+    const slug = `${scenarioId.toLowerCase()}-${form.toLowerCase().replace("-", "")}.pdf`;
+    const file = await stat(new URL(`../public/training-claims/${slug}`, import.meta.url));
+    assert.ok(file.size > 50_000);
+  }
+
+  assert.match(arLab, /Submitted claim image/);
+  assert.match(arLab, /Open full PDF/);
+  assert.match(arLab, /Download PDF/);
+  assert.match(arLab, /claim-form-pdf-frame/);
+  assert.match(styles, /\.format-claim-form/);
 });

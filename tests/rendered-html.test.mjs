@@ -122,6 +122,16 @@ test("includes the Billing claim-form mastery workflow", async () => {
   assert.match(billingLab, /Submit \/ resubmit to clearinghouse/);
   assert.match(billingLab, /Congratulations, you sent a clean claim\./);
   assert.match(billingLab, /Download accomplished/);
+  assert.match(billingLab, /const drawRect =/);
+  assert.match(billingLab, /outputPage\.node\.delete\(PDFName\.of\("Annots"\)\)/);
+  assert.match(billingLab, /pdf\.catalog\.delete\(PDFName\.of\("AcroForm"\)\)/);
+  assert.match(billingLab, /\[101\.6,780\.3,132\.7,789\.3\]/);
+  assert.match(billingLab, /\[136\.8,780\.3,309\.8,790\.3\]/);
+  assert.match(billingLab, /\[316\.2,778\.5,419\.2,789\.7\]/);
+  assert.match(billingLab, /\[424\.4,780\.1,468\.9,789\.1\]/);
+  assert.match(billingLab, /\[474\.6,780\.1,527\.7,790\.9\]/);
+  assert.match(billingLab, /\[532\.6,779\.1,597\.9,789\.1\]/);
+  assert.doesNotMatch(billingLab, /draw\(v\("provider"\)\.split\(","\)\[0\], 114, 986/);
   assert.match(billingData, /export const billingScenarios/);
   assert.match(billingData, /form:\s*"CMS-1500"/);
   assert.match(billingData, /form:\s*"UB-04"/);
@@ -241,10 +251,11 @@ test("shows service-from and service-to dates on every Insurance Follow-up and D
 });
 
 test("provides a completed claim packet for every follow-up and denial account", async () => {
-  const [arLab, mapping, styles] = await Promise.all([
+  const [arLab, mapping, styles, generator] = await Promise.all([
     readFile(new URL("../app/components/ARCollectionsLab.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/data/claimForms.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+    readFile(new URL("../tools/generate-training-claim-pdfs.py", import.meta.url), "utf8"),
   ]);
   const scenarioIds = [
     "AR-3106", "AR-3119", "AR-3142", "AR-3160", "AR-3174",
@@ -264,5 +275,10 @@ test("provides a completed claim packet for every follow-up and denial account",
   assert.match(arLab, /Open full PDF/);
   assert.match(arLab, /Download PDF/);
   assert.match(arLab, /claim-form-pdf-frame/);
+  assert.match(arLab, /2-page claim packet/);
   assert.match(styles, /\.format-claim-form/);
+  assert.match(generator, /UB-04 FL 42-47/);
+  assert.match(generator, /\(101\.6, 780\.3, 132\.7, 789\.3\)/);
+  assert.match(generator, /FICTIONAL TRAINING CLAIM - NOT FOR SUBMISSION/);
+  assert.doesNotMatch(generator, /\(55, 682/);
 });

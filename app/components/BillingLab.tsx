@@ -156,15 +156,33 @@ export function BillingLab({ learnerName, scenarioIndex, onSelectScenario, onCom
   const downloadPdf = async () => {
     setDownloading(true);
     try {
-      const { PDFDocument, StandardFonts, rgb } = await import("pdf-lib");
+      const { PDFDocument, PDFName, StandardFonts, rgb } = await import("pdf-lib");
       const template = scenario.form === "CMS-1500" ? "/billing/cms-1500-activity.pdf" : "/billing/ub-04-activity.pdf";
       const response = await fetch(template); if (!response.ok) throw new Error("template");
       const pdf = await PDFDocument.load(await response.arrayBuffer());
       pdf.setAuthor(learnerName); pdf.setTitle(`${scenario.form} training claim - ${scenario.patient}`);
       try { pdf.getForm().flatten(); } catch { /* legacy hybrid form */ }
-      const page = pdf.getPages()[0], font = await pdf.embedFont(StandardFonts.Helvetica), bold = await pdf.embedFont(StandardFonts.HelveticaBold);
+      const pages = pdf.getPages();
+      pages.forEach((outputPage) => outputPage.node.delete(PDFName.of("Annots")));
+      pdf.catalog.delete(PDFName.of("AcroForm"));
+      const page = pages[0], font = await pdf.embedFont(StandardFonts.Helvetica), bold = await pdf.embedFont(StandardFonts.HelveticaBold);
       const ink = rgb(0.02, 0.16, 0.2), v = (id: string) => (caseValues[id] || "").replace(/[’‘]/g, "'").replace(/[^\x20-\x7E]/g, "");
       const draw = (text: string, x: number, y: number, size = 7, heavy = false) => { if (text) page.drawText(text.slice(0, 80), { x, y, size, font: heavy ? bold : font, color: ink }); };
+      const drawRect = (text: string, rect: [number, number, number, number], size = 6.2, align: "left" | "center" | "right" = "left") => {
+        if (!text) return;
+        const [x1, y1, x2, y2] = rect, available = Math.max(1, x2 - x1 - 4);
+        let safe = text.slice(0, 100), actualSize = size;
+        while (actualSize > 4.5 && font.widthOfTextAtSize(safe, actualSize) > available) actualSize -= 0.2;
+        while (safe && font.widthOfTextAtSize(safe, actualSize) > available) safe = safe.slice(0, -1);
+        const width = font.widthOfTextAtSize(safe, actualSize);
+        const x = align === "right" ? x2 - width - 2 : align === "center" ? x1 + (x2 - x1 - width) / 2 : x1 + 2;
+        const y = y1 + Math.max(1.2, (y2 - y1 - actualSize) / 2 + 1.2);
+        page.drawText(safe, { x, y, size: actualSize, font, color: ink });
+      };
+      const fullDate = (value: string) => {
+        const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        return match ? `${match[2]}${match[3]}${match[1]}` : value.replace(/\D/g, "");
+      };
       if (scenario.form === "CMS-1500") {
         const coverage: Record<string, number> = { medicare: 63, medicaid: 111, tricare: 160, champva: 225, grouphealthplan: 278, feca: 334, other: 379 };
         const addressParts = v("patientAddress").split(",").map((part) => part.trim());
@@ -182,14 +200,68 @@ export function BillingLab({ learnerName, scenarioIndex, onSelectScenario, onCom
         draw(billingParts[0] || "", 415, 107, 5.5); draw(billingParts.slice(1).join(", ").slice(0, 46), 415, 95, 5); draw(v("billingNpi"), 415, 82, 6);
         draw(`Training copy | Learner: ${learnerName} | ${scenario.id}`, 60, 22, 6, true);
       } else {
-        draw(v("provider").split(",")[0], 114, 986, 6); draw(v("provider").split(",").slice(1).join(",").slice(0, 45), 114, 974, 6);
-        draw(v("patientControl"), 492, 987, 6); draw(v("typeOfBill"), 660, 975, 7, true); draw(v("taxId"), 466, 951, 6);
-        draw(compactDate(v("statementFrom")), 536, 951, 6); draw(compactDate(v("statementThrough")), 587, 951, 6); draw(v("patientName"), 112, 926, 6); draw(v("patientAddress").slice(0, 48), 403, 938, 6);
-        draw(compactDate(v("patientDob")), 104, 904, 6); draw(v("patientSex"), 171, 904); draw(compactDate(v("admitDate")), 189, 904, 6); draw(v("admitHour"), 235, 904); draw(v("admitType"), 255, 904); draw(v("patientStatus"), 320, 904);
-        [1, 2, 3, 4].forEach((line, i) => { const y = [783, 771, 759, 747][i]; if (!v(`rev${line}`)) return; draw(v(`rev${line}`), 103, y, 6); draw(v(`desc${line}`), 138, y, 6); draw(v(`hcpcs${line}`), 314, y, 6); draw(compactDate(v(`serviceDate${line}`)), 425, y, 6); draw(v(`units${line}`), 476, y, 6); draw(v(`charge${line}`), 534, y, 6); });
-        draw(v("totalCharges"), 534, 518, 7, true); draw(v("payer"), 104, 493, 6); draw(v("planId"), 267, 493, 6); draw(v("insuredName"), 104, 445, 6); draw(v("relationship"), 291, 445, 6); draw(v("memberId"), 313, 445, 6); draw(v("groupName"), 456, 445, 6); draw(v("groupNumber"), 565, 445, 6); draw(v("authorization"), 105, 397, 6);
-        draw(v("icdIndicator"), 103, 362, 6); draw(v("diagnosis"), 112, 362, 6); draw(v("otherDiagnosis"), 169, 362, 6); draw(v("procedure"), 131, 339, 6); draw(compactDate(v("procedureDate")), 219, 339, 6); draw(v("attendingNpi"), 523, 327, 6); draw(v("attendingLast"), 481, 315, 6); draw(v("attendingFirst"), 611, 315, 6); draw("B3", 291, 243, 6, true); draw(v("taxonomy"), 307, 243, 6);
-        draw(`Training copy | Learner: ${learnerName} | ${scenario.id}`, 100, 230, 6, true);
+        const providerParts = v("provider").split(",").map((part) => part.trim());
+        const patientParts = v("patientAddress").split(",").map((part) => part.trim());
+        const stateZip = (patientParts[2] || "").match(/^([A-Z]{2})\s+(.+)$/i);
+        drawRect(providerParts[0] || "", [112.3, 981.8, 276.9, 993.1]);
+        drawRect(providerParts[1] || "", [112.3, 969.5, 276.9, 980.8], 6);
+        drawRect(`${providerParts[2] || ""}, ${providerParts[3] || ""}`, [112.1, 957.1, 276.7, 968.5], 6);
+        drawRect("2065550140", [112.3, 946.9, 276.9, 957.4], 6);
+        drawRect(v("patientControl"), [490.8, 982.6, 638.4, 995.2]);
+        drawRect(v("patientControl").replace(/\W/g, ""), [490.2, 971.6, 637, 982], 6);
+        drawRect(v("typeOfBill"), [657, 970.4, 691.4, 983.7], 7, "center");
+        drawRect(v("taxId").replace("-", ""), [463.9, 947.8, 529.3, 958.3], 6);
+        drawRect(fullDate(v("statementFrom")), [533.5, 947.6, 581.6, 958.6], 6, "center");
+        drawRect(fullDate(v("statementThrough")), [585.5, 946.7, 633.5, 958.6], 6, "center");
+        drawRect(v("patientName").toUpperCase(), [110.3, 922.2, 313.7, 936]);
+        drawRect(patientParts[0] || "", [401.6, 935.3, 688.5, 947.3], 6);
+        drawRect(patientParts[1] || "", [326.4, 924.4, 550.4, 934], 6);
+        drawRect(stateZip?.[1] || "", [562.8, 923.6, 584.3, 934.1], 6, "center");
+        drawRect(stateZip?.[2] || "", [591.5, 924.1, 660.2, 935.2], 6);
+        drawRect(fullDate(v("patientDob")), [102, 901.1, 164.2, 910.9], 6, "center");
+        drawRect(v("patientSex"), [168.6, 899.6, 183.7, 911.7], 6, "center");
+        drawRect(compactDate(v("admitDate")), [187.5, 900.7, 229.5, 910.2], 5.8, "center");
+        drawRect(v("admitHour"), [233.2, 899.7, 250.3, 910.2], 5.8, "center");
+        drawRect(v("admitType"), [253.4, 899.6, 269.9, 910.6], 6, "center");
+        drawRect("1", [276, 899.2, 292.5, 910.6], 6, "center");
+        drawRect(v("patientStatus").padStart(2, "0"), [340.2, 899.5, 358.7, 909.5], 5.8, "center");
+        const lineRects: [number, number, number, number][][] = [
+          [[101.6,780.3,132.7,789.3],[136.8,780.3,309.8,790.3],[316.2,778.5,419.2,789.7],[424.4,780.1,468.9,789.1],[474.6,780.1,527.7,790.9],[532.6,779.1,597.9,789.1]],
+          [[101.6,768.8,132.8,777.3],[136.2,768,310.8,778],[316.9,767.2,418.8,777.7],[424.2,768.7,469.2,777.2],[475.1,767.7,528.2,778.5],[532.3,767.5,597.6,777.5]],
+          [[101.7,756.7,133.2,765.4],[136.9,755.7,310.9,766.2],[316.8,753.2,418.3,766.3],[424.4,756.8,467.9,765.3],[475.1,754.1,528.2,764.8],[531.3,755.1,596.6,765.6]],
+          [[102.1,744.5,131.9,753],[137.4,743.2,311.4,753.7],[316.2,739.9,418.4,753],[423.6,744.7,468.1,753.2],[474.6,742.8,527.7,753.6],[532.7,743,598,753.5]],
+        ];
+        [1, 2, 3, 4].forEach((line, index) => {
+          if (!v(`rev${line}`)) return;
+          const values = [v(`rev${line}`), v(`desc${line}`), v(`hcpcs${line}`), compactDate(v(`serviceDate${line}`)), v(`units${line}`), Number(v(`charge${line}`) || 0).toFixed(2)];
+          values.forEach((value, fieldIndex) => drawRect(value, lineRects[index][fieldIndex], 6, fieldIndex === 5 ? "right" : [0,2,3,4].includes(fieldIndex) ? "center" : "left"));
+        });
+        drawRect("0001", [102.3, 516.4, 134.6, 525.4], 6, "center");
+        drawRect(compactDate(v("statementThrough")), [422.8, 515.8, 472, 527.2], 5.8, "center");
+        drawRect(Number(v("totalCharges") || 0).toFixed(2), [531.8, 514.7, 597.1, 525.2], 6.2, "right");
+        drawRect(v("payer"), [103.1, 490.6, 264.1, 500.6], 6);
+        drawRect(v("planId"), [269.1, 492.1, 370.8, 501.1], 6);
+        drawRect("Y", [376.3, 491.2, 387.6, 501.2], 6, "center");
+        drawRect("Y", [396.4, 491.3, 410.2, 501.5], 6, "center");
+        drawRect(Number(v("totalCharges") || 0).toFixed(2), [484.8, 492.2, 559.8, 501.7], 6, "right");
+        drawRect("1098765432", [585.6, 502.8, 687.9, 512.8], 6);
+        drawRect(v("insuredName").toUpperCase(), [103.5, 432, 283.7, 441], 6);
+        drawRect(v("relationship"), [288.7, 430.7, 307.3, 440.7], 6, "center");
+        drawRect(v("memberId"), [311.7, 430.2, 450.6, 440.2], 6);
+        drawRect(v("groupName"), [455.2, 431.8, 561.9, 441.6], 5.8);
+        drawRect(v("groupNumber"), [564.1, 430.8, 689.8, 440.8], 6);
+        drawRect(v("authorization"), [104.2, 394.7, 319.6, 404.7], 6);
+        drawRect(v("icdIndicator"), [100.7, 358.5, 108.9, 370], 5.4, "center");
+        drawRect(v("diagnosis").replace(".", ""), [110.7, 358.5, 157.7, 370], 6.2);
+        drawRect(v("otherDiagnosis").replace(".", ""), [168.1, 358.6, 212.1, 370.8], 6.2);
+        drawRect(v("procedure"), [130.1, 336, 176.6, 346.6], 6);
+        drawRect(compactDate(v("procedureDate")), [218.2, 335.1, 263.2, 345.1], 5.8, "center");
+        drawRect(v("attendingNpi"), [522.3, 324, 594, 332.6], 5.8);
+        drawRect(v("attendingLast").toUpperCase(), [480.3, 312.4, 585.3, 321], 5.8);
+        drawRect(v("attendingFirst").toUpperCase(), [610.5, 312.8, 690.3, 321.4], 5.8);
+        drawRect(`FICTIONAL TRAINING CLAIM | ${learnerName} | ${scenario.id}`, [103, 252, 457, 262], 5.6);
+        drawRect("B3", [462, 240.8, 486, 250], 5.8, "center");
+        drawRect(v("taxonomy"), [489, 240.8, 585, 250], 5.8);
       }
       const bytes = await pdf.save({ useObjectStreams: false }); const url = URL.createObjectURL(new Blob([new Uint8Array(bytes)], { type: "application/pdf" }));
       const anchor = document.createElement("a"); anchor.href = url; anchor.download = `${learnerName.replace(/[^a-z0-9]+/gi, "-")}-${scenario.id}-${scenario.form.replace("-", "")}-completed.pdf`; document.body.appendChild(anchor); anchor.click(); anchor.remove(); window.setTimeout(() => URL.revokeObjectURL(url), 1000);

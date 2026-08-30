@@ -2071,7 +2071,9 @@ function DocumentsView({
 
         <article className="pdf-document-page">
           <div className="pdf-document-toolbar">
-            <span>Document preview · Page 1 of 1</span>
+            <span>
+              Document preview · {document.claimForm ? "2-page claim packet" : "Page 1 of 1"}
+            </span>
             <div className="document-toolbar-actions">
               <strong>{document.reference}</strong>
               <button

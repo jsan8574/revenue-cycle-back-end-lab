@@ -122,6 +122,9 @@ test("includes the Billing claim-form mastery workflow", async () => {
   assert.match(billingLab, /Submit \/ resubmit to clearinghouse/);
   assert.match(billingLab, /Congratulations, you sent a clean claim\./);
   assert.match(billingLab, /Download accomplished/);
+  assert.doesNotMatch(billingLab, /className="claim-preview"/);
+  assert.match(billingLab, /CMS-1500 source/);
+  assert.match(billingLab, /CMS-1450 \/ UB-04 guidance/);
   assert.match(billingLab, /const drawRect =/);
   assert.match(billingLab, /outputPage\.node\.delete\(PDFName\.of\("Annots"\)\)/);
   assert.match(billingLab, /pdf\.catalog\.delete\(PDFName\.of\("AcroForm"\)\)/);

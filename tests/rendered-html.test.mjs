@@ -110,10 +110,11 @@ test("separates internal task routing from payer-side escalation", async () => {
 });
 
 test("includes the Billing claim-form mastery workflow", async () => {
-  const [workspace, billingLab, billingData, packageJson] = await Promise.all([
+  const [workspace, billingLab, billingData, claimPdf, packageJson] = await Promise.all([
     readFile(new URL("../app/components/TrainingWorkspace.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/BillingLab.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/data/billing.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/lib/claimPdf.ts", import.meta.url), "utf8"),
     readFile(new URL("../package.json", import.meta.url), "utf8"),
   ]);
 
@@ -125,16 +126,18 @@ test("includes the Billing claim-form mastery workflow", async () => {
   assert.doesNotMatch(billingLab, /className="claim-preview"/);
   assert.match(billingLab, /CMS-1500 source/);
   assert.match(billingLab, /CMS-1450 \/ UB-04 guidance/);
-  assert.match(billingLab, /const drawRect =/);
-  assert.match(billingLab, /outputPage\.node\.delete\(PDFName\.of\("Annots"\)\)/);
-  assert.match(billingLab, /pdf\.catalog\.delete\(PDFName\.of\("AcroForm"\)\)/);
-  assert.match(billingLab, /\[101\.6,780\.3,132\.7,789\.3\]/);
-  assert.match(billingLab, /\[136\.8,780\.3,309\.8,790\.3\]/);
-  assert.match(billingLab, /\[316\.2,778\.5,419\.2,789\.7\]/);
-  assert.match(billingLab, /\[424\.4,780\.1,468\.9,789\.1\]/);
-  assert.match(billingLab, /\[474\.6,780\.1,527\.7,790\.9\]/);
-  assert.match(billingLab, /\[532\.6,779\.1,597\.9,789\.1\]/);
-  assert.doesNotMatch(billingLab, /draw\(v\("provider"\)\.split\(","\)\[0\], 114, 986/);
+  assert.match(billingLab, /buildClaimPdf/);
+  assert.match(claimPdf, /const drawRect =/);
+  assert.match(claimPdf, /outputPage\.node\.delete\(PDFName\.of\("Annots"\)\)/);
+  assert.match(claimPdf, /pdf\.catalog\.delete\(PDFName\.of\("AcroForm"\)\)/);
+  assert.match(claimPdf, /\[187, row\.main\[0\], 210, row\.main\[1\]\]/);
+  assert.match(claimPdf, /\[231\.6, row\.main\[0\], 284, row\.main\[1\]\]/);
+  assert.match(claimPdf, /\[374\.5, row\.main\[0\], 411\.3, row\.main\[1\]\]/);
+  assert.match(claimPdf, /\[411\.3, row\.main\[0\], 475, row\.main\[1\]\]/);
+  assert.match(claimPdf, /\[475, row\.main\[0\], 504, row\.main\[1\]\]/);
+  assert.match(claimPdf, /\[540, row\.npi\[0\], 628\.5, row\.npi\[1\]\]/);
+  assert.match(claimPdf, /\[101\.6,780\.3,132\.7,789\.3\]/);
+  assert.doesNotMatch(claimPdf, /draw\(v\("provider"\)\.split\(","\)\[0\], 114, 986/);
   assert.match(billingData, /export const billingScenarios/);
   assert.match(billingData, /form:\s*"CMS-1500"/);
   assert.match(billingData, /form:\s*"UB-04"/);

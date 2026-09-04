@@ -118,7 +118,12 @@ def cms_overlay(s: dict, width: float, height: float) -> BytesIO:
     field("X", (565, 494, 577, 508), 8, "center", "Helvetica-Bold")
     field("SIGNATURE ON FILE", (95, 444, 250, 458), 6.2)
     field("SIGNATURE ON FILE", (455, 444, 600, 458), 6.2)
-    field(service_from, (82, 419, 170, 432), 6.2, "center")
+    # FL 14 uses three separate date cells. Keep MM, DD, and YY in their
+    # individual boxes instead of drawing one six-digit value across the row.
+    if len(service_from) == 6:
+        field(service_from[:2], (60.4, 419, 84.4, 432), 6.2, "center")
+        field(service_from[2:4], (84.4, 419, 108.4, 432), 6.2, "center")
+        field(service_from[4:], (108.4, 419, 137.4, 432), 6.2, "center")
 
     # CMS-1500 FL 21-24: diagnosis, authorization, and service lines.
     field("0", (355, 358, 368.5, 371.8), 6.5, "center")
@@ -212,6 +217,11 @@ def ub_overlay(s: dict, width: float, height: float) -> BytesIO:
     field("1200 Evergreen Way", (112.3, 969.5, 276.9, 980.8), 6.0)
     field("Portland, OR 97205", (112.1, 957.1, 276.7, 968.5), 6.0)
     field("5035550140", (112.3, 946.9, 276.9, 957.4), 6.0)
+    # FL 2: centralized pay-to provider address, distinct from the billing
+    # facility in FL 1.
+    field("Evergreen Medical Group", (278.0, 981.8, 445.0, 993.1), 6.0)
+    field("PO Box 7719", (278.0, 969.5, 445.0, 980.8), 6.0)
+    field("Portland, OR 97207", (278.0, 957.1, 445.0, 968.5), 6.0)
     field(s["claim"], (490.8, 982.6, 638.4, 995.2), 6.2)
     field(s["patient"].split()[0][:1] + s["claim"].replace("-", ""), (490.2, 971.6, 637.0, 982.0), 6.0)
     field(s["type_bill"], (657.0, 970.4, 691.4, 983.7), 7.0, "center")
@@ -259,11 +269,12 @@ def ub_overlay(s: dict, width: float, height: float) -> BytesIO:
     field("Y", (396.4, 491.3, 410.2, 501.5), 6.0, "center")
     field(f"{total:.2f}", (484.8, 492.2, 559.8, 501.7), 6.0, "right")
     field(s["npi"], (585.6, 502.8, 687.9, 512.8), 6.0)
-    field(patient_claim_name, (103.5, 432.0, 283.7, 441.0), 6.0)
-    field("18", (288.7, 430.7, 307.3, 440.7), 6.0, "center")
-    field(s["member"], (311.7, 430.2, 450.6, 440.2), 6.0)
-    field(s["plan"], (455.2, 431.8, 561.9, 441.6), 5.4)
-    field(s["group"], (564.1, 430.8, 689.8, 440.8), 6.0)
+    # FL 58-62: the primary insured belongs on payer sequence A.
+    field(patient_claim_name, (103.5, 444.0, 283.7, 453.0), 6.0)
+    field("18", (288.7, 442.7, 307.3, 452.7), 6.0, "center")
+    field(s["member"], (311.7, 442.2, 450.6, 452.2), 6.0)
+    field(s["plan"], (455.2, 443.8, 561.9, 453.6), 5.4)
+    field(s["group"], (564.1, 442.8, 689.8, 452.8), 6.0)
     field(s["auth"], (104.2, 394.7, 319.6, 404.7), 6.0)
 
     # UB-04 FL 67, 74, 76, 80, and 81CC.

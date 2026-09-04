@@ -241,6 +241,13 @@ def ub_overlay(s: dict, width: float, height: float) -> BytesIO:
     field("1", (276.0, 899.2, 292.5, 910.6), 6.0, "center")
     field("01", (340.2, 899.5, 358.7, 909.5), 5.8, "center")
 
+    # UB-04 FL 38: responsible party. These fictional accounts use the
+    # patient as the self-guarantor, so the patient's mailing address belongs
+    # in this area.
+    field(patient_claim_name, (103.0, 842.0, 401.0, 853.5), 6.2)
+    field(patient_street, (103.0, 828.0, 401.0, 839.5), 6.0)
+    field(f"{patient_city}, {patient_state} {patient_zip}", (103.0, 814.0, 401.0, 825.5), 6.0)
+
     # UB-04 FL 42-47: revenue-code service lines and total line.
     line_rects = [
         ((101.6, 780.3, 132.7, 789.3), (136.8, 780.3, 309.8, 790.3), (316.2, 778.5, 419.2, 789.7), (424.4, 780.1, 468.9, 789.1), (474.6, 780.1, 527.7, 790.9), (532.6, 779.1, 597.9, 789.1)),

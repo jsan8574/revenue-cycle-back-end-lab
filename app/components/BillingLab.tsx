@@ -42,7 +42,7 @@ function editInfo(field: BillingField) {
 
 function learnerHint(field: BillingField | undefined) {
   if (!field) return "Enter the value exactly as it appears in Source Records for the reported field locator.";
-  if (field.type === "date") return "This field accepts a date in YYYY-MM-DD format, for example 2026-02-10. Check the applicable date in Source Records.";
+  if (field.type === "date") return "Use the date picker or enter the date in the format displayed by this field: MM/DD/YYYY, for example 02/10/2026. Check the applicable date in Source Records.";
   if (/^(charge|totalCharges|amountPaid|balanceDue|priorPayments|estimatedDue)/.test(field.id)) return "This field accepts numerical dollar data, for example 150.00. Do not enter a dollar sign or comma; calculate or confirm the amount in Source Records.";
   if (/^units/.test(field.id)) return "This field accepts a whole number, for example 1. Check the billed units for this service line.";
   if (/Npi/i.test(field.id) || field.id === "providerNpi" || field.id === "attendingNpi") return "This field accepts a 10-digit NPI, for example 1234567890. Confirm the provider role and NPI in the Provider master.";

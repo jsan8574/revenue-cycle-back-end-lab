@@ -125,7 +125,8 @@ test("includes the Billing claim-form mastery workflow", async () => {
   assert.match(billingLab, /Download accomplished/);
   assert.match(billingLab, /showEditHints/);
   assert.match(billingLab, /Hint: \{learnerHint/);
-  assert.match(billingLab, /This field accepts a date in YYYY-MM-DD format/);
+  assert.match(billingLab, /Use the date picker or enter the date in the format displayed by this field: MM\/DD\/YYYY/);
+  assert.doesNotMatch(billingLab, /date in YYYY-MM-DD format/);
   assert.match(billingLab, /This field accepts numerical dollar data/);
   assert.match(billingLab, /The options are Medicare, Medicaid, TRICARE/);
   assert.match(billingLab, /Valid choices include Y, I, or R/);

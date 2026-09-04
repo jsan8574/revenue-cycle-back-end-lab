@@ -55,7 +55,10 @@ export async function buildClaimPdf({
     const coverage: Record<string, number> = { medicare: 63, medicaid: 111, tricare: 160, champva: 225, grouphealthplan: 278, feca: 334, other: 379 };
     const addressParts = v("patientAddress").split(",").map((part) => part.trim());
     const stateZip = (addressParts[2] || "").match(/^([A-Z]{2})\s+(.+)$/i);
+    const insuredAddressParts = v("insuredAddress").split(",").map((part) => part.trim());
+    const insuredStateZip = (insuredAddressParts[2] || "").match(/^([A-Z]{2})\s+(.+)$/i);
     const dob = compactDate(v("patientDob"));
+    const insuredDob = compactDate(v("insuredDob"));
     const dateCells: Rect[] = [[60.4, 277, 79.5, 301], [79.5, 277, 100.5, 301], [100.5, 277, 122.6, 301], [122.6, 277, 143.5, 301], [143.5, 277, 166.3, 301], [166.3, 277, 187, 301]];
     const serviceRows = [
       { main: [277, 301] as const, npi: [277, 288.8] as const },
@@ -65,6 +68,7 @@ export async function buildClaimPdf({
     drawRect("X", [coverage[normalize(v("coverage"))] || 278, 708, (coverage[normalize(v("coverage"))] || 278) + 12, 724], 9, "center", true);
     drawRect(v("memberId"), [411.3, 707, 628.4, 731], 7);
     drawRect(v("patientName"), [60.4, 684.4, 266.3, 707], 7);
+    drawRect(v("insuredName"), [411.3, 684.4, 628.4, 707], 7);
     if (dob.length >= 6) {
       drawRect(dob.slice(0, 2), [275, 684.4, 299, 694], 6.2, "center");
       drawRect(dob.slice(2, 4), [300, 684.4, 324, 694], 6.2, "center");
@@ -75,10 +79,26 @@ export async function buildClaimPdf({
     drawRect(addressParts[1] || "", [60.4, 636.4, 240, 659.5], 6.5);
     drawRect(stateZip?.[1] || "", [240, 636.4, 266.3, 659.5], 6.5, "center");
     drawRect(stateZip?.[2] || "", [60.4, 611, 153.6, 636.4], 6.5);
-    drawRect("X", [293, 659.5, 305, 674], 8, "center", true);
+    drawRect(v("patientPhone"), [153.6, 611, 266.3, 636.4], 6.2, "center");
+    drawRect("X", normalize(v("relationship")) === "self" ? [293, 659.5, 305, 674] : [385, 659.5, 397, 674], 8, "center", true);
+    drawRect(insuredAddressParts[0] || v("insuredAddress"), [411.3, 659.5, 628.4, 684.4], 6.5);
+    drawRect(insuredAddressParts[1] || "", [411.3, 636.4, 586, 659.5], 6.5);
+    drawRect(insuredStateZip?.[1] || "", [586, 636.4, 628.4, 659.5], 6.2, "center");
+    drawRect(insuredStateZip?.[2] || "", [411.3, 611, 520, 636.4], 6.5);
+    drawRect(v("insuredPhone"), [520, 611, 628.4, 636.4], 6.2, "center");
     drawRect(v("policy"), [411.3, 588, 628.5, 611], 7);
+    if (insuredDob.length >= 6) {
+      drawRect(insuredDob.slice(0, 2), [420, 565, 444, 576], 6.2, "center");
+      drawRect(insuredDob.slice(2, 4), [446, 565, 470, 576], 6.2, "center");
+      drawRect(insuredDob.slice(4, 6), [472, 565, 497, 576], 6.2, "center");
+    }
+    drawRect("X", normalize(v("insuredSex")) === "m" ? [544, 565, 556, 578] : [590, 565, 602, 578], 8, "center", true);
+    drawRect(v("planName"), [411.3, 518, 628.5, 542], 6.5);
+    drawRect("X", normalize(v("anotherPlan")) === "yes" ? [470, 494, 482, 508] : [565, 494, 577, 508], 8, "center", true);
     drawRect(v("patientSignature"), [95, 444, 250, 458], 6.2);
     drawRect(v("insuredSignature"), [455, 444, 600, 458], 6.2);
+    drawRect(compactDate(v("illnessDate")), [82, 419, 170, 432], 6.2, "center");
+    drawRect("X", normalize(v("outsideLab")) === "yes" ? [461, 371, 473, 385] : [515, 371, 527, 385], 8, "center", true);
     drawRect(v("icdIndicator"), [355, 358, 368.5, 371.8], 6.5, "center", true);
     drawRect(v("diagnosis").replace(".", ""), [74, 349.2, 124.7, 360.5], 6.5);
 
@@ -100,11 +120,14 @@ export async function buildClaimPdf({
     drawRect(v("taxId"), [60.4, 132.8, 216.5, 157], 6.5);
     drawRect("X", [136, 132.8, 153, 148], 8, "center", true);
     drawRect(v("patientAccount"), [216.5, 132.8, 322, 157], 6.2);
-    drawRect("X", [326, 132.8, 342, 149], 9, "center", true);
+    drawRect("X", normalize(v("assignment")) === "no" ? [372, 132.8, 388, 149] : [326, 132.8, 342, 149], 9, "center", true);
     drawRect(Number(v("totalCharges") || 0).toFixed(2), [411.3, 132.8, 492, 157], 6.5, "right");
+    drawRect(Number(v("amountPaid") || 0).toFixed(2), [492, 132.8, 560, 157], 6.5, "right");
+    drawRect(Number(v("balanceDue") || 0).toFixed(2), [560, 132.8, 628.5, 157], 6.5, "right");
     const facilityParts = v("facility").split(",").map((part) => part.trim());
     const billingParts = v("billingProvider").split(",").map((part) => part.trim());
     drawRect(v("providerSignature"), [85, 72, 190, 85], 5.8);
+    drawRect(compactDate(v("providerSignatureDate")), [174, 62, 216.5, 74], 5.4, "center");
     drawRect(facilityParts[0] || "", [220, 116, 409, 129], 5.6);
     drawRect(facilityParts[1] || "", [220, 104, 409, 116], 5.2);
     drawRect(`${facilityParts[2] || ""}, ${facilityParts[3] || ""}`, [220, 92, 409, 104], 5.2);
@@ -122,7 +145,7 @@ export async function buildClaimPdf({
     drawRect(`${providerParts[2] || ""}, ${providerParts[3] || ""}`, [112.1, 957.1, 276.7, 968.5], 6);
     drawRect("2065550140", [112.3, 946.9, 276.9, 957.4], 6);
     drawRect(v("patientControl"), [490.8, 982.6, 638.4, 995.2]);
-    drawRect(v("patientControl").replace(/\W/g, ""), [490.2, 971.6, 637, 982], 6);
+    drawRect(v("medicalRecord"), [490.2, 971.6, 637, 982], 6);
     drawRect(v("typeOfBill"), [657, 970.4, 691.4, 983.7], 7, "center");
     drawRect(v("taxId").replace("-", ""), [463.9, 947.8, 529.3, 958.3], 6);
     drawRect(fullDate(v("statementFrom")), [533.5, 947.6, 581.6, 958.6], 6, "center");
@@ -151,14 +174,15 @@ export async function buildClaimPdf({
       lineValues.forEach((value, fieldIndex) => drawRect(value, lineRects[index][fieldIndex], 6, fieldIndex === 5 ? "right" : [0,2,3,4].includes(fieldIndex) ? "center" : "left"));
     });
     drawRect("0001", [102.3, 516.4, 134.6, 525.4], 6, "center");
-    drawRect(compactDate(v("statementThrough")), [422.8, 515.8, 472, 527.2], 5.8, "center");
+    drawRect(compactDate(v("creationDate")), [422.8, 515.8, 472, 527.2], 5.8, "center");
     drawRect(Number(v("totalCharges") || 0).toFixed(2), [531.8, 514.7, 597.1, 525.2], 6.2, "right");
     drawRect(v("payer"), [103.1, 490.6, 264.1, 500.6], 6);
     drawRect(v("planId"), [269.1, 492.1, 370.8, 501.1], 6);
-    drawRect("Y", [376.3, 491.2, 387.6, 501.2], 6, "center");
-    drawRect("Y", [396.4, 491.3, 410.2, 501.5], 6, "center");
-    drawRect(Number(v("totalCharges") || 0).toFixed(2), [484.8, 492.2, 559.8, 501.7], 6, "right");
-    drawRect("1098765432", [585.6, 502.8, 687.9, 512.8], 6);
+    drawRect(v("releaseInfo"), [376.3, 491.2, 387.6, 501.2], 6, "center");
+    drawRect(v("benefitsAssignment"), [396.4, 491.3, 410.2, 501.5], 6, "center");
+    drawRect(Number(v("priorPayments") || 0).toFixed(2), [414.5, 492.2, 479.5, 501.7], 6, "right");
+    drawRect(Number(v("estimatedDue") || 0).toFixed(2), [484.8, 492.2, 559.8, 501.7], 6, "right");
+    drawRect(v("providerNpi"), [585.6, 502.8, 687.9, 512.8], 6);
     drawRect(v("insuredName").toUpperCase(), [103.5, 432, 283.7, 441], 6);
     drawRect(v("relationship"), [288.7, 430.7, 307.3, 440.7], 6, "center");
     drawRect(v("memberId"), [311.7, 430.2, 450.6, 440.2], 6);

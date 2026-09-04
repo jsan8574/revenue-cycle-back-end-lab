@@ -103,6 +103,7 @@
 .edit-list article small { color:#7d6b66; font-size:10px; }
 .edit-list article h3 { font-size:14px; margin:5px 0 3px; }
 .edit-list article p { color:#677b79; font-size:12px; line-height:1.45; margin:0; }
+.billing-edit-hint { background:#fff8e7; border-left:3px solid #d89b2b; border-radius:6px; color:#6e5728!important; display:block; font-size:11px!important; line-height:1.5; margin-top:9px; padding:8px 10px; }
 .billing-actions { display:flex; flex-wrap:wrap; gap:10px; margin-top:16px; }
 .attempts { display:flex; flex-direction:column; gap:8px; }
 .attempts article { align-items:center; background:#fbfcfb; border:1px solid #dfe7e4; border-radius:12px; display:grid; gap:14px; grid-template-columns:90px minmax(0,1fr) auto; padding:13px; }

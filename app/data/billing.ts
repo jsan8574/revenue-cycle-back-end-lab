@@ -44,11 +44,21 @@ const cmsFields: BillingField[] = [
   ["patientName", "2", "Patient name", "Patient", true],
   ["patientDob", "3", "Patient birth date", "Patient", true, "date"],
   ["patientSex", "3", "Patient sex", "Patient", true],
+  ["insuredName", "4", "Insured name", "Coverage", true],
   ["patientAddress", "5", "Patient address", "Patient", true],
+  ["patientPhone", "5", "Patient telephone", "Patient", true],
   ["relationship", "6", "Relationship to insured", "Coverage", true],
+  ["insuredAddress", "7", "Insured address", "Coverage", true],
+  ["insuredPhone", "7", "Insured telephone", "Coverage", true],
   ["policy", "11", "Policy or group number", "Coverage", true],
+  ["insuredDob", "11a", "Insured birth date", "Coverage", true, "date"],
+  ["insuredSex", "11a", "Insured sex", "Coverage", true],
+  ["planName", "11c", "Insurance plan name", "Coverage", true],
+  ["anotherPlan", "11d", "Another health benefit plan", "Coverage", true],
   ["patientSignature", "12", "Patient authorization", "Coverage", true],
   ["insuredSignature", "13", "Payment authorization", "Coverage", true],
+  ["illnessDate", "14", "Date of current illness", "Clinical", true, "date"],
+  ["outsideLab", "20", "Outside laboratory", "Clinical", true],
   ["icdIndicator", "21 · ICD Ind.", "ICD indicator (0 = ICD-10-CM)", "Clinical", true],
   ["diagnosis", "21A", "Primary diagnosis", "Clinical", true],
   ["dos1", "24A · line 1", "Date of service", "Services", true, "date", 1],
@@ -69,7 +79,10 @@ const cmsFields: BillingField[] = [
   ["patientAccount", "26", "Patient account number", "Claim totals", true],
   ["assignment", "27", "Accept assignment", "Claim totals", true],
   ["totalCharges", "28", "Total charges", "Claim totals", true, "number"],
+  ["amountPaid", "29", "Amount paid", "Claim totals", true, "number"],
+  ["balanceDue", "30", "Balance due", "Claim totals", true, "number"],
   ["providerSignature", "31", "Physician / supplier signature", "Provider", true],
+  ["providerSignatureDate", "31", "Signature date", "Provider", true, "date"],
   ["facility", "32", "Service facility", "Provider", true],
   ["facilityNpi", "32a", "Service facility NPI", "Provider", true],
   ["billingProvider", "33", "Billing provider", "Provider", true],
@@ -82,6 +95,7 @@ const cmsFields: BillingField[] = [
 const ubStatic: BillingField[] = [
   ["provider", "1", "Provider name and address", "Provider", true],
   ["patientControl", "3a", "Patient control number", "Claim totals", true],
+  ["medicalRecord", "3b", "Medical record number", "Patient", true],
   ["typeOfBill", "4", "Type of bill", "Claim totals", true],
   ["taxId", "5", "Federal tax ID", "Provider", true],
   ["statementFrom", "6", "Statement from", "Claim totals", true, "date"],
@@ -95,8 +109,14 @@ const ubStatic: BillingField[] = [
   ["admitType", "14", "Priority / type of admission", "Clinical", true],
   ["patientStatus", "17", "Patient discharge status", "Clinical", true],
   ["totalCharges", "47 · line 23", "Total charges", "Claim totals", true, "number"],
+  ["creationDate", "45 · line 23", "Claim creation date", "Claim totals", true, "date"],
   ["payer", "50A", "Payer name", "Coverage", true],
   ["planId", "51A", "Health plan ID", "Coverage", true],
+  ["releaseInfo", "52A", "Release of information", "Coverage", true],
+  ["benefitsAssignment", "53A", "Assignment of benefits", "Coverage", true],
+  ["priorPayments", "54A", "Prior payments", "Claim totals", true, "number"],
+  ["estimatedDue", "55A", "Estimated amount due", "Claim totals", true, "number"],
+  ["providerNpi", "56", "Billing provider NPI", "Provider", true],
   ["insuredName", "58A", "Insured name", "Coverage", true],
   ["relationship", "59A", "Relationship to insured", "Coverage", true],
   ["memberId", "60A", "Insured unique ID / member ID", "Coverage", true],
@@ -146,6 +166,8 @@ function cmsCase(config: {
   account: string; diagnosis: string; doctor: string; doctorNpi: string; services: { dos: string; pos: string; cpt: string; charge: string }[];
   total: number; age: number; filingDays: number; rank: number; status: string; complexity: BillingScenario["complexity"]; initial: Record<string, string>; reason: string;
 }): BillingScenario {
+  const phone = `(555) 015-${config.id.slice(-4)}`;
+  const claimDate = config.services[config.services.length - 1]?.dos || config.services[0]?.dos || "";
   const serviceAnswers = Object.fromEntries(config.services.flatMap((line, i) => {
     const n = i + 1;
     return [[`dos${n}`, line.dos], [`pos${n}`, line.pos], [`cpt${n}`, line.cpt], [`pointer${n}`, "A"], [`charge${n}`, line.charge], [`units${n}`, "1"], [`renderingNpi${n}`, config.doctorNpi]];
@@ -156,17 +178,19 @@ function cmsCase(config: {
     complexity: config.complexity, total: config.total, age: config.age, filingDays: config.filingDays, expectedRank: config.rank,
     priorityReason: config.reason, serviceCount: config.services.length, initial: config.initial,
     sourceSections: [
-      section("Registration", "Patient registration", { Patient: config.patient, DOB: config.dob, Sex: config.sex, Address: config.address, Account: config.account, Relationship: "Self", "Patient authorization": "Signature on file" }),
-      section("Coverage", "Electronic eligibility", { Payer: config.payer, "Member ID": config.memberId, Group: config.group, Assignment: "Accepted", "Insured authorization": "Signature on file" }),
-      section("Clinical", "Signed encounter and charge ticket", { Provider: config.doctor, "Rendering NPI": config.doctorNpi, "Diagnosis version": "ICD-10-CM · indicator 0", Diagnosis: config.diagnosis, Services: config.services.map((s) => `${s.dos} · POS ${s.pos} · ${s.cpt} · $${s.charge}`).join(" | ") }),
-      section("Provider master", "Billing provider file", { Entity: clinic.provider, TIN: clinic.taxId, NPI: clinic.npi, Taxonomy: clinic.taxonomy }),
+      section("Registration", "Patient registration", { Patient: config.patient, DOB: config.dob, Sex: config.sex, Address: config.address, Telephone: phone, Account: config.account, Relationship: "Self", "Patient authorization": "Signature on file" }),
+      section("Coverage", "Electronic eligibility", { Payer: config.payer, "Plan name": config.payer, "Member ID": config.memberId, Group: config.group, Insured: config.patient, "Insured DOB / sex": `${config.dob} · ${config.sex}`, "Insured address / telephone": `${config.address} · ${phone}`, "Other health plan": "No", Assignment: "Accepted", "Insured authorization": "Signature on file" }),
+      section("Clinical", "Signed encounter and charge ticket", { Provider: config.doctor, "Rendering NPI": config.doctorNpi, "Date of current illness": config.services[0]?.dos || "", "Outside laboratory": "No", "Diagnosis version": "ICD-10-CM · indicator 0", Diagnosis: config.diagnosis, Services: config.services.map((s) => `${s.dos} · POS ${s.pos} · ${s.cpt} · $${s.charge}`).join(" | ") }),
+      section("Provider master", "Billing provider file", { Entity: clinic.provider, TIN: clinic.taxId, NPI: clinic.npi, Taxonomy: clinic.taxonomy, "Claim signature": config.doctor, "Signature date": claimDate, "Prior payment": "$0.00", "Balance due": `$${config.total.toFixed(2)}` }),
     ],
     answers: {
       coverage: config.payer === "Medicare" ? "Medicare" : "Group Health Plan", memberId: config.memberId,
-      patientName: config.patient, patientDob: config.dob, patientSex: config.sex, patientAddress: config.address,
-      relationship: "Self", policy: config.group, patientSignature: "Signature on file", insuredSignature: "Signature on file",
+      patientName: config.patient, patientDob: config.dob, patientSex: config.sex, insuredName: config.patient,
+      patientAddress: config.address, patientPhone: phone, relationship: "Self", insuredAddress: config.address, insuredPhone: phone,
+      policy: config.group, insuredDob: config.dob, insuredSex: config.sex, planName: config.payer, anotherPlan: "No",
+      patientSignature: "Signature on file", insuredSignature: "Signature on file", illnessDate: config.services[0]?.dos || "", outsideLab: "No",
       icdIndicator: "0", diagnosis: config.diagnosis, ...serviceAnswers, taxId: clinic.taxId, patientAccount: config.account, assignment: "Yes",
-      totalCharges: String(config.total), providerSignature: config.doctor, facility: clinic.provider, facilityNpi: clinic.npi,
+      totalCharges: String(config.total), amountPaid: "0", balanceDue: String(config.total), providerSignature: config.doctor, providerSignatureDate: claimDate, facility: clinic.provider, facilityNpi: clinic.npi,
       billingProvider: clinic.provider, billingNpi: clinic.npi,
     },
   };
@@ -179,6 +203,7 @@ function ubCase(config: {
   total: number; age: number; filingDays: number; rank: number; status: string; complexity: BillingScenario["complexity"]; initial: Record<string, string>; reason: string;
 }): BillingScenario {
   const [last, first = ""] = config.attending.split(", ");
+  const medicalRecord = `MR-${config.account.replace(/[^A-Z0-9]/gi, "")}`;
   const serviceAnswers = Object.fromEntries(config.services.flatMap((line, i) => {
     const n = i + 1;
     return [[`rev${n}`, line.rev], [`desc${n}`, line.desc], [`hcpcs${n}`, line.hcpcs || ""], [`serviceDate${n}`, line.date], [`units${n}`, "1"], [`charge${n}`, line.charge]];
@@ -189,17 +214,18 @@ function ubCase(config: {
     status: config.status, complexity: config.complexity, total: config.total, age: config.age, filingDays: config.filingDays,
     expectedRank: config.rank, priorityReason: config.reason, serviceCount: config.services.length, initial: config.initial,
     sourceSections: [
-      section("Face sheet", "Hospital registration", { Patient: config.patient, DOB: config.dob, Sex: config.sex, Address: config.address, "Patient control": config.account, "Relationship to insured": "Self · code 18" }),
-      section("Coverage", "Electronic eligibility", { Payer: config.payer, "Plan ID": config.planId, "Member ID": config.memberId, Group: config.groupName && config.groupNumber ? `${config.groupName} · ${config.groupNumber}` : "Not applicable", Authorization: config.authorization || "Not required" }),
-      section("Coded abstract", "ADT and coding", { "Statement period": `${config.from} through ${config.through}`, "Type of bill": config.tob, "Admission hour": "14", "Admission priority": "1", "Discharge status": "1", "Diagnosis version": "ICD-10-CM · qualifier 0", "Principal diagnosis": config.diagnosis, "Other diagnosis": config.other || "None", Procedure: config.procedure || "None", "Procedure date": config.procedure ? (config.procedureDate || config.from) : "Not applicable", Attending: `${first} ${last} · ${config.attendingNpi}` }),
+      section("Face sheet", "Hospital registration", { Patient: config.patient, DOB: config.dob, Sex: config.sex, Address: config.address, "Patient control": config.account, "Medical record": medicalRecord, "Relationship to insured": "Self · code 18" }),
+      section("Coverage", "Electronic eligibility", { Payer: config.payer, "Plan ID": config.planId, "Member ID": config.memberId, Group: config.groupName && config.groupNumber ? `${config.groupName} · ${config.groupNumber}` : "Not applicable", "Release of information": "Y", "Assignment of benefits": "Y", Authorization: config.authorization || "Not required" }),
+      section("Coded abstract", "ADT and coding", { "Statement period": `${config.from} through ${config.through}`, "Type of bill": config.tob, "Admission hour": "14", "Admission priority": "1", "Discharge status": "01", "Diagnosis version": "ICD-10-CM · qualifier 0", "Principal diagnosis": config.diagnosis, "Other diagnosis": config.other || "None", Procedure: config.procedure || "None", "Procedure date": config.procedure ? (config.procedureDate || config.from) : "Not applicable", Attending: `${first} ${last} · ${config.attendingNpi}` }),
       section("Charge detail", "Patient accounting", Object.fromEntries(config.services.map((s, i) => [`Line ${i + 1}`, `${s.rev} · ${s.desc}${s.hcpcs ? ` · ${s.hcpcs}` : ""} · ${s.date} · $${s.charge}`]))),
-      section("Provider master", "Hospital billing file", { Facility: hospital.provider, TIN: hospital.taxId, NPI: hospital.npi, Taxonomy: hospital.taxonomy }),
+      section("Provider master", "Hospital billing file", { Facility: hospital.provider, TIN: hospital.taxId, NPI: hospital.npi, Taxonomy: hospital.taxonomy, "Claim creation date": config.through, "Prior payments": "$0.00", "Estimated amount due": `$${config.total.toFixed(2)}` }),
     ],
     answers: {
-      provider: hospital.provider, patientControl: config.account, typeOfBill: config.tob, taxId: hospital.taxId,
+      provider: hospital.provider, patientControl: config.account, medicalRecord, typeOfBill: config.tob, taxId: hospital.taxId,
       statementFrom: config.from, statementThrough: config.through, patientName: config.patient, patientAddress: config.address,
-      patientDob: config.dob, patientSex: config.sex, admitDate: config.from, admitHour: "14", admitType: "1", patientStatus: "1",
-      ...serviceAnswers, totalCharges: String(config.total), payer: config.payer, planId: config.planId, insuredName: config.patient,
+      patientDob: config.dob, patientSex: config.sex, admitDate: config.from, admitHour: "14", admitType: "1", patientStatus: "01",
+      ...serviceAnswers, totalCharges: String(config.total), creationDate: config.through, payer: config.payer, planId: config.planId,
+      releaseInfo: "Y", benefitsAssignment: "Y", priorPayments: "0", estimatedDue: String(config.total), providerNpi: hospital.npi, insuredName: config.patient,
       relationship: "18", memberId: config.memberId, groupName: config.groupName, groupNumber: config.groupNumber,
       authorization: config.authorization || "", icdIndicator: "0", diagnosis: config.diagnosis, otherDiagnosis: config.other || "",
       procedure: config.procedure || "", procedureDate: config.procedure ? (config.procedureDate || config.from) : "", attendingNpi: config.attendingNpi,

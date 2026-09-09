@@ -57,7 +57,7 @@ test("uses real current-session progress instead of fictional dashboard activity
   assert.match(styles, /\.readiness-action-panel/);
 });
 
-test("supports a compact workspace, required coaching acknowledgment, and full document review", async () => {
+test("supports an icon-only workspace toggle, required coaching acknowledgment, and full document review", async () => {
   const [workspace, arLab, styles] = await Promise.all([
     readFile(new URL("../app/components/TrainingWorkspace.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/ARCollectionsLab.tsx", import.meta.url), "utf8"),
@@ -67,7 +67,9 @@ test("supports a compact workspace, required coaching acknowledgment, and full d
   assert.match(workspace, /const \[sidebarCollapsed, setSidebarCollapsed\]/);
   assert.match(workspace, /sidebar-is-collapsed/);
   assert.match(workspace, /Hide workspace navigation/);
-  assert.match(workspace, /Show menu/);
+  assert.match(workspace, /Show workspace navigation/);
+  assert.doesNotMatch(workspace, /Show menu/);
+  assert.doesNotMatch(workspace, /Hide menu/);
   assert.match(arLab, /acknowledgedAt: string/);
   assert.match(arLab, /Acknowledge and unlock accounts/);
   assert.match(arLab, /disabled=\{!acknowledged\}/);

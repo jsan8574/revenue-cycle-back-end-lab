@@ -980,9 +980,6 @@ export function ARCollectionsLab({
       <section className="ar-system-frame">
         <header className="ar-system-titlebar">
           <div className="system-brand">
-            <span className="system-logo amber">
-              {mode === "denial" ? "DM" : "AR"}
-            </span>
             <div>
               <strong>
                 {mode === "denial"
@@ -1810,12 +1807,6 @@ function AccountView({
   return (
     <div className="ar-account-view">
       <div className="ar-patient-banner">
-        <span className="account-result-avatar large">
-          {scenario.patient.name
-            .split(" ")
-            .map((part) => part[0])
-            .join("")}
-        </span>
         <div>
           <span className="system-kicker">{scenario.patient.account}</span>
           <h2>{scenario.patient.name}</h2>
@@ -2047,19 +2038,6 @@ function DocumentsView({
                 recordDocumentReview(item);
               }}
             >
-              <span className="document-type-icon" aria-hidden="true">
-                {item.type.toLowerCase().includes("eligibility")
-                  ? "ELG"
-                  : item.claimForm
-                    ? item.claimForm.form === "CMS-1500" ? "1500" : "UB"
-                  : item.type.toLowerCase().includes("contract")
-                    ? "CTR"
-                  : item.type.toLowerCase().includes("letter")
-                    ? "LTR"
-                    : isDocumentEob(item.type)
-                      ? "EOB"
-                      : "DOC"}
-              </span>
               <div className="document-list-copy">
                 <strong>{item.type}</strong>
                 <small>Date uploaded · {item.date}</small>
@@ -2208,7 +2186,6 @@ function DocumentPreview({
       <div className="pdf-document-sheet format-eob">
         <header className="eob-letterhead">
           <div>
-            <span className="payer-logo-block">HB</span>
             <div>
               <strong>{scenario.patient.payer}</strong>
               <small>Provider Remittance Advice</small>
@@ -2562,12 +2539,6 @@ SE*7*0001~`}</pre>
       <div className="pdf-document-sheet format-patient-correspondence">
         <header className="patient-message-head">
           <div>
-            <span className="patient-message-avatar">
-              {scenario.patient.name
-                .split(" ")
-                .map((part) => part[0])
-                .join("")}
-            </span>
             <div>
               <strong>Patient Portal Message</strong>
               <small>Correspondence Center · Attachment received</small>
@@ -2637,9 +2608,6 @@ SE*7*0001~`}</pre>
       <div className="pdf-document-sheet format-payer-letter">
         <header className="payer-correspondence-head">
           <div>
-            <span className="payer-wordmark">
-              {scenario.patient.payer.slice(0, 2).toUpperCase()}
-            </span>
             <div>
               <strong>{scenario.patient.payer}</strong>
               <small>Provider Claims Correspondence</small>

@@ -38,13 +38,13 @@ type FieldFeedback = {
   message: string;
 };
 
-const postingTabs: { id: PostingDeskTab; label: string; marker: string }[] = [
-  { id: "source", label: "Source documents", marker: "01" },
-  { id: "search", label: "Patient search", marker: "02" },
-  { id: "account", label: "Account ledger", marker: "03" },
-  { id: "post", label: "Post transaction", marker: "04" },
-  { id: "reconcile", label: "Batch control", marker: "05" },
-  { id: "glossary", label: "Terms & codes", marker: "06" },
+const postingTabs: { id: PostingDeskTab; label: string }[] = [
+  { id: "source", label: "Source documents" },
+  { id: "search", label: "Patient search" },
+  { id: "account", label: "Account ledger" },
+  { id: "post", label: "Post transaction" },
+  { id: "reconcile", label: "Batch control" },
+  { id: "glossary", label: "Terms & codes" },
 ];
 
 const emptyLinePosting = (): LinePostingForm => ({
@@ -315,7 +315,6 @@ export function PaymentPostingLab({
       <section className="system-frame">
         <header className="system-titlebar">
           <div className="system-brand">
-            <span className="system-logo">PM</span>
             <div>
               <strong>Payment Management</strong>
               <small>{caseLabel} · Training tenant</small>
@@ -341,7 +340,6 @@ export function PaymentPostingLab({
                 key={item.id}
                 onClick={() => openTab(item.id)}
               >
-                <span>{item.marker}</span>
                 {item.label}
                 {milestones[postingTabs.indexOf(item)]?.done ? (
                   <b aria-label="Completed">✓</b>
@@ -740,7 +738,6 @@ function SourceDesk({
             key={id}
             onClick={() => onOpenDocument(id as SourceDocument)}
           >
-            <span>{id === "era" ? "835" : id === "bank" ? "EFT" : "DOC"}</span>
             {label}
           </button>
         ))}
@@ -1054,12 +1051,6 @@ function AccountSearch({
                 }
                 onClick={() => onChoose(account.id)}
               >
-                <span className="account-result-avatar">
-                  {account.patient
-                    .split(" ")
-                    .map((part) => part[0])
-                    .join("")}
-                </span>
                 <span>
                   <strong>{account.patient}</strong>
                   <small>
@@ -1129,7 +1120,6 @@ function AccountLedger({
   if (!selectedAccount) {
     return (
       <div className="system-empty-state tall">
-        <span>AC</span>
         <strong>No account is open</strong>
         <p>Locate and select a patient account first.</p>
         <button type="button" onClick={onGoToSearch}>
@@ -1142,12 +1132,6 @@ function AccountLedger({
   return (
     <div className="ledger-workspace">
       <div className="patient-banner">
-        <span className="account-result-avatar">
-          {selectedAccount.patient
-            .split(" ")
-            .map((part) => part[0])
-            .join("")}
-        </span>
         <div>
           <span className="system-kicker">{selectedAccount.id}</span>
           <h3>{selectedAccount.patient}</h3>

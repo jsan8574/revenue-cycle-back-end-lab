@@ -40,12 +40,12 @@ type PriorityActivityState = {
 
 type CompletionLog = (typeof startingLogs)[number];
 
-const navItems: { id: Screen; label: string; marker: string }[] = [
-  { id: "dashboard", label: "Overview", marker: "01" },
-  { id: "billing", label: "Billing", marker: "BL" },
-  { id: "payment-posting", label: "Payment Posting", marker: "PP" },
-  { id: "ar-collections", label: "Insurance Follow-up", marker: "AR" },
-  { id: "denial-management", label: "Denial Management", marker: "DM" },
+const navItems: { id: Screen; label: string }[] = [
+  { id: "dashboard", label: "Overview" },
+  { id: "billing", label: "Billing" },
+  { id: "payment-posting", label: "Payment Posting" },
+  { id: "ar-collections", label: "Insurance Follow-up" },
+  { id: "denial-management", label: "Denial Management" },
 ];
 
 const coachCriteria = [
@@ -75,13 +75,6 @@ function calculateScore(progress: CaseProgress) {
   const checkedPoints = progress.checked.filter(Boolean).length * 8;
   const stepPoints = progress.completedSteps.length * 4;
   return Math.min(100, 48 + checkedPoints + stepPoints);
-}
-
-function moduleInitial(module: TrainingModule) {
-  return module.navLabel
-    .split(" ")
-    .map((word) => word[0])
-    .join("");
 }
 
 function moduleScenarioCount(module: TrainingModule) {
@@ -289,8 +282,7 @@ export function TrainingWorkspace() {
               title={sidebarCollapsed ? item.label : undefined}
               type="button"
             >
-              <span className="nav-marker">{item.marker}</span>
-              <span>{item.label}</span>
+              <span className="nav-label">{item.label}</span>
               <span className="nav-arrow" aria-hidden="true">
                 →
               </span>
@@ -308,14 +300,6 @@ export function TrainingWorkspace() {
         </div>
 
         <div className="profile-card">
-          <span className="avatar">
-            {learnerName
-              .split(" ")
-              .map((part) => part[0])
-              .join("")
-              .slice(0, 2)
-              .toUpperCase()}
-          </span>
           <div>
             <strong>{learnerName}</strong>
             <span>Learner session</span>
@@ -344,7 +328,6 @@ export function TrainingWorkspace() {
             onClick={() => setSidebarCollapsed((collapsed) => !collapsed)}
           >
             <span aria-hidden="true">{sidebarCollapsed ? "›" : "‹"}</span>
-            {sidebarCollapsed ? "Show menu" : "Hide menu"}
           </button>
           <div className="topbar-copy">
             <span className="eyebrow">Back End training environment</span>
@@ -605,7 +588,6 @@ function Dashboard({
             >
               <div className="module-card-top">
                 <span className="module-index">0{index + 1}</span>
-                <span className="module-glyph">{moduleInitial(module)}</span>
               </div>
               <span className="module-eyebrow">{module.eyebrow}</span>
               <h3>{module.title}</h3>
@@ -651,9 +633,6 @@ function Dashboard({
                   } as React.CSSProperties
                 }
               >
-                <span className="module-progress-marker">
-                  {moduleInitial(item.module)}
-                </span>
                 <div className="module-progress-main">
                   <div>
                     <strong>{item.module.title}</strong>

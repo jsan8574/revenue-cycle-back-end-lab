@@ -255,7 +255,7 @@ button {
   font-size: 13px;
   font-weight: 600;
   gap: 11px;
-  grid-template-columns: 30px 1fr auto;
+  grid-template-columns: 1fr auto;
   min-height: 47px;
   padding: 7px 10px;
   text-align: left;
@@ -356,7 +356,7 @@ button {
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   display: grid;
   gap: 10px;
-  grid-template-columns: 34px 1fr auto;
+  grid-template-columns: 1fr auto;
   margin-top: 18px;
   padding: 18px 5px 2px;
 }
@@ -495,10 +495,11 @@ button {
   display: inline-flex;
   font-size: 11px;
   font-weight: 800;
-  gap: 7px;
   margin-right: 13px;
-  min-height: 34px;
-  padding: 6px 10px;
+  height: 34px;
+  justify-content: center;
+  padding: 0;
+  width: 34px;
 }
 
 .sidebar-toggle-button > span {
@@ -514,51 +515,13 @@ button {
   }
 
   .app-shell.sidebar-is-collapsed {
-    --sidebar: 82px;
+    --sidebar: 0px;
   }
 
   .sidebar-is-collapsed .sidebar {
-    padding-inline: 12px;
-  }
-
-  .sidebar-is-collapsed .brand-lockup {
-    justify-content: center;
+    overflow: hidden;
     padding-inline: 0;
-  }
-
-  .sidebar-is-collapsed .brand-lockup > div,
-  .sidebar-is-collapsed .nav-section-label,
-  .sidebar-is-collapsed .nav-item > span:nth-child(2),
-  .sidebar-is-collapsed .nav-arrow,
-  .sidebar-is-collapsed .sidebar-card,
-  .sidebar-is-collapsed .profile-card > div,
-  .sidebar-is-collapsed .profile-card > span:last-child {
-    display: none;
-  }
-
-  .sidebar-is-collapsed .main-nav {
-    align-items: stretch;
-  }
-
-  .sidebar-is-collapsed .nav-item {
-    display: flex;
-    justify-content: center;
-    padding-inline: 7px;
-  }
-
-  .sidebar-is-collapsed .nav-item:hover {
-    transform: none;
-  }
-
-  .sidebar-is-collapsed .nav-marker {
-    width: 38px;
-  }
-
-  .sidebar-is-collapsed .profile-card {
-    grid-template-columns: 34px;
-    justify-content: center;
-    margin-top: auto;
-    padding-inline: 0;
+    visibility: hidden;
   }
 }
 
@@ -881,6 +844,7 @@ button {
   align-items: flex-start;
   display: flex;
   justify-content: space-between;
+  min-height: 43px;
 }
 
 .module-index {
@@ -1119,7 +1083,7 @@ button {
   border-top: 1px solid var(--line);
   display: grid;
   gap: 13px;
-  grid-template-columns: 40px minmax(0, 1fr) 78px auto;
+  grid-template-columns: minmax(0, 1fr) 78px auto;
   padding: 15px 0;
 }
 
@@ -2497,7 +2461,7 @@ button {
 
   .module-progress-row {
     align-items: start;
-    grid-template-columns: 40px minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .module-progress-main span {
@@ -2506,11 +2470,11 @@ button {
 
   .module-progress-result {
     align-items: flex-start;
-    grid-column: 2;
+    grid-column: 1;
   }
 
   .module-progress-row > button {
-    grid-column: 2;
+    grid-column: 1;
     width: 100%;
   }
 
@@ -3886,7 +3850,7 @@ button {
   font-size: 9px;
   font-weight: 650;
   gap: 8px;
-  grid-template-columns: 23px 1fr auto;
+  grid-template-columns: 1fr auto;
   min-height: 41px;
   padding: 6px 8px;
   text-align: left;
@@ -4684,7 +4648,7 @@ button {
   cursor: pointer;
   display: grid;
   gap: 12px;
-  grid-template-columns: 33px minmax(150px, 1.4fr) minmax(120px, 1fr) 90px;
+  grid-template-columns: minmax(150px, 1.4fr) minmax(120px, 1fr) 90px;
   margin-bottom: 7px;
   padding: 10px;
   text-align: left;
@@ -4827,7 +4791,7 @@ button {
   border-radius: 9px;
   display: grid;
   gap: 12px;
-  grid-template-columns: 38px minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   padding: 13px;
 }
 
@@ -5668,7 +5632,7 @@ button {
   color: #fff;
   display: grid;
   gap: 12px;
-  grid-template-columns: 50px minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   padding: 16px;
 }
 
@@ -6628,7 +6592,7 @@ button {
   background: #fff;
   display: grid;
   gap: 10px;
-  grid-template-columns: 38px minmax(0, 1fr) 14px;
+  grid-template-columns: minmax(0, 1fr) 14px;
   min-height: 66px;
   padding: 9px 10px;
 }
@@ -8803,11 +8767,11 @@ button {
   }
 
   .account-result {
-    grid-template-columns: 33px 1fr;
+    grid-template-columns: 1fr 1fr;
   }
 
-  .account-result > span:nth-child(n + 3) {
-    grid-column: 2;
+  .account-result > span:first-child {
+    grid-column: 1 / -1;
   }
 
   .encounter-row {
@@ -8832,12 +8796,12 @@ button {
 
   .ar-patient-banner {
     align-items: flex-start;
-    grid-template-columns: 48px 1fr;
+    grid-template-columns: 1fr;
   }
 
   .ar-balance-callout {
     align-items: flex-start;
-    grid-column: 2;
+    grid-column: 1;
   }
 
   .related-account-grid {

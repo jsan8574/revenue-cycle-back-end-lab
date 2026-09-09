@@ -1334,7 +1334,16 @@ export type ArScenario = {
     appealDeadline: string;
     services: { cpt: string; description: string; units: number; charge: number }[];
   };
-  billingHistory: { date: string; event: string; detail: string; source: string }[];
+  billingHistory: {
+    date: string;
+    event: string;
+    detail: string;
+    source: string;
+    reason?: string;
+    changes?: string;
+    bypassed?: string;
+    evidence?: string;
+  }[];
   previousNotes: {
     date: string;
     author: string;
@@ -1475,7 +1484,15 @@ export const arScenarios: ArScenario[] = [
       { date: "Apr 24", event: "Claim accepted", detail: "Clearinghouse acceptance 277CA A1", source: "Claims" },
       { date: "May 3", event: "ERA posted", detail: "Allowed and paid $10,120.00; no patient liability", source: "835" },
       { date: "Jun 12", event: "Variance flagged", detail: "Contract team referenced 2026 joint case rate", source: "Contract review" },
-      { date: "Jul 10", event: "Payer contacted", detail: "Representative stated reprocessing requested", source: "Ref NS-884120" },
+      {
+        date: "Jul 10",
+        event: "Payer contacted",
+        detail: "Pricing reprocessing request NS-884120 was opened for the $2,480.00 underpayment.",
+        source: "Payer call · Ref NS-884120",
+        reason: "The original claim paid under the standard outpatient grouper instead of the contracted $12,600.00 joint case rate.",
+        bypassed: "The contract excerpt, payer ICN, and expected-reimbursement calculation were not attached when the request was opened.",
+        evidence: "Collector note Jul 10 and Northstar pricing-review acknowledgment NS-884120.",
+      },
     ],
     previousNotes: [
       { date: "May 3 · 2:18 PM", author: "Auto Posting", department: "Payment Posting", note: "ERA posted to claim CL-7719204. Insurance paid $10,120.00; CO-45 adjustment $8,520.00; patient responsibility $0.00." },
@@ -1610,7 +1627,14 @@ export const arScenarios: ArScenario[] = [
       { date: "Mar 6", event: "Services completed", detail: "Work injury claim number captured", source: "Front end" },
       { date: "Mar 10", event: "Bill submitted", detail: "First report and itemized bill sent", source: "Billing" },
       { date: "Apr 2", event: "Records delivered", detail: "Secure upload RC-220147", source: "Document team" },
-      { date: "Jun 17", event: "Receipt confirmed", detail: "Portal shows records attached", source: "Collector" },
+      {
+        date: "Jun 17",
+        event: "Receipt confirmed",
+        detail: "Portal shows the requested records attached; the carrier has not issued a determination, EOB, or payment.",
+        source: "Pioneer portal · Collector review",
+        reason: "The workers’ compensation claim remains pending liability review rather than rejected or denied.",
+        evidence: "Medical-record receipt RC-220147 and acknowledgment PIO-WC-558-291.",
+      },
       { date: "Jul 8", event: "Second follow-up", detail: "Voicemail left for adjuster case desk 47", source: "Collector J. Lee" },
     ],
     previousNotes: [
@@ -1727,9 +1751,30 @@ export const arScenarios: ArScenario[] = [
     },
     billingHistory: [
       { date: "Mar 1", event: "Original claim accepted", detail: "277CA acceptance ACK-0301-774", source: "Clearinghouse" },
-      { date: "Apr 4", event: "Payer returned claim", detail: "Rendering taxonomy correction requested", source: "Payer portal" },
-      { date: "Jun 14", event: "Corrected claim accepted", detail: "Frequency code 7", source: "Claims" },
-      { date: "Jul 22", event: "Denial posted", detail: "CO-29 timely filing", source: "835" },
+      {
+        date: "Apr 4",
+        event: "Payer returned claim",
+        detail: "The payer requested correction of the rendering-provider taxonomy.",
+        source: "Harbor Blue payer portal",
+        reason: "The taxonomy submitted for the rendering provider did not match the payer’s credentialing record.",
+      },
+      {
+        date: "Jun 14",
+        event: "Corrected claim accepted",
+        detail: "A frequency-code 7 corrected claim was accepted after the rendering taxonomy was updated.",
+        source: "277CA and claim image CLM-0614-018",
+        changes: "Rendering-provider taxonomy corrected; patient, member ID, DOS, CPT, diagnosis, and billed charge were unchanged.",
+        bypassed: "The original payer ICN was required for corrected-claim linkage but was not populated in the claim reference field.",
+        evidence: "Billing note Jun 14 and corrected claim image CLM-0614-018.",
+      },
+      {
+        date: "Jul 22",
+        event: "Denial posted",
+        detail: "The corrected claim returned zero payment with CO-29 / N211.",
+        source: "ERA 835 · ICN HB-99104420",
+        reason: "The payer treated the corrected submission as untimely; the missing original ICN prevented clear linkage to the timely accepted original claim.",
+        evidence: "Original acceptance ACK-0301-774, corrected claim CLM-0614-018, and ERA ICN HB-99104420.",
+      },
     ],
     previousNotes: [
       { date: "Mar 1 · 8:22 AM", author: "Claims Bot", department: "Clearinghouse", note: "Original professional claim accepted by Harbor Blue. 277CA acknowledgment ACK-0301-774 indexed as proof of initial receipt." },
@@ -1847,7 +1892,14 @@ export const arScenarios: ArScenario[] = [
     billingHistory: [
       { date: "May 8", event: "Emergency services posted", detail: "Meridian coverage selected from registration response", source: "Front end" },
       { date: "May 11", event: "Claim accepted", detail: "Clearinghouse acceptance MCH-A1-55108", source: "Claims" },
-      { date: "May 27", event: "ERA posted", detail: "Zero-pay adjudication; no patient responsibility", source: "835" },
+      {
+        date: "May 27",
+        event: "ERA posted",
+        detail: "Both lines received zero payment and no patient responsibility was assigned.",
+        source: "ERA 835",
+        reason: "CO-22 / MA04 indicates another payer may be primary and coordination-of-benefits information is incomplete.",
+        evidence: "ERA, Meridian eligibility response, and the later Summit insurance-card upload.",
+      },
       { date: "Jun 9", event: "Eligibility rechecked", detail: "Portal displays coordination-of-benefits review flag", source: "AR" },
       { date: "Jul 14", event: "Patient message indexed", detail: "Patient uploaded an employer plan card effective before DOS", source: "Patient portal" },
     ],
@@ -2000,8 +2052,22 @@ export const arScenarios: ArScenario[] = [
       { date: "Apr 20", event: "Authorization indexed", detail: "Approval NS-AUTH-884219 for 40 units J1745", source: "Prior auth" },
       { date: "May 1", event: "Infusion completed", detail: "Medication administration record signed", source: "Clinical" },
       { date: "May 5", event: "Claim accepted", detail: "Clearinghouse acceptance NS-A1-730882", source: "Claims" },
-      { date: "May 18", event: "Partial ERA posted", detail: "20 drug units and administration paid", source: "835" },
-      { date: "Jul 2", event: "Auth copy uploaded", detail: "Approval letter attached to payer message", source: "AR" },
+      {
+        date: "May 18",
+        event: "Partial ERA posted",
+        detail: "The payer paid 20 J1745 units and the administration line; the remaining 20 drug units were denied.",
+        source: "ERA 835 · ICN NS-55100842",
+        reason: "CO-197 / N130 states the authorization information received did not support all billed units.",
+        evidence: "Authorization NS-AUTH-884219 approves all 40 units.",
+      },
+      {
+        date: "Jul 2",
+        event: "Authorization copy uploaded",
+        detail: "The full approval letter was attached to the payer message after the portal displayed a truncated authorization value.",
+        source: "Payer message MSG-NS-11804",
+        changes: "The complete authorization number NS-AUTH-884219 replaced the truncated portal value NS-AUTH-884 in the supporting documentation.",
+        bypassed: "No corrected claim or reprocessing request was submitted at this step; the payer instructed the collector to call Provider Services.",
+      },
     ],
     previousNotes: [
       { date: "Apr 20 · 10:30 AM", author: "L. Perry", department: "Prior Authorization", note: "Northstar approved J1745 40 units for May 1. Authorization NS-AUTH-884219 valid Apr 28–May 5." },
@@ -2136,9 +2202,9 @@ export const denialScenarios: DenialScenario[] = [
     billingHistory: [
       { date: "Mar 31 · 4:18 PM", event: "Charges released", detail: "Imaging encounter finalized at $4,920.00 after radiology coding review.", source: "Charge router" },
       { date: "Apr 4 · 7:42 AM", event: "Original claim accepted", detail: "277CA accepted both service lines; payer claim HB-61140822 assigned.", source: "Clearinghouse" },
-      { date: "Apr 15 · 2:06 PM", event: "Denial posted", detail: "Both lines denied CO-50 with M127. No patient liability assigned.", source: "ERA 835" },
+      { date: "Apr 15 · 2:06 PM", event: "Denial posted", detail: "Both lines denied CO-50 with M127. No patient liability assigned.", source: "ERA 835", reason: "The payer stated the services did not meet medical-necessity criteria based on the records linked to the claim.", evidence: "ERA, authorization HB-AUTH-104228, signed order, treatment history, and imaging report." },
       { date: "May 2 · 10:24 AM", event: "Records indexed", detail: "Order, MRI report, and six-week conservative-treatment notes added to document imaging.", source: "Health information management" },
-      { date: "Jun 18 · 3:39 PM", event: "Reconsideration returned", detail: "Portal response states clinical records were not attached to the correct appeal case.", source: "Payer correspondence" },
+      { date: "Jun 18 · 3:39 PM", event: "Reconsideration returned", detail: "Portal case HB-RC-44018 closed without clinical review.", source: "Payer correspondence", reason: "Clinical records were uploaded under general correspondence instead of being linked to the Medical Review case.", bypassed: "The required appeal-case attachment routing was not completed, even though the records existed in the account.", evidence: "Payer closure response and HIM packet HIM-90214." },
       { date: "Jul 25 · 8:15 AM", event: "Deadline alert", detail: "First-level appeal filing window closes Aug 2, 2026.", source: "Denial work queue" },
     ],
     previousNotes: [
@@ -2281,9 +2347,9 @@ export const denialScenarios: DenialScenario[] = [
     billingHistory: [
       { date: "May 15 · 11:50 PM", event: "Observation charges posted", detail: "Twenty observation hours and associated services released.", source: "Patient accounting" },
       { date: "May 20 · 6:12 AM", event: "Claim accepted", detail: "Institutional claim accepted under bill type 131.", source: "277CA" },
-      { date: "Jun 2 · 1:34 PM", event: "Denial posted", detail: "Claim denied CO-197/N130 for authorization mismatch.", source: "ERA 835" },
+      { date: "Jun 2 · 1:34 PM", event: "Denial posted", detail: "The full institutional claim was denied CO-197 / N130 with no patient responsibility.", source: "ERA 835", reason: "The payer classified the encounter as inpatient while the approved authorization and billed services support outpatient observation." },
       { date: "Jun 9 · 9:05 AM", event: "Authorization researched", detail: "Approved outpatient authorization located; payer portal displays inpatient revenue classification.", source: "Prior Authorization" },
-      { date: "Jul 2 · 2:51 PM", event: "Corrected claim rejected", detail: "Frequency 7 submission rejected as duplicate; payer requires formal dispute.", source: "Clearinghouse / payer response" },
+      { date: "Jul 2 · 2:51 PM", event: "Corrected claim rejected", detail: "A frequency-code 7 submission was rejected as a duplicate; the payer requires a formal dispute instead of another claim.", source: "Clearinghouse / payer response", reason: "The original claim had already been adjudicated, so the payer would not accept the authorization issue as a corrected-claim transaction.", changes: "The outpatient authorization number was added in the 837 institutional authorization segment; bill type, observation code G0378, service dates, and charges were unchanged.", bypassed: "A formal dispute was not submitted with this corrected claim attempt." },
       { date: "Jul 24 · 3:20 PM", event: "Appeal queue escalation", detail: "Eighteen days remain to submit the first-level dispute.", source: "Denial work queue" },
     ],
     previousNotes: [
@@ -2426,9 +2492,9 @@ export const denialScenarios: DenialScenario[] = [
     billingHistory: [
       { date: "Jun 18 · 5:10 PM", event: "Charges posted", detail: "New patient neurology visit released.", source: "Practice management" },
       { date: "Jun 21 · 6:55 AM", event: "Claim accepted", detail: "Claim accepted and payer control number assigned.", source: "277CA" },
-      { date: "Jul 1 · 11:22 AM", event: "Denial posted", detail: "CO-16/MA36: referral number absent from claim.", source: "ERA 835" },
+      { date: "Jul 1 · 11:22 AM", event: "Denial posted", detail: "The claim received zero payment with CO-16 / MA36 and no patient responsibility.", source: "ERA 835", reason: "The required PCP referral number was absent from the submitted claim." },
       { date: "Jul 7 · 2:48 PM", event: "Referral image located", detail: "Valid PCP referral found in registration document queue.", source: "Front End" },
-      { date: "Jul 20 · 9:16 AM", event: "Billing task returned", detail: "Task lacked the referral number and claim attachment instruction.", source: "Billing work queue" },
+      { date: "Jul 20 · 9:16 AM", event: "Billing task returned", detail: "Billing returned the task without sending a corrected claim.", source: "Billing work queue", reason: "The task did not provide the exact referral number, claim frequency, or confirmation that service-line coding was unchanged.", bypassed: "Referral SUM-REF-500812 and the corrected-claim attachment instructions were not placed in the billing task." },
     ],
     previousNotes: [
       { date: "Jul 1 · 12:01 PM", author: "Auto Posting", department: "Payment Posting", note: "Claim denied CO-16/MA36. No payment or PR. Insurance balance $785.00." },
@@ -2567,10 +2633,10 @@ export const denialScenarios: DenialScenario[] = [
     billingHistory: [
       { date: "Apr 26 · 6:28 PM", event: "Lab charges posted", detail: "Molecular test and collection service released.", source: "Laboratory billing" },
       { date: "May 1 · 5:44 AM", event: "Claim accepted", detail: "Payer accepted claim; clinical documentation indicator present.", source: "277CA" },
-      { date: "May 12 · 10:03 AM", event: "Denial posted", detail: "CO-11: diagnosis inconsistent with procedure.", source: "ERA 835" },
+      { date: "May 12 · 10:03 AM", event: "Denial posted", detail: "The molecular-test claim was denied CO-11 with no patient responsibility.", source: "ERA 835", reason: "The submitted screening diagnosis was not consistent with the billed molecular procedure; the ordering note contains hereditary-risk information that was not represented on the claim." },
       { date: "May 28 · 1:40 PM", event: "Coding query opened", detail: "Ordering note supports family-history code not present on claim.", source: "Coding" },
       { date: "Jun 16 · 4:14 PM", event: "Provider response signed", detail: "Ordering provider clarified documented hereditary risk.", source: "Provider office" },
-      { date: "Jul 18 · 9:02 AM", event: "Correction task pending", detail: "Coding validation has not been finalized.", source: "Denial queue" },
+      { date: "Jul 18 · 9:02 AM", event: "Correction task pending", detail: "No corrected claim has been sent because certified-coder validation remains incomplete.", source: "Denial queue", changes: "Provider clarification documenting hereditary-risk history was added to the record; final diagnosis-code selection is still pending.", bypassed: "The diagnosis cannot be changed or submitted by AR until Coding validates the supported code." },
     ],
     previousNotes: [
       { date: "May 12 · 10:38 AM", author: "Auto Posting", department: "Payment Posting", note: "CO-11 denial posted for $1,380.00. No PR. Account routed to coding denial queue." },
@@ -2710,9 +2776,9 @@ export const denialScenarios: DenialScenario[] = [
     billingHistory: [
       { date: "Jun 2 · 5:22 PM", event: "Infusion charges released", detail: "Forty J1745 units and administration charge posted.", source: "Infusion billing" },
       { date: "Jun 6 · 7:09 AM", event: "Claim accepted", detail: "Claim accepted with authorization number in 837P.", source: "277CA" },
-      { date: "Jun 18 · 1:30 PM", event: "Partial payment posted", detail: "Payer paid 20 drug units and administration; 20 drug units denied.", source: "ERA 835" },
+      { date: "Jun 18 · 1:30 PM", event: "Partial payment posted", detail: "The payer paid 20 J1745 units and the administration service; 20 J1745 units remained denied.", source: "ERA 835", reason: "CO-197 / N130 indicates the payer’s authorization record supported fewer units than billed.", evidence: "Full approval letter PA-884219 authorizes all 40 units." },
       { date: "Jun 24 · 10:55 AM", event: "Authorization validated", detail: "Approval letter supports all 40 units.", source: "Prior Authorization" },
-      { date: "Jul 9 · 3:33 PM", event: "Reprocessing failed", detail: "Payer linked a truncated authorization record and maintained the denial.", source: "Portal response" },
+      { date: "Jul 9 · 3:33 PM", event: "Reprocessing failed", detail: "Reprocessing RP-55100842 completed with no additional payment.", source: "Portal response", reason: "The payer linked a truncated authorization record showing only 20 units and maintained the denial for the remaining units.", bypassed: "The complete authorization record was not linked to the payer’s reprocessing case despite the full letter being available.", evidence: "Authorization PA-884219 and payer portal response RP-55100842." },
       { date: "Jul 25 · 7:50 AM", event: "Appeal priority raised", detail: "High-dollar partial denial; 26 days remain to appeal.", source: "Denial work queue" },
     ],
     previousNotes: [

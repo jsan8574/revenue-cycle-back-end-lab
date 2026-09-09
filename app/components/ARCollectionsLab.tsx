@@ -2789,6 +2789,26 @@ function AccountNotesView({
                 <p>
                   <strong>{item.event}</strong>
                   {item.detail}
+                  {item.reason ? (
+                    <span className="billing-history-detail">
+                      <b>Reason</b> {item.reason}
+                    </span>
+                  ) : null}
+                  {item.changes ? (
+                    <span className="billing-history-detail">
+                      <b>Information changed</b> {item.changes}
+                    </span>
+                  ) : null}
+                  {item.bypassed ? (
+                    <span className="billing-history-detail billing-history-bypassed">
+                      <b>Bypassed / not supplied</b> {item.bypassed}
+                    </span>
+                  ) : null}
+                  {item.evidence ? (
+                    <span className="billing-history-detail">
+                      <b>Evidence</b> {item.evidence}
+                    </span>
+                  ) : null}
                 </p>
                 <small>{item.source}</small>
               </div>
@@ -3292,11 +3312,21 @@ function ReimbursementView({
     key: keyof CalculatorState;
     label: string;
     suffix?: string;
+    source: string;
   }[] =
     scenario.contract.method === "percent-charge"
       ? [
-          { key: "billed", label: "Covered billed charges" },
-          { key: "percent", label: "Contract percentage", suffix: "%" },
+          {
+            key: "billed",
+            label: "Covered billed charges",
+            source: "Claim service-line code reference above",
+          },
+          {
+            key: "percent",
+            label: "Contract percentage",
+            suffix: "%",
+            source: `${scenario.contract.name} · Exhibit B reimbursement schedule`,
+          },
         ]
       : [
           {
@@ -3305,13 +3335,37 @@ function ReimbursementView({
               scenario.contract.method === "case-rate"
                 ? "Applicable case rate"
                 : "Total code-specific fee-schedule allowance",
+            source: `${scenario.contract.name} · Exhibit B reimbursement schedule`,
           },
         ];
-  const fields: { key: keyof CalculatorState; label: string; suffix?: string }[] = [
+  const adjudicationSource = scenario.documents.find((document) =>
+    /EOB|ERA|remittance/i.test(`${document.type} ${document.summary}`),
+  );
+  const payerSource = adjudicationSource
+    ? `${adjudicationSource.type} · ${adjudicationSource.reference}`
+    : `Payer portal adjudication · ${scenario.portal.status}`;
+  const fields: {
+    key: keyof CalculatorState;
+    label: string;
+    suffix?: string;
+    source: string;
+  }[] = [
     ...contractFields,
-    { key: "patientResponsibility", label: "Patient responsibility" },
-    { key: "otherInsurance", label: "Other insurance payment" },
-    { key: "actualPayment", label: "Actual payer payment" },
+    {
+      key: "patientResponsibility",
+      label: "Patient responsibility",
+      source: `${payerSource} · patient-liability field`,
+    },
+    {
+      key: "otherInsurance",
+      label: "Other insurance payment",
+      source: `Insurance tab · coordination of benefits: ${scenario.insurance.coordination}`,
+    },
+    {
+      key: "actualPayment",
+      label: "Actual payer payment",
+      source: `${payerSource} · Financial transactions ledger`,
+    },
   ];
 
   return (
@@ -3386,6 +3440,9 @@ function ReimbursementView({
                 />
                 {field.suffix ? <b>{field.suffix}</b> : null}
               </div>
+              <small className="calculator-field-source">
+                Source: {field.source}
+              </small>
             </label>
           ))}
         </div>

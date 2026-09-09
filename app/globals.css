@@ -64,6 +64,31 @@
 .source-grid dl>div { display:grid; gap:10px; grid-template-columns:minmax(105px,.7fr) minmax(0,1.3fr); padding:7px 0; }
 .source-grid dt { color:#6d7f7e; font-size:11px; font-weight:700; }
 .source-grid dd { font-size:12px; font-weight:650; line-height:1.45; margin:0; overflow-wrap:anywhere; }
+
+.billing-history-detail {
+  color: #536969;
+  display: block;
+  font-size: 11px;
+  line-height: 1.45;
+  margin-top: 5px;
+}
+
+.billing-history-detail b {
+  color: #254f53;
+  display: inline;
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  margin-right: 5px;
+  text-transform: uppercase;
+}
+
+.billing-history-bypassed {
+  background: #fff4e7;
+  border-left: 3px solid #df9940;
+  border-radius: 5px;
+  color: #714f25;
+  padding: 6px 8px;
+}
 .billing-claim { display:block; }
 .cms-source-note { background:#f3f8f6; border:1px solid #d7e5e1; border-left:4px solid #2f8c83; border-radius:12px; display:flex; flex-direction:column; gap:5px; margin-bottom:18px; padding:14px 16px; }
 .cms-source-note strong { color:#164e50; font-size:12px; }
@@ -6271,6 +6296,15 @@ button {
   gap: 9px;
   grid-template-columns: repeat(2, 1fr);
   margin-bottom: 13px;
+}
+
+.calculator-field-source {
+  color: #6b7c7d;
+  display: block;
+  font-size: 10px !important;
+  font-weight: 600;
+  line-height: 1.4;
+  margin-top: 5px;
 }
 
 .calculator-input b {

@@ -312,3 +312,23 @@ test("provides a completed claim packet for every follow-up and denial account",
   assert.match(generator, /FICTIONAL TRAINING CLAIM - NOT FOR SUBMISSION/);
   assert.doesNotMatch(generator, /\(55, 682/);
 });
+
+test("makes billing-history exceptions and reimbursement sources explicit", async () => {
+  const [arLab, explorationData, styles] = await Promise.all([
+    readFile(new URL("../app/components/ARCollectionsLab.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/data/exploration.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(arLab, /Reason/);
+  assert.match(arLab, /Information changed/);
+  assert.match(arLab, /Bypassed \/ not supplied/);
+  assert.match(arLab, /Evidence/);
+  assert.match(arLab, /Source: \{field\.source\}/);
+  assert.match(arLab, /calculator-field-source/);
+  assert.match(explorationData, /original payer ICN was required/);
+  assert.match(explorationData, /Corrected claim rejected/);
+  assert.match(explorationData, /formal dispute was not submitted/);
+  assert.match(styles, /\.billing-history-bypassed/);
+  assert.match(styles, /\.calculator-field-source/);
+});

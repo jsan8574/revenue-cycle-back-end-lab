@@ -332,3 +332,18 @@ test("makes billing-history exceptions and reimbursement sources explicit", asyn
   assert.match(styles, /\.billing-history-bypassed/);
   assert.match(styles, /\.calculator-field-source/);
 });
+
+test("shows an appeal or reconsideration workspace and optional document field for every case", async () => {
+  const [arLab, styles] = await Promise.all([
+    readFile(new URL("../app/components/ARCollectionsLab.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(arLab, /const buildAppealScenario/);
+  assert.match(arLab, /scenario\.appeal \?\?/);
+  assert.doesNotMatch(arLab, /filter\(\(item\) => item\.id !== "appeal"/);
+  assert.match(arLab, />Other documents: Please specify</);
+  assert.match(arLab, /aria-label="Other document required"/);
+  assert.match(arLab, /Specify the other document before sending/);
+  assert.match(styles, /\.appeal-other-document-input/);
+});

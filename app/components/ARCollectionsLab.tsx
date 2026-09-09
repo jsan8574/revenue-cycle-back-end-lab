@@ -81,6 +81,27 @@ const arTabs: { id: ArDeskTab; label: string }[] = [
   { id: "appeal", label: "Appeal workbench" },
 ];
 
+const buildAppealScenario = (
+  scenario: ArScenario,
+  mode: "ar" | "denial",
+): AppealScenario => ({
+  ...scenario,
+  appeal: scenario.appeal ?? {
+    required: false,
+    category: mode === "denial" ? "denial-appeal" : "pricing-reconsideration",
+    recipient: `${scenario.patient.payer} Provider Appeals and Reconsideration Unit`,
+    electronicRoute: `${scenario.patient.payer} Provider Portal > Claims > Appeals / Reconsideration`,
+    mailingAddress: `${scenario.patient.payer} Provider Appeals and Reconsideration Unit · verify the current payer manual before mailing`,
+    subject: `${mode === "denial" ? "Appeal" : "Reconsideration"} review · ${scenario.patient.name} · DOS ${scenario.patient.dos} · ${scenario.portal.icn}`,
+    template: `RE: ${scenario.patient.name} | Member ${scenario.patient.memberId} | DOS ${scenario.patient.dos} | ICN ${scenario.portal.icn}\n\nTo the Provider Appeals and Reconsideration Reviewer:\n\nPlease review the attached claim and account evidence for ${scenario.claim.claimId}. The learner should revise this draft to state the issue, payer response, corrected information or reimbursement variance, supporting documentation, and requested outcome before deciding whether a formal submission is appropriate.\n\nSincerely,\nRevenue Cycle Back End Team`,
+    attachments: [
+      "Original EOB / ERA or payer response",
+      "Submitted claim image",
+      "Account documentation supporting the request",
+    ],
+  },
+});
+
 const initialCalculator = (): CalculatorState => ({
   billed: "",
   rate: "",
@@ -515,14 +536,11 @@ export function ARCollectionsLab({
   const scenario = scenarioList[scenarioIndex];
   const denialScenario =
     mode === "denial" ? (scenario as DenialScenario) : null;
-  const appealScenario = scenario.appeal
-    ? (scenario as AppealScenario)
-    : null;
+  const appealScenario = buildAppealScenario(scenario, mode);
   const visibleTabs = arTabs
-    .filter((item) => item.id !== "appeal" || Boolean(appealScenario))
     .map((item) =>
       item.id === "appeal" &&
-      appealScenario?.appeal.category === "pricing-reconsideration"
+      appealScenario.appeal.category === "pricing-reconsideration"
         ? { ...item, label: "Reconsideration letter" }
         : item,
     );
@@ -566,6 +584,8 @@ export function ARCollectionsLab({
     "",
   );
   const [appealAttachments, setAppealAttachments] = useState<string[]>([]);
+  const [otherDocumentSelected, setOtherDocumentSelected] = useState(false);
+  const [otherDocument, setOtherDocument] = useState("");
   const [appealSubmitted, setAppealSubmitted] = useState(false);
   const [appealFeedback, setAppealFeedback] = useState("");
   const [notes, setNotes] = useState<AccountNoteFields>({
@@ -616,9 +636,7 @@ export function ARCollectionsLab({
     (route) => route.id === selectedRoute,
   )?.label;
   const investigationComplete = portalOpened && callClosed;
-  const appealRequirementMet =
-    !appealScenario?.appeal.required ||
-    appealSubmitted;
+  const appealRequirementMet = !appealScenario.appeal.required || appealSubmitted;
   const notesComplete =
     notes.source.length > 0 &&
     notes.representative.trim().length >= 2 &&
@@ -655,17 +673,13 @@ export function ARCollectionsLab({
       done: investigationComplete,
     },
     { label: "Choose and validate a resolution", done: actionValid },
-    ...(appealScenario
-      ? [
-          {
-            label:
-              appealScenario.appeal.category === "pricing-reconsideration"
-                ? "Prepare and submit the pricing reconsideration"
-                : "Prepare the required denial response / appeal",
-            done: appealRequirementMet && actionValid,
-          },
-        ]
-      : []),
+    {
+      label:
+        appealScenario.appeal.category === "pricing-reconsideration"
+          ? "Review the reconsideration workspace"
+          : "Review the appeal workspace",
+      done: visited.includes("appeal") && appealRequirementMet && actionValid,
+    },
     { label: "Create notation: issue, findings, resolution", done: notesComplete },
     { label: "Post note in the system", done: notePosted },
   ];
@@ -849,7 +863,6 @@ export function ARCollectionsLab({
 
   const submitAppealRequest = () => {
     if (
-      !appealScenario ||
       !appealMethod ||
       appealDraft.recipient.trim().length < 4 ||
       appealDraft.subject.trim().length < 8 ||
@@ -862,7 +875,9 @@ export function ARCollectionsLab({
     }
     if (
       appealScenario.appeal.required &&
-      appealAttachments.length !== appealScenario.appeal.attachments.length
+      appealScenario.appeal.attachments.some(
+        (attachment) => !appealAttachments.includes(attachment),
+      )
     ) {
       const requestType =
         appealScenario.appeal.category === "pricing-reconsideration"
@@ -870,6 +885,12 @@ export function ARCollectionsLab({
           : "appeal";
       setAppealFeedback(
         `Confirm every required attachment before submitting the ${requestType} request.`,
+      );
+      return;
+    }
+    if (otherDocumentSelected && otherDocument.trim().length < 2) {
+      setAppealFeedback(
+        "Specify the other document before sending the submission request.",
       );
       return;
     }
@@ -1168,12 +1189,14 @@ export function ARCollectionsLab({
                   />
                 </div>
               ) : null}
-              {tab === "appeal" && appealScenario ? (
+              {tab === "appeal" ? (
                 <AppealView
                   scenario={appealScenario}
                   draft={appealDraft}
                   method={appealMethod}
                   attachments={appealAttachments}
+                  otherDocumentSelected={otherDocumentSelected}
+                  otherDocument={otherDocument}
                   submitted={appealSubmitted}
                   feedback={appealFeedback}
                   onDraft={(key, value) =>
@@ -1190,6 +1213,8 @@ export function ARCollectionsLab({
                         : [...current, attachment],
                     )
                   }
+                  onOtherDocumentSelected={setOtherDocumentSelected}
+                  onOtherDocument={setOtherDocument}
                   onSubmit={submitAppealRequest}
                 />
               ) : null}
@@ -1351,7 +1376,8 @@ export function ARCollectionsLab({
                         `Recipient: ${appealDraft.recipient || "Not entered"}`,
                         `Subject: ${appealDraft.subject || "Not entered"}`,
                         `Method: ${appealMethod || "Not selected"}`,
-                        `Attachments: ${appealAttachments.length} of ${appealScenario.appeal.attachments.length} confirmed`,
+                        `Required attachments: ${appealScenario.appeal.attachments.filter((attachment) => appealAttachments.includes(attachment)).length} of ${appealScenario.appeal.attachments.length} confirmed`,
+                        `Other document: ${otherDocumentSelected ? otherDocument || "Not specified" : "Not selected"}`,
                         `Status: ${appealSubmitted ? "Submitted successfully" : "Draft"}`,
                         "",
                         appealDraft.body || "No appeal letter drafted",
@@ -3632,22 +3658,30 @@ function AppealView({
   draft,
   method,
   attachments,
+  otherDocumentSelected,
+  otherDocument,
   submitted,
   feedback,
   onDraft,
   onMethod,
   onAttachment,
+  onOtherDocumentSelected,
+  onOtherDocument,
   onSubmit,
 }: {
   scenario: AppealScenario;
   draft: { recipient: string; subject: string; body: string };
   method: "electronic" | "mail" | "";
   attachments: string[];
+  otherDocumentSelected: boolean;
+  otherDocument: string;
   submitted: boolean;
   feedback: string;
   onDraft: (key: "recipient" | "subject" | "body", value: string) => void;
   onMethod: (value: "electronic" | "mail") => void;
   onAttachment: (attachment: string) => void;
+  onOtherDocumentSelected: (selected: boolean) => void;
+  onOtherDocument: (document: string) => void;
   onSubmit: () => void;
 }) {
   const denial = "denial" in scenario
@@ -3772,6 +3806,24 @@ function AppealView({
               <span>{attachment}</span>
             </label>
           ))}
+          <label>
+            <input
+              type="checkbox"
+              checked={otherDocumentSelected}
+              onChange={(event) =>
+                onOtherDocumentSelected(event.target.checked)
+              }
+            />
+            <span>Other documents: Please specify</span>
+          </label>
+          <input
+            className="appeal-other-document-input"
+            aria-label="Other document required"
+            placeholder="Enter the document name or description"
+            value={otherDocument}
+            disabled={!otherDocumentSelected}
+            onChange={(event) => onOtherDocument(event.target.value)}
+          />
         </div>
 
         <button

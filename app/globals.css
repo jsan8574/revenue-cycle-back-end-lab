@@ -8445,6 +8445,32 @@ button {
   margin-top: 3px;
 }
 
+.appeal-attachments .appeal-other-document-input {
+  background: #fbfcfb;
+  border: 1px solid #cfd9d6;
+  border-radius: 8px;
+  box-sizing: border-box;
+  color: #173941;
+  display: block;
+  font: inherit;
+  margin: 8px 0 2px;
+  min-height: 44px !important;
+  outline: none;
+  padding: 10px 12px;
+  width: 100%;
+}
+
+.appeal-attachments .appeal-other-document-input:focus {
+  border-color: var(--module-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--module-accent) 18%, transparent);
+}
+
+.appeal-attachments .appeal-other-document-input:disabled {
+  background: #f1f4f3;
+  color: #879491;
+  cursor: not-allowed;
+}
+
 .appeal-submission-panel .system-primary-button {
   width: 100%;
 }

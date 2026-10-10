@@ -9130,3 +9130,63 @@ button {
 .payer-call-reply button { width:auto;flex-shrink:0;margin:0; }
 .payer-call-questions { max-height:300px;overflow:auto;display:grid;grid-template-columns:1fr;gap:8px;margin:16px 0; }
 @media(max-width:760px) { .payer-call-reply { flex-direction:column;align-items:stretch; }.payer-call-reply button { width:100%; } }
+
+/* Secure storage previews use paper pages inside a document viewer. */
+.payer-file-backdrop { position:fixed;inset:0;background:#11243bb3;z-index:700;display:flex;align-items:center;justify-content:center;padding:20px; }
+.payer-file-viewer { width:min(1220px,96vw);height:92vh;display:flex;flex-direction:column;border-radius:12px;overflow:hidden;background:#59616d;box-shadow:0 24px 100px #07132370; }
+.payer-file-toolbar { background:#263348;color:#fff;display:flex;justify-content:space-between;align-items:center;gap:20px;padding:16px 22px;flex-shrink:0; }
+.payer-file-toolbar>div:first-child { display:flex;align-items:center;gap:14px;min-width:0; }
+.payer-file-icon { border:1px solid #b9c9df;border-radius:5px;padding:9px 7px;font-size:10px;font-weight:700;letter-spacing:1px; }
+.payer-file-toolbar strong { display:block;font-size:13px;overflow-wrap:anywhere; }
+.payer-file-toolbar small { display:block;margin-top:5px;font-size:11px;color:#c5d2e6; }
+.payer-file-controls { display:flex;align-items:center;gap:18px;flex-shrink:0; }
+.payer-file-controls label { display:flex;align-items:center;gap:8px;color:#dee7f4;font-size:11px;margin:0; }
+.payer-file-controls select { width:auto;margin:0;padding:7px;font-size:12px;background:#fff;border-radius:5px; }
+.payer-file-controls button { background:#354a66;border:1px solid #6e82a0;color:#fff;white-space:nowrap;font-size:12px; }
+.payer-file-canvas { overflow:auto;flex:1;padding:28px 24px;overscroll-behavior:contain; }
+.payer-file-pages { width:920px;margin:0 auto; }
+.payer-file-sheet { position:relative;display:flex;flex-direction:column;box-sizing:border-box;background:#fff;width:920px;min-height:1050px;padding:42px 44px 28px;margin-bottom:28px;box-shadow:0 6px 24px #0b152e38;color:#263a50;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.6; }
+.payer-file-sheet:last-child { margin-bottom:0; }
+.payer-file-letterhead { display:flex;justify-content:space-between;gap:20px;border-bottom:3px solid #234365;padding-bottom:22px; }
+.payer-file-letterhead>div:first-child { display:flex;align-items:center;gap:14px; }
+.payer-file-mark { display:flex;align-items:center;justify-content:center;background:#234365;color:#fff;min-width:48px;height:48px;border-radius:5px;font-size:16px;font-weight:700; }
+.payer-file-letterhead strong { display:block;font-size:17px; }
+.payer-file-letterhead small { display:block;color:#62758a;font-size:11px; }
+.payer-file-issued { text-align:right;max-width:290px; }
+.payer-file-issued span { display:block;color:#62758a;font-size:10px;text-transform:uppercase; }
+.payer-file-issued strong { font-size:12px; }
+.payer-file-title { margin:26px 0 22px; }
+.payer-file-title>span { font-size:10px;letter-spacing:1.3px;text-transform:uppercase;color:#647b91; }
+.payer-file-title h2 { font-size:24px;font-weight:600;line-height:1.3;margin:6px 0;color:#1e405f; }
+.payer-file-title>strong { display:inline-block;padding:5px 10px;background:#e9f1f7;border:1px solid #ccdae7;font-size:10px;margin-top:8px; }
+.payer-file-facts { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0;border:1px solid #cfdae4;background:#f8fafc;margin:0 0 24px; }
+.payer-file-facts>div { padding:10px 14px;border-bottom:1px solid #e1e7ee; }
+.payer-file-facts dt { text-transform:uppercase;font-size:9px;letter-spacing:.6px;color:#64768a; }
+.payer-file-facts dd { font-size:12px;margin:3px 0 0;font-weight:600; }
+.payer-file-totals { display:grid;grid-template-columns:repeat(4,1fr);background:#edf3f8;border:1px solid #cad8e6;margin-bottom:22px; }
+.payer-file-totals>div { padding:14px;border-right:1px solid #cad8e6; }
+.payer-file-totals span { display:block;font-size:9px;color:#63788e;text-transform:uppercase; }
+.payer-file-totals strong { display:block;font-size:18px;margin-top:5px; }
+.payer-app .payer-file-table { border-collapse:collapse;width:100%;margin:0 0 24px;font-size:10px; }
+.payer-app .payer-file-table th { padding:10px 8px;background:#e9eff5;border:1px solid #cbd7e3;color:#3d5873;font-size:9px;letter-spacing:.3px;white-space:normal; }
+.payer-app .payer-file-table td { border:1px solid #d6dfe8;padding:11px 8px;font-size:10px;min-width:0;line-height:1.6;vertical-align:top; }
+.payer-file-table td small { display:block;color:#687b8e;font-size:9px; }
+.payer-file-calculation tbody tr:last-child { font-weight:700;background:#edf3f8; }
+.payer-file-section-title { background:#edf3f8;border-left:3px solid #365f83;padding:12px 14px;font-weight:600;margin-bottom:18px; }
+.payer-file-sheet h3 { color:#2c4a68;font-size:13px;margin:0 0 10px; }
+.payer-file-copy { margin:8px 0 24px;white-space:pre-wrap; }
+.payer-file-copy p { font-size:12px!important;line-height:1.8!important;margin:0 0 14px; }
+.payer-file-letter { flex:1;padding-top:8px; }
+.payer-file-enclosures { list-style:none;padding:0;margin:0 0 24px; }
+.payer-file-enclosures li { padding:10px 0;border-bottom:1px solid #e0e7ef; }
+.payer-file-status { display:flex;align-items:center;gap:14px;padding:16px;background:#edf3f8;margin-bottom:24px; }
+.payer-file-status span { font-size:10px;text-transform:uppercase; }
+.payer-file-status strong { flex:1;font-size:17px; }
+.payer-file-status b { font-size:11px; }
+.payer-file-reference { padding:12px;border:1px solid #ccd8e4;background:#f8fafc;margin-bottom:24px; }
+.payer-file-reference span { display:block;font-size:10px; }
+.payer-file-signature { border-top:1px solid #c9d6e2;margin-top:18px;padding-top:12px; }
+.payer-file-signature>* { display:block; }
+.payer-file-signature span,.payer-file-signature small { color:#6e7f90;font-size:10px; }
+.payer-file-footer { display:flex;justify-content:space-between;gap:20px;border-top:1px solid #cbd8e4;margin-top:auto;padding-top:14px;color:#76879a;font-size:9px; }
+@media(max-width:760px) { .payer-file-backdrop{padding:8px}.payer-file-viewer{width:100%;height:96vh}.payer-file-toolbar{padding:12px;flex-wrap:wrap;gap:10px}.payer-file-toolbar strong{font-size:11px}.payer-file-controls{width:100%;justify-content:space-between}.payer-file-canvas{padding:15px 10px}.payer-file-pages{margin:0}.payer-file-icon{display:none} }

@@ -8989,3 +8989,135 @@ button {
     gap: 10px;
   }
 }
+
+/* Multipayer research workspace */
+.payer-app { min-height:100vh;background:#f3f6fb;color:#24364e;font-family:Arial,Helvetica,sans-serif; }
+.payer-app * { box-sizing:border-box; }
+.payer-app button,.payer-app input,.payer-app select,.payer-app textarea,.payer-storage button { font:inherit; }
+.payer-app button,.payer-storage button { cursor:pointer;border:1px solid #c6d4e5;border-radius:7px;padding:10px 15px;background:white;color:#25456e; }
+.payer-app button:hover,.payer-storage button:hover { background:#edf4ff; }
+.payer-app button:disabled { cursor:default;opacity:.6; }
+.payer-app button:focus-visible,.payer-app input:focus-visible,.payer-app select:focus-visible,.payer-app textarea:focus-visible,.payer-app a:focus-visible { outline:3px solid #edb52e;outline-offset:3px; }
+.payer-topbar { min-height:85px;background:white;border-bottom:1px solid #dae4ef;padding:20px 36px;display:flex;align-items:center;justify-content:space-between;gap:20px; }
+.payer-brand { color:#1c426f;display:flex;gap:14px;align-items:center;font-size:22px;font-weight:700;text-decoration:none; }
+.payer-brand>span { display:grid;place-items:center;background:#204d7e;color:white;width:46px;height:46px;border-radius:12px;font-size:17px; }
+.payer-brand small { display:block;font-size:11px;font-weight:400;letter-spacing:1.3px;color:#6e8095;margin-top:5px;text-transform:uppercase; }
+.payer-top-right { display:flex;gap:24px;align-items:center;font-size:13px;color:#61758c; }
+.payer-top-right a { color:#204d7e;font-weight:700; }
+.payer-training-strip { padding:10px 36px;background:#e4edf8;color:#305376;font-size:11px;letter-spacing:.8px; }
+.payer-shell { display:grid;grid-template-columns:255px minmax(0,1fr);min-height:calc(100vh - 120px); }
+.payer-sidebar { padding:32px 20px;background:#183b65;color:#f6f9ff; }
+.payer-sidebar h2 { font-size:19px;margin:12px 0; }
+.payer-sidebar p { color:#c4d1e2;font-size:13px;line-height:1.6; }
+.payer-sidebar>button { width:100%;display:block;text-align:left;border:0;background:transparent;color:#d7e2f0;margin:8px 0;padding:14px; }
+.payer-sidebar>button.active { background:#2c588d;color:white;box-shadow:inset 3px 0 #71a7e3; }
+.payer-session-status { margin-top:28px;border-top:1px solid #3b5779;padding-top:24px;font-size:13px; }
+.payer-session-status>span { color:#a9caed;font-size:11px; }
+.payer-eyebrow { font-size:11px;letter-spacing:1.6px;text-transform:uppercase;font-weight:700;color:#6882a1; }
+.payer-sidebar .payer-eyebrow { color:#aac4e2; }
+.payer-main { padding:40px;min-width:0;max-width:1550px; }
+.payer-main h1 { font-size:34px;line-height:1.18;color:#1b3d66;margin:12px 0 16px;letter-spacing:-.8px; }
+.payer-main h2 { font-size:20px;color:#1b3d66;line-height:1.35; }
+.payer-main h3 { font-size:16px;color:#274f7f; }
+.payer-main p { font-size:14px;line-height:1.7; }
+.payer-lead { max-width:730px;color:#6d7f94; }
+.payer-channel-cards { display:grid;grid-template-columns:1fr 1fr;gap:24px;margin:32px 0; }
+.payer-channel-cards>button { padding:30px;text-align:left;box-shadow:0 6px 20px #233c6110;min-height:270px; }
+.payer-channel-cards p { color:#698097; }
+.payer-channel-cards strong { color:#245fa2; }
+.payer-large-icon { width:44px;height:44px;background:#e8f0fa;display:grid;place-items:center;color:#2d639a;font-size:32px;border-radius:12px; }
+.payer-large-icon svg { width:28px;height:28px; }
+.payer-card,.payer-search,.payer-login,.payer-conversation { background:white;border:1px solid #dce5f0;border-radius:12px;padding:26px;margin-bottom:22px;box-shadow:0 4px 15px #29436305; }
+.payer-card-heading { display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap; }
+.payer-card-heading h2 { margin-top:0; }
+.payer-card-heading label { min-width:170px; }
+.payer-app label { display:block;font-size:12px;font-weight:700;color:#526b87;margin:14px 0; }
+.payer-app input,.payer-app select,.payer-app textarea { display:block;border:1px solid #bfcde0;border-radius:6px;width:100%;padding:12px;color:#294262;background:white;margin-top:7px;font-size:14px;min-height:44px; }
+.payer-app input[type=checkbox] { width:18px;height:18px;min-height:18px;margin:0;display:inline-block;accent-color:#285e9c;flex:none; }
+.payer-app textarea { resize:vertical; }
+.payer-app small { display:block;font-size:11px;line-height:1.6;color:#73859b; }
+.payer-primary,.payer-app .payer-primary { background:#215a9c;color:white;border-color:#215a9c;display:inline-block;font-weight:700; }
+.payer-app .payer-primary:hover { background:#17487f; }
+.payer-login { max-width:610px;margin:25px auto; padding:40px; }
+.payer-login form { margin-top:28px; }
+.payer-login .payer-primary { width:100%;margin-top:22px; }
+.payer-search { display:grid;grid-template-columns:1fr 1fr;gap:0 22px;max-width:830px; }
+.payer-search h2,.payer-search>p,.payer-search>.payer-primary { grid-column:1/-1; }
+.payer-search .payer-primary { margin-top:14px; }
+.payer-feedback { border-left:3px solid #e3ad32;background:#fdf8ed;padding:12px 15px;color:#745719; }
+.payer-facts { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px 24px;border-top:1px solid #e5ebf3;padding-top:18px; }
+.payer-facts div { padding-bottom:12px;border-bottom:1px solid #edf1f7; }
+.payer-facts dt { font-size:10px;color:#76869b;text-transform:uppercase;letter-spacing:.6px;margin-bottom:7px; }
+.payer-facts dd { margin:0;font-size:13px;font-weight:600;line-height:1.6;overflow-wrap:anywhere; }
+.payer-note { color:#5c748f;background:#f1f6fc;border-left:3px solid #89a8cd;padding:12px 16px; }
+.payer-status { background:#e7f3ef;color:#216b52;font-size:11px;padding:8px 12px;border-radius:20px;max-width:420px; }
+.payer-member-bar { display:flex;align-items:center;gap:15px;margin-bottom:20px; }
+.payer-member-bar>div { flex:1; }
+.payer-member-bar span { font-size:11px;text-transform:uppercase;color:#7088a4; }
+.payer-member-bar h1 { font-size:27px;margin:6px 0; }
+.payer-member-bar p { font-size:12px;color:#6b809b; }
+.payer-section-tabs { display:flex;flex-wrap:wrap;gap:6px;margin-bottom:24px;border-bottom:1px solid #cddaea;padding-bottom:12px; }
+.payer-section-tabs button { border:0;font-size:12px;padding:12px;background:transparent; }
+.payer-section-tabs button.active { background:#e2edfb;color:#245a99;font-weight:700; }
+.payer-table-scroll { overflow-x:auto;margin-top:20px; }
+.payer-app table { width:100%;border-collapse:collapse;font-size:12px; }
+.payer-app th { background:#eef3fa;color:#5b7290;padding:12px;text-align:left;white-space:nowrap;font-size:10px;text-transform:uppercase; }
+.payer-app td { padding:15px 12px;border-bottom:1px solid #e8edf5;line-height:1.6;vertical-align:top; }
+.payer-app td:first-child { min-width:155px; }
+.payer-app details { border:1px solid #e0e7f0;margin:10px 0;padding:14px;border-radius:7px;font-size:13px; }
+.payer-app summary { cursor:pointer;color:#284f7a;font-weight:600; }
+.payer-app details p { white-space:pre-wrap; }
+.payer-phone-layout { display:grid;grid-template-columns:290px minmax(0,1fr);gap:25px;align-items:start; }
+.payer-dialer { position:sticky;top:20px;background:#fff;border:1px solid #d4dfed;border-radius:24px;padding:26px 22px;box-shadow:0 12px 30px #233c6115;text-align:center; }
+.payer-handset { width:64px;height:64px;display:grid;place-items:center;background:#e9f2fb;color:#265f98;border-radius:50%;margin:0 auto 17px; }
+.payer-handset svg { width:34px;height:34px; }
+.payer-dialer.ringing .payer-handset { animation:payer-ring .65s ease-in-out infinite;box-shadow:0 0 0 10px #eaf2ff; }
+.payer-dialer.disconnected .payer-handset { color:#b84e50;background:#faeeee; }
+.payer-dialer label { text-align:left; }
+.payer-dialer input { font-size:20px;text-align:center;letter-spacing:1px; }
+.payer-keypad { display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:18px 0; }
+.payer-keypad button { border-radius:50%;height:54px;width:54px;justify-self:center;font-size:21px;background:#f2f5f9;border:0; }
+.payer-call-button { display:flex;justify-content:center;align-items:center;gap:8px;width:100%;margin-top:15px;background:#26795b!important;color:white!important;border:0!important; }
+.payer-call-button svg { width:22px;height:22px; }
+.payer-contact-heading { display:flex;align-items:center;justify-content:space-between;gap:15px;font-size:11px;color:#658099; }
+.payer-contact-heading h2 { margin:7px 0; }
+.payer-dot { display:inline-block;width:8px;height:8px;background:#31a876;border-radius:50%;margin-right:5px; }
+.payer-conversation { min-width:0; }
+.payer-conversation-grid { display:grid;grid-template-columns:minmax(180px,.85fr) minmax(250px,1.15fr);gap:22px;margin:22px 0; }
+.payer-question-list { display:grid;align-content:start;gap:8px;max-height:520px;overflow:auto; }
+.payer-question-list button { text-align:left;font-size:12px;line-height:1.5;padding:12px; }
+.payer-transcript { background:#f3f6fa;border-radius:9px;padding:18px;max-height:520px;overflow:auto; }
+.payer-you,.payer-rep { padding:13px;border-radius:10px;font-size:12px!important;line-height:1.7!important; }
+.payer-you { background:#e1ecfa;color:#234b78;margin-left:15px; }
+.payer-rep { background:white;border:1px solid #e0e7f1;margin-right:15px; }
+.payer-chat-overlay { position:fixed;right:22px;bottom:22px;width:min(850px,calc(100vw - 44px));max-height:88vh;overflow:auto;background:white;border-radius:14px;box-shadow:0 20px 80px #0b29475e;z-index:500;border:1px solid #b8cce6;padding-top:8px; }
+.payer-chat-overlay .payer-conversation { border:0;box-shadow:none;margin:0; }
+.payer-chat-close { float:right;margin:10px 18px; }
+.payer-doc-row { display:flex;justify-content:space-between;align-items:center;gap:15px;border-top:1px solid #e5ebf3;padding:10px 0; }
+.payer-doc-row label { display:flex;gap:12px;align-items:center;font-weight:400;min-width:0; }
+.payer-doc-row strong { overflow-wrap:anywhere;display:block;font-size:12px; }
+.payer-doc-row button { font-size:11px;flex:none; }
+.payer-document-preview { background:#f9fbfe;border:1px solid #cfdbed;padding:22px;margin:20px 0;white-space:pre-wrap; }
+.payer-document-preview>button { float:right; }
+.payer-attestation { display:flex!important;gap:12px;align-items:center;padding:20px 0; }
+.payer-receipt { border-left:5px solid #30846a; }
+.payer-history-row { padding:14px 0;border-bottom:1px solid #dce4ef;white-space:pre-wrap;font-size:12px; }
+.payer-history-row span,.payer-history-row small { display:block;font-size:10px;color:#6d829d; }
+.payer-history-row strong { display:block;margin:6px 0; }
+.payer-export { padding:0 40px 40px;margin-left:255px; }
+.payer-storage { padding:18px;background:#f4f8fd;border:1px solid #ccdced;border-radius:9px;font-size:12px;margin:20px 0;color:#234360; }
+.payer-storage p { font-size:11px;line-height:1.6; }
+.payer-storage button { font-size:11px;margin:5px 4px 5px 0;padding:9px; }
+.payer-storage input,.payer-storage textarea { display:block;width:100%;border:1px solid #bfcfe2;padding:10px;margin:10px 0;border-radius:6px;font-size:11px;background:white;color:#223d5c; }
+.payer-storage small { font-size:10px;display:block;line-height:1.7; }
+.payer-storage summary { cursor:pointer;font-size:11px; }
+.payer-sidebar .payer-storage,.sidebar .payer-storage { background:#204674;border-color:#4a6b91;color:#e7f0fb; }
+.payer-sidebar .payer-storage p { color:#d2e1f2; }
+.payer-sidebar .payer-storage small { color:#adc7e3; }
+.payer-handoff-card { background:white;padding:28px;border:1px solid #cbdcde;border-radius:10px; }
+.payer-handoff-card p { line-height:1.7;font-size:14px; }
+.payer-handoff-card a { text-decoration:none; }
+@keyframes payer-ring { 0%,100%{transform:rotate(-12deg)}50%{transform:rotate(12deg)} }
+@media(prefers-reduced-motion:reduce) { .payer-dialer.ringing .payer-handset { animation:none; } }
+@media(max-width:1100px) { .payer-shell { grid-template-columns:210px minmax(0,1fr); }.payer-main{padding:28px}.payer-export{margin-left:210px}.payer-facts{grid-template-columns:1fr 1fr}.payer-phone-layout{grid-template-columns:250px minmax(0,1fr)}.payer-conversation-grid{grid-template-columns:1fr}.payer-question-list{max-height:250px} }
+@media(max-width:760px) { .payer-topbar{padding:16px;align-items:flex-start}.payer-brand{font-size:17px}.payer-top-right{flex-direction:column;gap:9px;font-size:11px;align-items:flex-end}.payer-training-strip{padding:10px 16px;line-height:1.6}.payer-shell{display:block}.payer-sidebar{padding:18px}.payer-sidebar>button{display:inline-block;width:auto;font-size:12px;margin:2px}.payer-sidebar>p,.payer-session-status{display:none}.payer-sidebar .payer-storage{margin:10px 0}.payer-main{padding:22px 16px}.payer-main h1{font-size:27px}.payer-channel-cards{grid-template-columns:1fr;gap:16px}.payer-channel-cards>button{min-height:220px;padding:24px}.payer-facts{grid-template-columns:1fr 1fr;gap:14px}.payer-card,.payer-login,.payer-search,.payer-conversation{padding:20px}.payer-phone-layout{grid-template-columns:1fr}.payer-dialer{position:static;width:290px;max-width:100%;margin:auto}.payer-member-bar{flex-wrap:wrap}.payer-member-bar>div{width:100%;flex:auto}.payer-section-tabs{gap:2px}.payer-section-tabs button{font-size:11px}.payer-export{margin-left:0;padding:0 16px 24px}.payer-contact-heading{flex-wrap:wrap}.payer-search{grid-template-columns:1fr}.payer-chat-overlay{right:10px;bottom:10px;width:calc(100vw - 20px)} }

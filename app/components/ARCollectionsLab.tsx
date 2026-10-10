@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { readWork, saveWork, useResearch, researchComplete, researchReport } from "../lib/researchStore";
 import {
   arScenarios,
   denialScenarios,
@@ -87,12 +88,12 @@ const buildAppealScenario = (
 ): AppealScenario => ({
   ...scenario,
   appeal: scenario.appeal ?? {
-    required: false,
-    category: mode === "denial" ? "denial-appeal" : "pricing-reconsideration",
+    required: scenario.id === "AR-3142",
+    category: scenario.id === "AR-3142" ? "denial-appeal" : mode === "denial" ? "denial-appeal" : "pricing-reconsideration",
     recipient: `${scenario.patient.payer} Provider Appeals and Reconsideration Unit`,
     electronicRoute: `${scenario.patient.payer} Provider Portal > Claims > Appeals / Reconsideration`,
     mailingAddress: `${scenario.patient.payer} Provider Appeals and Reconsideration Unit · verify the current payer manual before mailing`,
-    subject: `${mode === "denial" ? "Appeal" : "Reconsideration"} review · ${scenario.patient.name} · DOS ${scenario.patient.dos} · ${scenario.portal.icn}`,
+    subject: `${mode === "denial" || scenario.id === "AR-3142" ? "Appeal" : "Reconsideration"} review · ${scenario.patient.name} · DOS ${scenario.patient.dos} · ${scenario.portal.icn}`,
     template: `RE: ${scenario.patient.name} | Member ${scenario.patient.memberId} | DOS ${scenario.patient.dos} | ICN ${scenario.portal.icn}\n\nTo the Provider Appeals and Reconsideration Reviewer:\n\nPlease review the attached claim and account evidence for ${scenario.claim.claimId}. The learner should revise this draft to state the issue, payer response, corrected information or reimbursement variance, supporting documentation, and requested outcome before deciding whether a formal submission is appropriate.\n\nSincerely,\nRevenue Cycle Back End Team`,
     attachments: [
       "Original EOB / ERA or payer response",
@@ -605,6 +606,63 @@ export function ARCollectionsLab({
   const [closed, setClosed] = useState(false);
   const [prioritySubmitAttempted, setPrioritySubmitAttempted] = useState(false);
 
+
+  const research = useResearch(scenario.id);
+  const [workLoaded, setWorkLoaded] = useState(false);
+  const workSnapshot = { tab, visited, balanceReviewed, portalOpened, portalCredentials, portalFeedback, callStage, callAnswers, callClosed, calculator, calculation, reimbursementValid, calculationFeedback, selectedAction, selectedRoute, decisionReason, actionValid, actionFeedback, decisionAttempts, appealDraft, appealMethod, appealAttachments, otherDocumentSelected, otherDocument, appealSubmitted, appealFeedback, notes, postedAccountNotes, reviewedDocuments, notePosted, closed };
+  useEffect(() => {
+    const saved = readWork<typeof workSnapshot>(scenario.id, "work");
+    if (saved) {
+      if (saved.tab !== undefined) setTab(saved.tab);
+      if (saved.visited !== undefined) setVisited(saved.visited);
+      if (saved.balanceReviewed !== undefined) setBalanceReviewed(saved.balanceReviewed);
+      if (saved.portalOpened !== undefined) setPortalOpened(saved.portalOpened);
+      if (saved.portalCredentials !== undefined) setPortalCredentials(saved.portalCredentials);
+      if (saved.portalFeedback !== undefined) setPortalFeedback(saved.portalFeedback);
+      if (saved.callStage !== undefined) setCallStage(saved.callStage);
+      if (saved.callAnswers !== undefined) setCallAnswers(saved.callAnswers);
+      if (saved.callClosed !== undefined) setCallClosed(saved.callClosed);
+      if (saved.calculator !== undefined) setCalculator(saved.calculator);
+      if (saved.calculation !== undefined) setCalculation(saved.calculation);
+      if (saved.reimbursementValid !== undefined) setReimbursementValid(saved.reimbursementValid);
+      if (saved.calculationFeedback !== undefined) setCalculationFeedback(saved.calculationFeedback);
+      if (saved.selectedAction !== undefined) setSelectedAction(saved.selectedAction);
+      if (saved.selectedRoute !== undefined) setSelectedRoute(saved.selectedRoute);
+      if (saved.decisionReason !== undefined) setDecisionReason(saved.decisionReason);
+      if (saved.actionValid !== undefined) setActionValid(saved.actionValid);
+      if (saved.actionFeedback !== undefined) setActionFeedback(saved.actionFeedback);
+      if (saved.decisionAttempts !== undefined) setDecisionAttempts(saved.decisionAttempts);
+      if (saved.appealDraft !== undefined) setAppealDraft(saved.appealDraft);
+      if (saved.appealMethod !== undefined) setAppealMethod(saved.appealMethod);
+      if (saved.appealAttachments !== undefined) setAppealAttachments(saved.appealAttachments);
+      if (saved.otherDocumentSelected !== undefined) setOtherDocumentSelected(saved.otherDocumentSelected);
+      if (saved.otherDocument !== undefined) setOtherDocument(saved.otherDocument);
+      if (saved.appealSubmitted !== undefined) setAppealSubmitted(saved.appealSubmitted);
+      if (saved.appealFeedback !== undefined) setAppealFeedback(saved.appealFeedback);
+      if (saved.notes !== undefined) setNotes(saved.notes);
+      if (saved.postedAccountNotes !== undefined) setPostedAccountNotes(saved.postedAccountNotes);
+      if (saved.reviewedDocuments !== undefined) setReviewedDocuments(saved.reviewedDocuments);
+      if (saved.notePosted !== undefined) setNotePosted(saved.notePosted);
+      if (saved.closed !== undefined) setClosed(saved.closed);
+    }
+    setWorkLoaded(true);
+    // Scenario components are keyed by account, so hydration runs once per mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scenario.id]);
+  useEffect(() => {
+    if (!workLoaded) return;
+    const timer = setTimeout(() => saveWork(scenario.id, "work", workSnapshot), 300);
+    return () => { clearTimeout(timer); saveWork(scenario.id, "work", workSnapshot); };
+  }, [workLoaded, scenario.id, tab, visited, balanceReviewed, portalOpened, portalCredentials, portalFeedback, callStage, callAnswers, callClosed, calculator, calculation, reimbursementValid, calculationFeedback, selectedAction, selectedRoute, decisionReason, actionValid, actionFeedback, decisionAttempts, appealDraft, appealMethod, appealAttachments, otherDocumentSelected, otherDocument, appealSubmitted, appealFeedback, notes, postedAccountNotes, reviewedDocuments, notePosted, closed]);
+  useEffect(() => {
+    if (research.receipts.length) {
+      setAppealSubmitted(true); setAppealMethod("electronic");
+      setAppealFeedback(`Portal packet acknowledged: ${research.receipts[0].reference}. Receipt does not mean approval or payment.`);
+    }
+    setPortalOpened(research.verified && research.views.length > 0);
+    setCallClosed(research.closedChannels.includes("phone"));
+  }, [research]);
+
   const defaultPriorityOrder = scenarioList.map((item) => item.id);
   const priorityOrder =
     priorityActivity.order.length === scenarioList.length &&
@@ -635,8 +693,8 @@ export function ARCollectionsLab({
   const selectedRouteLabel = [...resolutionRoutes, ...payerEscalationRoutes].find(
     (route) => route.id === selectedRoute,
   )?.label;
-  const investigationComplete = portalOpened && callClosed;
-  const appealRequirementMet = !appealScenario.appeal.required || appealSubmitted;
+  const investigationComplete = researchComplete(scenario, research);
+  const appealRequirementMet = !appealScenario.appeal.required || research.receipts.length > 0;
   const notesComplete =
     notes.source.length > 0 &&
     notes.representative.trim().length >= 2 &&
@@ -669,7 +727,7 @@ export function ARCollectionsLab({
       done: visited.includes("transactions"),
     },
     {
-      label: "Complete payer portal research and call",
+      label: "Capture case-appropriate payer research",
       done: investigationComplete,
     },
     { label: "Choose and validate a resolution", done: actionValid },
@@ -862,55 +920,9 @@ export function ARCollectionsLab({
   };
 
   const submitAppealRequest = () => {
-    if (
-      !appealMethod ||
-      appealDraft.recipient.trim().length < 4 ||
-      appealDraft.subject.trim().length < 8 ||
-      appealDraft.body.trim().length < 120
-    ) {
-      setAppealFeedback(
-        "Complete the recipient, subject, letter, and submission method before sending the request.",
-      );
-      return;
-    }
-    if (
-      appealScenario.appeal.required &&
-      appealScenario.appeal.attachments.some(
-        (attachment) => !appealAttachments.includes(attachment),
-      )
-    ) {
-      const requestType =
-        appealScenario.appeal.category === "pricing-reconsideration"
-          ? "pricing reconsideration"
-          : "appeal";
-      setAppealFeedback(
-        `Confirm every required attachment before submitting the ${requestType} request.`,
-      );
-      return;
-    }
-    if (otherDocumentSelected && otherDocument.trim().length < 2) {
-      setAppealFeedback(
-        "Specify the other document before sending the submission request.",
-      );
-      return;
-    }
-    const isReconsideration =
-      appealScenario.appeal.category === "pricing-reconsideration";
-    const reference = `${
-      appealMethod === "electronic"
-        ? isReconsideration
-          ? "REC"
-          : "APL"
-        : "MAIL"
-    }-${scenario.id.replace(/^(DM|AR)-/, "")}-${
-      appealMethod === "electronic" ? "26" : "48"
-    }`;
-    setAppealSubmitted(true);
-    setAppealFeedback(
-      appealMethod === "electronic"
-        ? `Successful — the electronic ${isReconsideration ? "pricing reconsideration" : "appeal"} was sent to ${appealScenario.appeal.electronicRoute}. Confirmation ${reference}.`
-        : `Successful — the mail submission request was created for ${appealScenario.appeal.mailingAddress}. Tracking task ${reference}.`,
-    );
+    saveWork(scenario.id, "work", workSnapshot);
+    window.open(`/research?case=${encodeURIComponent(scenario.id)}`, "_blank", "noopener,noreferrer");
+    setAppealFeedback("Draft saved. In the payer portal, open Documents & submissions, import your Lab draft and attach the simulated packet. If no tab opened, use the Investigation tab’s research link.");
   };
 
   const closeAccount = () => {
@@ -1113,31 +1125,17 @@ export function ARCollectionsLab({
               ) : null}
               {tab === "coverage" ? <CoverageView scenario={scenario} /> : null}
               {tab === "investigate" ? (
-                <InvestigationView
-                  scenario={scenario}
-                  portalOpened={portalOpened}
-                  portalCredentials={portalCredentials}
-                  portalFeedback={portalFeedback}
-                  callStage={callStage}
-                  callAnswers={callAnswers}
-                  callClosed={callClosed}
-                  onPortalCredential={(key, value) =>
-                    setPortalCredentials((current) => ({
-                      ...current,
-                      [key]: value,
-                    }))
-                  }
-                  onPortal={authenticatePortal}
-                  onAdvanceCall={() =>
-                    setCallStage((current) => Math.min(4, current + 1))
-                  }
-                  onQuestion={(index) =>
-                    setCallAnswers((current) =>
-                      current.includes(index) ? current : [...current, index],
-                    )
-                  }
-                  onCloseCall={() => setCallClosed(true)}
-                />
+                <section className="payer-handoff-card">
+                  <span className="system-kicker">Payer research hub</span>
+                  <h3>Investigate in the payer workspace</h3>
+                  <p>Open a separate tab to research benefits, accumulators, authorization and claims, contact the payer by phone or chat, and submit simulated documents when the case supports that action.</p>
+                  <a className="system-primary-button" href={`/research?case=${encodeURIComponent(scenario.id)}`} target="_blank" rel="noopener noreferrer">Open payer research hub ↗</a>
+                  <p><strong>{investigationComplete ? "Research evidence captured ✓" : "Research remains incomplete"}</strong></p>
+                  <p>{["AR-3119","AR-3174"].includes(scenario.id) ? "This case requires a verified payer contact for a payer-side action. Portal research is also available." : "Review the verified claim and approval records, or finish a verified payer contact. Both channels are available to explore."}</p>
+                  <p>{research.events.length} recorded interactions · {research.receipts.length} document packet acknowledgment(s)</p>
+                  <details><summary>Review recorded payer activity</summary>{research.events.map(e => <div className="payer-history-row" key={e.id}><small>{e.at} · {e.channel}</small><p>{e.text}</p></div>)}</details>
+                  <p>Your PDF includes this activity. Write your own issue, findings and resolution in the Lab.</p>
+                </section>
               ) : null}
               {tab === "reimbursement" ? (
                 <ReimbursementView
@@ -1228,6 +1226,7 @@ export function ARCollectionsLab({
         moduleName={module.title}
         scenarioName={`${scenario.id} · ${scenario.title}`}
         reports={[
+          { label: "Payer research", description: "Recorded portal, phone, chat and submission evidence", title: "Payer Research and Submission History", sections: [{ heading: `${scenario.id} payer interactions`, lines: [...researchReport(research), "Portal draft (see receipt for submitted version): " + (readWork<{letter:string}>(scenario.id, "portalDraft")?.letter || "Not entered")] }] },
           {
             label: "Account investigation",
             description:
@@ -1306,8 +1305,9 @@ export function ARCollectionsLab({
               {
                 heading: "Investigation status",
                 lines: [
-                  `Portal claim detail: ${portalOpened ? "Reviewed" : "Not reviewed"}`,
-                  `Payer call: ${callClosed ? "Closed" : "Not completed"}`,
+                  `Research evidence: ${investigationComplete ? "Captured" : "Still needed"}`,
+                  `Portal sections: ${research.views.join(", ") || "Not explored"}`,
+                  `Completed contacts: ${research.closedChannels.join(", ") || "None; portal-only research may satisfy this case"}`,
                   `Documents reviewed: ${visited.includes("eobs") ? "Yes" : "No"}`,
                   ...(reviewedDocuments.length
                     ? reviewedDocuments.map((entry) => `Document accessed: ${entry}`)
@@ -1370,7 +1370,7 @@ export function ARCollectionsLab({
                               `Denial: ${denialScenario.denial.carc} / ${denialScenario.denial.rarc}`,
                             ]
                           : [
-                              `Underpayment variance: ${money(scenario.expected.variance)}`,
+                              `Expected recovery variance: ${money(scenario.expected.variance)}`,
                               `Payer claim: ${scenario.portal.icn}`,
                             ]),
                         `Recipient: ${appealDraft.recipient || "Not entered"}`,
@@ -1378,7 +1378,7 @@ export function ARCollectionsLab({
                         `Method: ${appealMethod || "Not selected"}`,
                         `Required attachments: ${appealScenario.appeal.attachments.filter((attachment) => appealAttachments.includes(attachment)).length} of ${appealScenario.appeal.attachments.length} confirmed`,
                         `Other document: ${otherDocumentSelected ? otherDocument || "Not specified" : "Not selected"}`,
-                        `Status: ${appealSubmitted ? "Submitted successfully" : "Draft"}`,
+                        `Status: ${appealSubmitted ? "Packet acknowledged; adjudication unchanged" : "Draft"}`,
                         "",
                         appealDraft.body || "No appeal letter drafted",
                       ],
@@ -3726,7 +3726,7 @@ function AppealView({
             <strong>
               {denial
                 ? `${denial.carc} · ${denial.rarc}`
-                : "Contract pricing underpayment"}
+                : isReconsideration ? "Contract pricing underpayment" : "Claim denial appeal"}
             </strong>
           </div>
           <div>
@@ -3761,6 +3761,7 @@ function AppealView({
           <span>{isReconsideration ? "Pricing reconsideration letter" : "Appeal letter"}</span>
           <textarea
             className="appeal-letter-textarea"
+            maxLength={10000}
             value={draft.body}
             onChange={(event) => onDraft("body", event.target.value)}
           />
@@ -3832,7 +3833,7 @@ function AppealView({
           disabled={submitted}
           onClick={onSubmit}
         >
-          {submitted ? "Submission request sent ✓" : "Send submission request"}
+          {submitted ? "Portal packet acknowledged ✓" : "Save draft & open payer portal ↗"}
         </button>
 
         {feedback ? (

@@ -236,7 +236,7 @@ test("routes Evelyn Brooks to a documented pricing reconsideration", async () =>
   assert.match(explorationData, /label: "Submit appeal \/ reconsideration"/);
   assert.match(arLab, /label: "Reconsideration letter"/);
   assert.match(arLab, /openTab\("appeal"\)/);
-  assert.match(arLab, /Successful — the electronic \$\{isReconsideration \? "pricing reconsideration" : "appeal"\}/);
+  assert.match(arLab, /Save draft & open payer portal/);
 });
 
 test("keeps Payment Posting diagnoses hidden until the full workflow is closed", async () => {
@@ -344,6 +344,6 @@ test("shows an appeal or reconsideration workspace and optional document field f
   assert.doesNotMatch(arLab, /filter\(\(item\) => item\.id !== "appeal"/);
   assert.match(arLab, />Other documents: Please specify</);
   assert.match(arLab, /aria-label="Other document required"/);
-  assert.match(arLab, /Specify the other document before sending/);
+  assert.match(arLab, /Draft saved/);
   assert.match(styles, /\.appeal-other-document-input/);
 });

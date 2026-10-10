@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { session, startSession, readWork, saveWork } from "../lib/researchStore";
+import { SessionStoragePanel } from "./SessionStoragePanel";
 import { ARCollectionsLab } from "./ARCollectionsLab";
 import { BillingLab } from "./BillingLab";
 import { PaymentPostingLab } from "./PaymentPostingLab";
@@ -116,6 +118,7 @@ function LearnerWelcome({
           <label htmlFor="learner-name">Learner name</label>
           <input
             id="learner-name"
+            maxLength={100}
             autoComplete="name"
             autoFocus
             value={value}
@@ -127,6 +130,7 @@ function LearnerWelcome({
           </button>
         </form>
         <small>All accounts and payer records in this lab are fictional.</small>
+        <SessionStoragePanel />
       </section>
     </main>
   );
@@ -154,6 +158,24 @@ export function TrainingWorkspace() {
     "ar-collections": defaultPriorityActivity(),
     "denial-management": defaultPriorityActivity(),
   });
+  const [sessionLoaded, setSessionLoaded] = useState(false);
+  useEffect(() => {
+    const current = session();
+    if (current) {
+      setLearnerName(current.name);
+      const priority = readWork<typeof priorityActivities>("workspace", "priority");
+      if (priority) setPriorityActivities(priority);
+      const workspace = readWork<{logs:CompletionLog[];activeScenario:Record<ModuleId,number>;screen:Screen}>("workspace", "work");
+      if (workspace) { setLogs(workspace.logs); setActiveScenario(workspace.activeScenario); setScreen(workspace.screen); }
+    }
+    setSessionLoaded(true);
+  }, []);
+  useEffect(() => {
+    if (sessionLoaded && learnerName) saveWork("workspace", "priority", priorityActivities);
+  }, [sessionLoaded, learnerName, priorityActivities]);
+  useEffect(() => {
+    if (sessionLoaded && learnerName) saveWork("workspace", "work", { logs, activeScenario, screen });
+  }, [sessionLoaded, learnerName, logs, activeScenario, screen]);
   const [toast, setToast] = useState("");
   const [mobileMenu, setMobileMenu] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -249,7 +271,7 @@ export function TrainingWorkspace() {
         onChange={setNameEntry}
         onStart={() => {
           const normalized = nameEntry.trim().replace(/\s+/g, " ");
-          if (normalized.length >= 2) setLearnerName(normalized);
+          if (normalized.length >= 2) { startSession(normalized); setLearnerName(normalized); }
         }}
       />
     );
@@ -299,6 +321,7 @@ export function TrainingWorkspace() {
           <p>Built for coaching—never enter real patient or payer information.</p>
         </div>
 
+        <SessionStoragePanel compact />
         <div className="profile-card">
           <div>
             <strong>{learnerName}</strong>

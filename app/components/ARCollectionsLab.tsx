@@ -2399,7 +2399,6 @@ function DocumentPreview({
       <div className="pdf-document-sheet format-clinical">
         <header className="clinical-letterhead">
           <div>
-            <span className="clinical-mark">EMG</span>
             <div>
               <strong>{scenario.patient.location}</strong>
               <small>Clinical Records Packet · Fictional Training Record</small>

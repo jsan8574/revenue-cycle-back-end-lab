@@ -9000,7 +9000,6 @@ button {
 .payer-app button:focus-visible,.payer-app input:focus-visible,.payer-app select:focus-visible,.payer-app textarea:focus-visible,.payer-app a:focus-visible { outline:3px solid #edb52e;outline-offset:3px; }
 .payer-topbar { min-height:85px;background:white;border-bottom:1px solid #dae4ef;padding:20px 36px;display:flex;align-items:center;justify-content:space-between;gap:20px; }
 .payer-brand { color:#1c426f;display:flex;gap:14px;align-items:center;font-size:22px;font-weight:700;text-decoration:none; }
-.payer-brand>span { display:grid;place-items:center;background:#204d7e;color:white;width:46px;height:46px;border-radius:12px;font-size:17px; }
 .payer-brand small { display:block;font-size:11px;font-weight:400;letter-spacing:1.3px;color:#6e8095;margin-top:5px;text-transform:uppercase; }
 .payer-top-right { display:flex;gap:24px;align-items:center;font-size:13px;color:#61758c; }
 .payer-top-right a { color:#204d7e;font-weight:700; }
@@ -9136,7 +9135,7 @@ button {
 .payer-file-viewer { width:min(1220px,96vw);height:92vh;display:flex;flex-direction:column;border-radius:12px;overflow:hidden;background:#59616d;box-shadow:0 24px 100px #07132370; }
 .payer-file-toolbar { background:#263348;color:#fff;display:flex;justify-content:space-between;align-items:center;gap:20px;padding:16px 22px;flex-shrink:0; }
 .payer-file-toolbar>div:first-child { display:flex;align-items:center;gap:14px;min-width:0; }
-.payer-file-icon { border:1px solid #b9c9df;border-radius:5px;padding:9px 7px;font-size:10px;font-weight:700;letter-spacing:1px; }
+.payer-file-icon { width:24px;height:28px;flex-shrink:0;color:#d1deee; }
 .payer-file-toolbar strong { display:block;font-size:13px;overflow-wrap:anywhere; }
 .payer-file-toolbar small { display:block;margin-top:5px;font-size:11px;color:#c5d2e6; }
 .payer-file-controls { display:flex;align-items:center;gap:18px;flex-shrink:0; }
@@ -9149,7 +9148,6 @@ button {
 .payer-file-sheet:last-child { margin-bottom:0; }
 .payer-file-letterhead { display:flex;justify-content:space-between;gap:20px;border-bottom:3px solid #234365;padding-bottom:22px; }
 .payer-file-letterhead>div:first-child { display:flex;align-items:center;gap:14px; }
-.payer-file-mark { display:flex;align-items:center;justify-content:center;background:#234365;color:#fff;min-width:48px;height:48px;border-radius:5px;font-size:16px;font-weight:700; }
 .payer-file-letterhead strong { display:block;font-size:17px; }
 .payer-file-letterhead small { display:block;color:#62758a;font-size:11px; }
 .payer-file-issued { text-align:right;max-width:290px; }

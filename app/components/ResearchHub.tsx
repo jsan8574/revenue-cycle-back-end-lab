@@ -8,6 +8,7 @@ import { PdfExportCenter } from "./PdfExportCenter";
 import { SessionStoragePanel } from "./SessionStoragePanel";
 import { SimulatedPayerCall } from "./SimulatedPayerCall";
 import { PayerDocumentViewer } from "./PayerDocumentViewer";
+import { payerGreeting } from "../lib/payerSpeech";
 
 type Row = Record<string, string | number | boolean | null>;
 const tables = supplements as unknown as Record<string, Row[]>;
@@ -98,7 +99,7 @@ function PayerWorkspace({ scenario:s }: { scenario:ArScenario }) {
 
   useEffect(() => {
     if (phoneStage !== "ringing") return;
-    const timer = window.setTimeout(() => { setPhoneStage("answered"); setContact("phone"); setVerified(false); setAsked([]); setContactRef(`PHONE-${s.id}-${Date.now().toString(36).toUpperCase()}`); void addEvent(s.id,"phone","answered",`Representative: Thank you for calling ${s.patient.payer} provider services. My name is Morgan. May I have your name, please?`); }, 2300);
+    const timer = window.setTimeout(() => { setPhoneStage("answered"); setContact("phone"); setVerified(false); setAsked([]); setContactRef(`PHONE-${s.id}-${Date.now().toString(36).toUpperCase()}`); void addEvent(s.id,"phone","answered",`Representative: ${payerGreeting(s.id,s.patient.payer).text}`); }, 2300);
     return () => clearTimeout(timer);
   }, [phoneStage,s.id,s.patient.payer]);
 

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ArScenario } from "../data/exploration";
-import { matchesSpokenQuestion, speechRecognition, spokenCallerAnswer, spokenPayerText, type CallSpeechRecognition } from "../lib/payerSpeech";
+import { matchesSpokenQuestion, northstarPricingReply, payerGreeting, speechRecognition, spokenCallerAnswer, spokenPayerText, type CallSpeechRecognition, type PayerReply } from "../lib/payerSpeech";
 
 const clean = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, "");
 const date = (value: string) => {
@@ -35,7 +35,6 @@ type Props = {
 
 export function SimulatedPayerCall({ scenario: s, reference, verified, questions, asked, referenceIndex, canEnd, onTurn, onVerified, onAsk, onEnd }: Props) {
   const prompts = [
-    `Thank you for calling ${s.patient.payer} provider services. My name is Morgan. May I have your name, please?`,
     "Thank you. What is the provider’s NPI or tax identification number?",
     "I have the provider record. May I have the member ID?",
     "Thank you. What is the patient’s date of birth?",
@@ -51,7 +50,8 @@ export function SimulatedPayerCall({ scenario: s, reference, verified, questions
   const [step, setStep] = useState(0);
   const [reply, setReply] = useState("");
   const [answers, setAnswers] = useState<string[]>([]);
-  const [messages, setMessages] = useState<{ speaker: "you" | "rep"; text: string }[]>([{ speaker: "rep", text: prompts[0] }]);
+  const greeting = useRef(payerGreeting(s.id, s.patient.payer));
+  const [messages, setMessages] = useState<(PayerReply & { speaker: "you" | "rep" })[]>([{ speaker: "rep", ...greeting.current }]);
   const [selected, setSelected] = useState<number | null>(null);
   const [listening, setListening] = useState(false);
   const [microphoneReady, setMicrophoneReady] = useState(false);
@@ -59,11 +59,21 @@ export function SimulatedPayerCall({ scenario: s, reference, verified, questions
   const [notice, setNotice] = useState("");
   const recognition = useRef<CallSpeechRecognition | null>(null);
   const utterance = useRef<SpeechSynthesisUtterance | null>(null);
-  const greeting = useRef(prompts[0]);
-  const lastResponse = messages.findLast(message => message.speaker === "rep")?.text ?? greeting.current;
+  const recordedAudio = useRef<HTMLAudioElement | null>(null);
+  const lastResponse = messages.findLast(message => message.speaker === "rep") ?? greeting.current;
 
-  const playReply = useCallback((text: string) => {
+  const stopVoice = useCallback(() => {
+    const audio = recordedAudio.current;
+    recordedAudio.current = null;
+    audio?.pause();
+    const line = utterance.current;
+    utterance.current = null;
+    if (line) window.speechSynthesis.cancel();
+  }, []);
+
+  const playBrowserVoice = useCallback((text: string) => {
     if (!("speechSynthesis" in window)) {
+      setSpeaking(false);
       setNotice("Voice playback is unavailable in this browser. Open the transcript to read Morgan’s reply.");
       return;
     }
@@ -76,7 +86,6 @@ export function SimulatedPayerCall({ scenario: s, reference, verified, questions
       ?? voices.find(voice => voice.localService && /Samantha|Ava|Jenny|Aria/i.test(voice.name))
       ?? voices.find(voice => voice.localService) ?? null;
     utterance.current = line;
-    speech.cancel();
     line.onend = () => { if (utterance.current === line) setSpeaking(false); };
     line.onerror = event => {
       if (utterance.current !== line) return;
@@ -87,6 +96,36 @@ export function SimulatedPayerCall({ scenario: s, reference, verified, questions
     speech.speak(line);
   }, []);
 
+  const playReply = useCallback((reply: PayerReply) => {
+    stopVoice();
+    if (!reply.recording) {
+      playBrowserVoice(reply.text);
+      return;
+    }
+    const audio = new Audio(reply.recording);
+    recordedAudio.current = audio;
+    const fallback = () => {
+      if (recordedAudio.current !== audio) return;
+      stopVoice();
+      playBrowserVoice(reply.text);
+    };
+    audio.onended = () => {
+      if (recordedAudio.current !== audio) return;
+      recordedAudio.current = null;
+      setSpeaking(false);
+    };
+    audio.onerror = fallback;
+    setSpeaking(true);
+    void audio.play().catch((error: unknown) => {
+      if (recordedAudio.current !== audio) return;
+      if (error instanceof DOMException && error.name === "NotAllowedError") {
+        stopVoice();
+        setSpeaking(false);
+        setNotice("Select Replay Rep to hear the recording.");
+      } else fallback();
+    });
+  }, [playBrowserVoice, stopVoice]);
+
   useEffect(() => {
     const timer = window.setTimeout(() => playReply(greeting.current), 0);
     return () => {
@@ -94,22 +133,20 @@ export function SimulatedPayerCall({ scenario: s, reference, verified, questions
       const mic = recognition.current;
       recognition.current = null;
       mic?.abort();
-      const pending = utterance.current;
-      utterance.current = null;
-      if (pending && "speechSynthesis" in window) window.speechSynthesis.cancel();
+      stopVoice();
     };
-  }, [playReply]);
+  }, [playReply, stopVoice]);
 
-  const addTurn = (caller: string, response: string) => {
-    setMessages(previous => [...previous, { speaker: "you", text: caller }, { speaker: "rep", text: response }]);
+  const addTurn = (caller: string, response: PayerReply) => {
+    setMessages(previous => [...previous, { speaker: "you", text: caller }, { speaker: "rep", ...response }]);
     playReply(response);
   };
 
   const verifyReply = (answer: string) => {
     const matched = callerAnswerMatches(step, answer, s);
-    const response = matched ? step === 4 ? "Thanks, I found the claim for that date. How can I help you today?" : prompts[step + 1] : corrections[step];
-    addTurn(answer, response);
-    onTurn(`Representative: ${lastResponse}
+    const response = matched ? step === 4 ? "Thanks, I found the claim for that date. How can I help you today?" : prompts[step] : corrections[step];
+    addTurn(answer, { text: response });
+    onTurn(`Representative: ${lastResponse.text}
 Caller: ${answer}
 Representative: ${response}`);
     setReply(matched ? "" : answer);
@@ -157,14 +194,16 @@ Representative: ${response}`);
       const spoken = variants.find(text => matchesSpokenQuestion(s.id, index, s.callQuestions.length, question.question, text));
       if (!spoken) {
         const clarification = "Sorry, I didn’t catch what you’re asking about. Could you ask that again?";
-        addTurn(variants[0] || "", clarification);
+        addTurn(variants[0] || "", { text: clarification });
         setNotice("Try asking the selected question again, using your own words or the suggested wording.");
         return;
       }
       const response = index === referenceIndex
         ? `Your reference for this practice call is ${reference}. The original case notes say: ${question.answer}`
         : question.answer;
-      addTurn(spoken, response);
+      const recordedReply = s.id === "AR-3106" && question.question === "What pricing methodology was used?"
+        ? northstarPricingReply : { text: response };
+      addTurn(spoken, recordedReply);
       onAsk(index);
       setSelected(null);
       setNotice("");
@@ -203,7 +242,7 @@ Representative: ${response}`);
           {verified ? "Ask Aloud" : "Speak Reply"}
         </button>}
       <button type="button" onClick={() => playReply(lastResponse)} disabled={listening || speaking}>Replay Rep</button>
-      {speaking && <button type="button" onClick={() => { utterance.current = null; window.speechSynthesis.cancel(); setSpeaking(false); }}>Stop Playback</button>}
+      {speaking && <button type="button" onClick={() => { stopVoice(); setSpeaking(false); }}>Stop Playback</button>}
     </div>
     {notice && <p className="payer-feedback" role="status">{notice}</p>}
     {!verified ? <><p>Use the fictional case details. Edge may process speech online.</p><form className="payer-call-reply" onSubmit={respond}>

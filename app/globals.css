@@ -9188,3 +9188,10 @@ button {
 .payer-file-signature span,.payer-file-signature small { color:#6e7f90;font-size:10px; }
 .payer-file-footer { display:flex;justify-content:space-between;gap:20px;border-top:1px solid #cbd8e4;margin-top:auto;padding-top:14px;color:#76879a;font-size:9px; }
 @media(max-width:760px) { .payer-file-backdrop{padding:8px}.payer-file-viewer{width:100%;height:96vh}.payer-file-toolbar{padding:12px;flex-wrap:wrap;gap:10px}.payer-file-toolbar strong{font-size:11px}.payer-file-controls{width:100%;justify-content:space-between}.payer-file-canvas{padding:15px 10px}.payer-file-pages{margin:0}.payer-file-icon{display:none} }
+
+.payer-voice-tools{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0}
+.payer-voice-tools button,.payer-call-transcript summary{color:#18496b;font-weight:650;cursor:pointer}
+.payer-call-transcript{margin-top:16px;padding-top:12px;border-top:1px solid #c9dce7}
+.payer-call-questions button[aria-pressed="true"]{outline:2px solid #326b91;outline-offset:-2px;background:#e8f4fa}
+.payer-ask-aloud{margin:0 0 14px;padding:12px;border:1px solid #bdd9e7;border-radius:9px;background:#f3f9fc}
+.payer-ask-aloud p{margin:0 0 8px}

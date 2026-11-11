@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ArScenario } from "../data/exploration";
-import { matchesSpokenQuestion, speechRecognition, spokenPayerText, type CallSpeechRecognition } from "../lib/payerSpeech";
+import { matchesSpokenQuestion, speechRecognition, spokenCallerAnswer, spokenPayerText, type CallSpeechRecognition } from "../lib/payerSpeech";
 
 const clean = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, "");
 const date = (value: string) => {
@@ -91,8 +91,9 @@ export function SimulatedPayerCall({ scenario: s, reference, verified, questions
     const timer = window.setTimeout(() => playReply(greeting.current), 0);
     return () => {
       window.clearTimeout(timer);
-      recognition.current?.abort();
+      const mic = recognition.current;
       recognition.current = null;
+      mic?.abort();
       const pending = utterance.current;
       utterance.current = null;
       if (pending && "speechSynthesis" in window) window.speechSynthesis.cancel();
@@ -104,32 +105,34 @@ export function SimulatedPayerCall({ scenario: s, reference, verified, questions
     playReply(response);
   };
 
-  const respond = (event: React.FormEvent) => {
-    event.preventDefault();
-    const answer = reply.trim();
-    if (!answer || verified || speaking) return;
+  const verifyReply = (answer: string) => {
     const matched = callerAnswerMatches(step, answer, s);
     const response = matched ? step === 4 ? "Thanks, I found the claim for that date. How can I help you today?" : prompts[step + 1] : corrections[step];
     addTurn(answer, response);
     onTurn(`Representative: ${lastResponse}
 Caller: ${answer}
 Representative: ${response}`);
-    setReply("");
+    setReply(matched ? "" : answer);
     if (!matched) return;
     setAnswers(previous => [...previous, answer]);
     if (step === 4) onVerified(answers[0], answers[1]);
     else setStep(step + 1);
   };
 
+  const respond = (event: React.FormEvent) => {
+    event.preventDefault();
+    const answer = reply.trim();
+    if (answer && !verified && !speaking && !listening) verifyReply(answer);
+  };
+
   const listen = () => {
-    if (selected === null || asked.includes(selected) || speaking || recognition.current) return;
+    if (speaking || recognition.current || (verified && (selected === null || asked.includes(selected)))) return;
     const Recognition = speechRecognition();
     if (!Recognition) {
-      setNotice("Speech recognition is unavailable. Try opening the Lab in Chrome to practice by phone.");
+      setNotice("Speech recognition is unavailable in this browser. If you use a work version of Edge, ask IT to check the SpeechRecognitionEnabled policy.");
       return;
     }
-    const index = selected;
-    const question = questions[index];
+    const index = verified ? selected : null;
     const mic = new Recognition();
     recognition.current = mic;
     mic.lang = "en-US";
@@ -143,6 +146,14 @@ Representative: ${response}`);
       if (!result) return;
       handled = true;
       const variants = Array.from(result, alternative => alternative.transcript);
+      if (index === null) {
+        const replies = variants.map(text => spokenCallerAnswer(step, text)).filter(Boolean);
+        const answer = replies.find(text => callerAnswerMatches(step, text, s)) ?? replies[0];
+        if (answer) verifyReply(answer);
+        else setNotice("No reply was recognized. Try speaking again.");
+        return;
+      }
+      const question = questions[index];
       const spoken = variants.find(text => matchesSpokenQuestion(s.id, index, s.callQuestions.length, question.question, text));
       if (!spoken) {
         const clarification = "Sorry, I didn’t catch what you’re asking about. Could you ask that again?";
@@ -162,16 +173,16 @@ Representative: ${response}`);
       if (recognition.current !== mic) return;
       handled = true;
       const denied = event.error === "not-allowed" || event.error === "service-not-allowed";
-      setNotice(denied ? "Allow microphone access for the Lab, then try again."
-        : event.error === "no-speech" ? "No speech was detected. Select Ask Aloud and try again."
-        : "Speech recognition could not connect. Try again or use a supported browser.");
+      setNotice(denied ? "Allow microphone access for the Lab in Edge, then try again. On a managed device, IT may need to enable speech recognition."
+        : event.error === "no-speech" ? "No speech was detected. Check your headset and try again."
+        : "Speech recognition could not connect. Check your internet connection and try again.");
     };
     mic.onend = () => {
       if (recognition.current !== mic) return;
       recognition.current = null;
       setListening(false);
       setMicrophoneReady(false);
-      if (!handled) setNotice("No question was recognized. Select Ask Aloud and try again.");
+      if (!handled) setNotice("No speech was recognized. Try again.");
     };
     setNotice("");
     setListening(true);
@@ -186,28 +197,28 @@ Representative: ${response}`);
   return <section className="payer-conversation payer-simulated-call" aria-label="Simulated Payer Call">
     <div className="payer-contact-heading"><div><span className="payer-dot"/> Provider Services Call<h2>Morgan · Payer Representative</h2></div><span role="status">{speaking ? "Morgan Is Speaking" : microphoneReady ? "Listening" : listening ? "Connecting Microphone" : "Connected"}</span></div>
     <div className="payer-voice-tools">
+      {listening
+        ? <button type="button" className="payer-primary" onClick={() => recognition.current?.stop()} disabled={!microphoneReady}>Finish Speaking</button>
+        : <button type="button" className="payer-primary" onClick={listen} disabled={speaking || (verified && selected === null)}>
+          {verified ? "Ask Aloud" : "Speak Reply"}
+        </button>}
       <button type="button" onClick={() => playReply(lastResponse)} disabled={listening || speaking}>Replay Rep</button>
       {speaking && <button type="button" onClick={() => { utterance.current = null; window.speechSynthesis.cancel(); setSpeaking(false); }}>Stop Playback</button>}
     </div>
     {notice && <p className="payer-feedback" role="status">{notice}</p>}
-    {!verified ? <form className="payer-call-reply" onSubmit={respond}>
+    {!verified ? <><p>Use the fictional case details. Edge may process speech online.</p><form className="payer-call-reply" onSubmit={respond}>
       <label htmlFor="payer-spoken-reply">{["Caller Name", "Provider NPI Or TIN", "Member ID", "Date Of Birth", "Date Of Service"][step]}
         <input id="payer-spoken-reply" value={reply} onChange={event => setReply(event.target.value)} placeholder={step >= 3 ? "MM/DD/YYYY" : undefined} autoComplete="off" maxLength={160}/>
       </label>
-      <button className="payer-primary" disabled={!reply.trim() || speaking}>Confirm</button>
-    </form> : <>
+      <button disabled={!reply.trim() || speaking || listening}>Confirm</button>
+    </form></> : <>
       <h3>Questions To Ask</h3>
+      <p>Choose a question, then select Ask Aloud. You can use your own words.</p>
       <div className="payer-question-list payer-call-questions">{questions.map((question, index) =>
         <button key={index} disabled={asked.includes(index) || listening || speaking} aria-pressed={selected === index} onClick={() => { setSelected(index); setNotice(""); }}>
           {asked.includes(index) ? "✓ " : ""}{question.question}
         </button>
       )}</div>
-      {selected !== null && <div className="payer-ask-aloud">
-        <p>Ask in your own words or use the suggested question. Your browser processes speech. Use fictional case information only.</p>
-        {listening
-          ? <button type="button" className="payer-primary" onClick={() => recognition.current?.stop()} disabled={!microphoneReady}>Finish Speaking</button>
-          : <button type="button" className="payer-primary" onClick={listen} disabled={speaking}>Ask Aloud</button>}
-      </div>}
       <button className="payer-primary" disabled={!canEnd || listening || speaking} onClick={onEnd}>End Call &amp; Save Contact</button>
       {!canEnd && <small>Capture the relevant case findings and call reference before ending the call.</small>}
     </>}

@@ -57,3 +57,24 @@ export function spokenPayerText(text: string) {
     .replace(/\s*>\s*/g, ", then ")
     .replace(/;\s*/g, ". ");
 }
+
+const digitWords: Record<string, string> = {
+  zero: "0", oh: "0", one: "1", two: "2", three: "3", four: "4",
+  five: "5", six: "6", seven: "7", eight: "8", nine: "9",
+};
+
+export function spokenCallerAnswer(step: number, spoken: string) {
+  const text = spoken.trim().replace(/[.!?]+$/, "");
+  if (step === 0) return text.replace(/^(?:hello[, ]+|hi[, ]+)?(?:my name is|this is|i am|i['’]m)\s+/i, "");
+  if (step === 1 || step === 2) {
+    return text
+      .replace(/^(?:(?:the|my|our)\s+)?(?:(?:provider\s+)?(?:n[. ]?p[. ]?i|t[. ]?i[. ]?n|tax(?: identification)?(?: id)?|member id)(?: number)?\s*(?:is\b|:)?\s*)/i, "")
+      .replace(/\b(?:dash|hyphen)\b/gi, "-")
+      .replace(/\b(zero|oh|one|two|three|four|five|six|seven|eight|nine)\b/gi, word => digitWords[word.toLowerCase()])
+      .toUpperCase();
+  }
+  return text
+    .replace(/^(?:(?:the|patient['’]s)\s+)?(?:date of (?:birth|service)|d[. ]?o[. ]?[bs])\s*(?:is\b|:)?\s*/i, "")
+    .replace(/\b(\d{1,2})(?:st|nd|rd|th)\b/gi, "$1")
+    .replace(/^(\d{1,2})\s+(\d{1,2})\s+(\d{4})$/, "$1/$2/$3");
+}

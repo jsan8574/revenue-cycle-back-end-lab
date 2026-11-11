@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ArScenario } from "../data/exploration";
-import { matchesSpokenQuestion, northstarPricingReply, payerGreeting, speechRecognition, spokenCallerAnswer, spokenPayerText, type CallSpeechRecognition, type PayerReply } from "../lib/payerSpeech";
+import { matchesSpokenQuestion, payerGreeting, speechRecognition, spokenCallerAnswer, spokenPayerText, type CallSpeechRecognition } from "../lib/payerSpeech";
 
 const clean = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, "");
 const date = (value: string) => {
@@ -35,10 +35,10 @@ type Props = {
 
 export function SimulatedPayerCall({ scenario: s, reference, verified, questions, asked, referenceIndex, canEnd, onTurn, onVerified, onAsk, onEnd }: Props) {
   const prompts = [
-    "Thank you. What is the provider’s NPI or tax identification number?",
-    "I have the provider record. May I have the member ID?",
-    "Thank you. What is the patient’s date of birth?",
-    "And what date of service are you calling about?",
+    "Thanks. What’s the provider’s NPI or tax ID?",
+    "I found the provider. What’s the member ID?",
+    "I have the member record. Could you confirm their date of birth?",
+    "Got it. What date of service are you calling about?",
   ];
   const corrections = [
     "Could you give me your name, please?",
@@ -50,81 +50,61 @@ export function SimulatedPayerCall({ scenario: s, reference, verified, questions
   const [step, setStep] = useState(0);
   const [reply, setReply] = useState("");
   const [answers, setAnswers] = useState<string[]>([]);
-  const greeting = useRef(payerGreeting(s.id, s.patient.payer));
-  const [messages, setMessages] = useState<(PayerReply & { speaker: "you" | "rep" })[]>([{ speaker: "rep", ...greeting.current }]);
+  const greeting = useRef(payerGreeting(s.patient.payer));
+  const [messages, setMessages] = useState<{ speaker: "you" | "rep"; text: string }[]>([{ speaker: "rep", text: greeting.current }]);
   const [selected, setSelected] = useState<number | null>(null);
   const [listening, setListening] = useState(false);
   const [microphoneReady, setMicrophoneReady] = useState(false);
   const [speaking, setSpeaking] = useState(false);
+  const [closing, setClosing] = useState(false);
   const [notice, setNotice] = useState("");
   const recognition = useRef<CallSpeechRecognition | null>(null);
   const utterance = useRef<SpeechSynthesisUtterance | null>(null);
-  const recordedAudio = useRef<HTMLAudioElement | null>(null);
-  const lastResponse = messages.findLast(message => message.speaker === "rep") ?? greeting.current;
+  const callVoice = useRef<SpeechSynthesisVoice | null | undefined>(undefined);
+  const lastResponse = messages.findLast(message => message.speaker === "rep")?.text ?? greeting.current;
 
   const stopVoice = useCallback(() => {
-    const audio = recordedAudio.current;
-    recordedAudio.current = null;
-    audio?.pause();
     const line = utterance.current;
     utterance.current = null;
     if (line) window.speechSynthesis.cancel();
   }, []);
 
-  const playBrowserVoice = useCallback((text: string) => {
+  const playReply = useCallback((text: string, afterPlayback?: () => void) => {
+    stopVoice();
     if (!("speechSynthesis" in window)) {
       setSpeaking(false);
       setNotice("Voice playback is unavailable in this browser. Open the transcript to read Morgan’s reply.");
+      afterPlayback?.();
       return;
     }
     const speech = window.speechSynthesis;
-    const voices = speech.getVoices().filter(voice => /^en-US$/i.test(voice.lang));
+    if (callVoice.current === undefined) {
+      const voices = speech.getVoices().filter(voice => /^en-US$/i.test(voice.lang) && voice.localService);
+      callVoice.current = voices.find(voice => /premium|enhanced|natural/i.test(voice.name))
+        ?? voices.find(voice => /Samantha|Ava|Jenny|Aria/i.test(voice.name))
+        ?? voices[0] ?? null;
+    }
+
     const line = new SpeechSynthesisUtterance(spokenPayerText(text));
-    line.lang = "en-US";
+    line.voice = callVoice.current;
+    line.lang = callVoice.current?.lang ?? "en-US";
     line.rate = .96;
-    line.voice = voices.find(voice => voice.localService && /premium|enhanced|natural/i.test(voice.name))
-      ?? voices.find(voice => voice.localService && /Samantha|Ava|Jenny|Aria/i.test(voice.name))
-      ?? voices.find(voice => voice.localService) ?? null;
     utterance.current = line;
-    line.onend = () => { if (utterance.current === line) setSpeaking(false); };
+    const finish = () => {
+      if (utterance.current !== line) return;
+      utterance.current = null;
+      setSpeaking(false);
+      afterPlayback?.();
+    };
+    line.onend = finish;
     line.onerror = event => {
       if (utterance.current !== line) return;
-      setSpeaking(false);
       if (!["canceled", "interrupted"].includes(event.error)) setNotice("Select Replay Rep to hear the reply.");
+      finish();
     };
     setSpeaking(true);
     speech.speak(line);
-  }, []);
-
-  const playReply = useCallback((reply: PayerReply) => {
-    stopVoice();
-    if (!reply.recording) {
-      playBrowserVoice(reply.text);
-      return;
-    }
-    const audio = new Audio(reply.recording);
-    recordedAudio.current = audio;
-    const fallback = () => {
-      if (recordedAudio.current !== audio) return;
-      stopVoice();
-      playBrowserVoice(reply.text);
-    };
-    audio.onended = () => {
-      if (recordedAudio.current !== audio) return;
-      recordedAudio.current = null;
-      setSpeaking(false);
-    };
-    audio.onerror = fallback;
-    setSpeaking(true);
-    void audio.play().catch((error: unknown) => {
-      if (recordedAudio.current !== audio) return;
-      if (error instanceof DOMException && error.name === "NotAllowedError") {
-        stopVoice();
-        setSpeaking(false);
-        setNotice("Select Replay Rep to hear the recording.");
-      } else fallback();
-    });
-  }, [playBrowserVoice, stopVoice]);
+  }, [stopVoice]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => playReply(greeting.current), 0);
@@ -137,16 +117,16 @@ export function SimulatedPayerCall({ scenario: s, reference, verified, questions
     };
   }, [playReply, stopVoice]);
 
-  const addTurn = (caller: string, response: PayerReply) => {
-    setMessages(previous => [...previous, { speaker: "you", text: caller }, { speaker: "rep", ...response }]);
+  const addTurn = (caller: string, response: string) => {
+    setMessages(previous => [...previous, { speaker: "you", text: caller }, { speaker: "rep", text: response }]);
     playReply(response);
   };
 
   const verifyReply = (answer: string) => {
     const matched = callerAnswerMatches(step, answer, s);
     const response = matched ? step === 4 ? "Thanks, I found the claim for that date. How can I help you today?" : prompts[step] : corrections[step];
-    addTurn(answer, { text: response });
-    onTurn(`Representative: ${lastResponse.text}
+    addTurn(answer, response);
+    onTurn(`Representative: ${lastResponse}
 Caller: ${answer}
 Representative: ${response}`);
     setReply(matched ? "" : answer);
@@ -194,16 +174,14 @@ Representative: ${response}`);
       const spoken = variants.find(text => matchesSpokenQuestion(s.id, index, s.callQuestions.length, question.question, text));
       if (!spoken) {
         const clarification = "Sorry, I didn’t catch what you’re asking about. Could you ask that again?";
-        addTurn(variants[0] || "", { text: clarification });
+        addTurn(variants[0] || "", clarification);
         setNotice("Try asking the selected question again, using your own words or the suggested wording.");
         return;
       }
       const response = index === referenceIndex
         ? `Your reference for this practice call is ${reference}. The original case notes say: ${question.answer}`
         : question.answer;
-      const recordedReply = s.id === "AR-3106" && question.question === "What pricing methodology was used?"
-        ? northstarPricingReply : { text: response };
-      addTurn(spoken, recordedReply);
+      addTurn(spoken, response);
       onAsk(index);
       setSelected(null);
       setNotice("");
@@ -233,6 +211,12 @@ Representative: ${response}`);
     }
   };
 
+  const finishCall = () => {
+    if (closing || !canEnd || speaking || listening) return;
+    setClosing(true);
+    playReply("Thanks for calling. Take care.", onEnd);
+  };
+
   return <section className="payer-conversation payer-simulated-call" aria-label="Simulated Payer Call">
     <div className="payer-contact-heading"><div><span className="payer-dot"/> Provider Services Call<h2>Morgan · Payer Representative</h2></div><span role="status">{speaking ? "Morgan Is Speaking" : microphoneReady ? "Listening" : listening ? "Connecting Microphone" : "Connected"}</span></div>
     <div className="payer-voice-tools">
@@ -242,7 +226,7 @@ Representative: ${response}`);
           {verified ? "Ask Aloud" : "Speak Reply"}
         </button>}
       <button type="button" onClick={() => playReply(lastResponse)} disabled={listening || speaking}>Replay Rep</button>
-      {speaking && <button type="button" onClick={() => { stopVoice(); setSpeaking(false); }}>Stop Playback</button>}
+      {speaking && <button type="button" onClick={() => { stopVoice(); setSpeaking(false); if (closing) onEnd(); }}>Stop Playback</button>}
     </div>
     {notice && <p className="payer-feedback" role="status">{notice}</p>}
     {!verified ? <><p>Use the fictional case details. Edge may process speech online.</p><form className="payer-call-reply" onSubmit={respond}>
@@ -258,7 +242,7 @@ Representative: ${response}`);
           {asked.includes(index) ? "✓ " : ""}{question.question}
         </button>
       )}</div>
-      <button className="payer-primary" disabled={!canEnd || listening || speaking} onClick={onEnd}>End Call &amp; Save Contact</button>
+      <button className="payer-primary" disabled={!canEnd || listening || speaking || closing} onClick={finishCall}>End Call &amp; Save Contact</button>
       {!canEnd && <small>Capture the relevant case findings and call reference before ending the call.</small>}
     </>}
     <details className="payer-call-transcript">

@@ -99,7 +99,7 @@ function PayerWorkspace({ scenario:s }: { scenario:ArScenario }) {
 
   useEffect(() => {
     if (phoneStage !== "ringing") return;
-    const timer = window.setTimeout(() => { setPhoneStage("answered"); setContact("phone"); setVerified(false); setAsked([]); setContactRef(`PHONE-${s.id}-${Date.now().toString(36).toUpperCase()}`); void addEvent(s.id,"phone","answered",`Representative: ${payerGreeting(s.id,s.patient.payer).text}`); }, 2300);
+    const timer = window.setTimeout(() => { setPhoneStage("answered"); setContact("phone"); setVerified(false); setAsked([]); setContactRef(`PHONE-${s.id}-${Date.now().toString(36).toUpperCase()}`); void addEvent(s.id,"phone","answered",`Representative: ${payerGreeting(s.patient.payer)}`); }, 2300);
     return () => clearTimeout(timer);
   }, [phoneStage,s.id,s.patient.payer]);
 

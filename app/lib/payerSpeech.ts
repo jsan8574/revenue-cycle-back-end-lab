@@ -79,19 +79,6 @@ export function spokenCallerAnswer(step: number, spoken: string) {
     .replace(/^(\d{1,2})\s+(\d{1,2})\s+(\d{4})$/, "$1/$2/$3");
 }
 
-export type PayerReply = { text: string; recording?: string };
-
-export function payerGreeting(caseId: string, payer: string): PayerReply {
-  if (caseId === "AR-3106") {
-    return {
-      text: "Thank you for calling Northstar Health Provider Services. This is Morgan. May I have your name?",
-      recording: "/payer-audio/northstar-greeting.mp3",
-    };
-  }
-  return { text: `Thank you for calling ${payer} provider services. My name is Morgan. May I have your name, please?` };
+export function payerGreeting(payer: string) {
+  return `Thanks for calling ${payer} Provider Services. This is Morgan. May I have your name?`;
 }
-
-export const northstarPricingReply: PayerReply = {
-  text: "I checked the claim. It was priced using our standard outpatient grouper, and I don’t see the joint case-rate indicator.",
-  recording: "/payer-audio/northstar-pricing-reply.mp3",
-};

@@ -35,6 +35,7 @@ function doPost(e) {
         const now = new Date().toISOString();
         db.Sessions.appendRow([Utilities.getUuid(),hash,rcmText_(req.learner_name,100),now,now,'active',rcmText_(req.data_version,100),0]);
         session = rcmRows_(db.Sessions).find(r => r.values[1] === hash);
+        rcmSafeRefresh_(db);
       }
       return rcmReply_({ok:true,session_id:session.values[0]});
     }
@@ -91,6 +92,7 @@ function doPost(e) {
     db['Case Progress'].getRange(record?record.row:db['Case Progress'].getLastRow()+1,1,1,next.length).setValues([next]);
     db.Sessions.getRange(session.row,5).setValue(now);
     db.Sessions.getRange(session.row,8).setValue(Number(session.values[7])+1);
+    rcmSafeRefresh_(db);
     return rcmReply_({ok:true,revision:revision+1,saved_at_utc:now});
   } catch (err) {
     const allowed=['INVALID_REQUEST','UNAUTHORIZED','INVALID_ACTION','INVALID_RESUME_CODE','BUSY_RETRY','SESSION_NOT_FOUND','INVALID_CASE','REQUEST_ID_REQUIRED','INVALID_PROGRESS','INVALID_EVENT','INVALID_SUBMISSION','RETRY_PAYLOAD_MISMATCH','DUPLICATE_ID_CONFLICT','INVALID_TEXT','INVALID_LIST','INVALID_TIMESTAMP','RECORD_TOO_LARGE','SCHEMA_MISMATCH'];
@@ -145,4 +147,146 @@ function setupSheets() {
     sh.setFrozenRows(1);
   });
   console.log('Tabs ready: ' + Object.keys(RCM_HEADERS).join(', '));
+}
+
+// ---------------------------------------------------------------------------
+// Facilitator view: Learners, Account Progress and Activity Log tabs.
+// Rebuilt after every save. Only the "Required accounts" column is typed by
+// the facilitator; it is kept across rebuilds. Everything else is generated.
+// ---------------------------------------------------------------------------
+const RCM_DEFAULT_REQUIRED = ['AR-3106','AR-3119','AR-3142','AR-3160','AR-3174'];
+const RCM_STALLED_DAYS = 3;
+
+// Adds an "RCM Lab" menu to the spreadsheet for facilitators.
+function onOpen() {
+  SpreadsheetApp.getUi().createMenu('RCM Lab').addItem('Refresh facilitator view', 'refreshDashboard').addToUi();
+}
+
+// Run from the editor any time to rebuild the facilitator tabs by hand.
+function refreshDashboard() { rcmRefreshDashboard_(rcmDb_()); }
+
+function rcmSafeRefresh_(db) {
+  try { rcmRefreshDashboard_(db); } catch (err) { console.error('Dashboard refresh failed: ' + err.message); }
+}
+
+function rcmRefreshDashboard_(db) {
+  const book = SpreadsheetApp.openById(RCM_SHEET_ID);
+  book.setRecalculationInterval(SpreadsheetApp.RecalculationInterval.HOUR);
+  const toDate = v => v instanceof Date ? v : (v ? new Date(v) : null);
+  const parse = v => { try { return JSON.parse(v); } catch (e) { return {}; } };
+
+  const sessions = rcmRows_(db.Sessions).map(r => ({id:r.values[0], name:String(r.values[2]), created:toDate(r.values[3]), updated:toDate(r.values[4])}));
+  const progress = rcmRows_(db['Case Progress']).map(r => ({sid:r.values[0], caseId:r.values[1], module:r.values[2], updated:toDate(r.values[3]), p:parse(r.values[5])}));
+  const research = rcmRows_(db['Research Log']).map(r => ({sid:r.values[1], caseId:r.values[2], at:toDate(r.values[3]), channel:r.values[4], type:r.values[5], details:parse(r.values[6])}));
+  const submissions = rcmRows_(db.Submissions).map(r => ({sid:r.values[1], caseId:r.values[2], at:toDate(r.values[3]), type:r.values[4], ref:r.values[7]}));
+  const nameOf = {}; sessions.forEach(s => nameOf[s.id] = s.name);
+
+  // Keep what the facilitator typed in "Required accounts".
+  const learnersSheet = book.getSheetByName('Learners') || book.insertSheet('Learners');
+  const required = {};
+  if (learnersSheet.getLastRow() > 1) {
+    const head = learnersSheet.getRange(1, 1, 1, learnersSheet.getLastColumn()).getValues()[0];
+    const reqCol = head.indexOf('Required accounts'), idCol = head.indexOf('Learner ID');
+    if (reqCol >= 0 && idCol >= 0) {
+      learnersSheet.getRange(2, 1, learnersSheet.getLastRow() - 1, head.length).getValues()
+        .forEach(row => { if (row[idCol]) required[row[idCol]] = String(row[reqCol] || '').trim(); });
+    }
+  }
+  const requiredList = sid => {
+    const typed = (required[sid] || '').toUpperCase().match(/(AR|DM)-\d{4}/g);
+    return typed && typed.length ? typed.filter((x, i, a) => a.indexOf(x) === i) : RCM_DEFAULT_REQUIRED;
+  };
+  const stalledFormula = (cell, active) =>
+    '=IF(NOW()-' + cell + '>' + RCM_STALLED_DAYS + ',"🔴 Stalled","' + active + '")';
+  const idleFormula = cell =>
+    '=IF(' + cell + '="","",IF(NOW()-' + cell + '<1,ROUND((NOW()-' + cell + ')*24)&" hrs",ROUND(NOW()-' + cell + ')&" days"))';
+
+  // ---- Account Progress: one row per learner per account (required or touched)
+  const accountRows = [];
+  const learnerRows = [];
+  sessions.sort((a, b) => (b.updated || 0) - (a.updated || 0)).forEach(s => {
+    const mine = progress.filter(x => x.sid === s.id);
+    const req = requiredList(s.id);
+    const caseIds = req.concat(mine.map(x => x.caseId).filter(id => req.indexOf(id) < 0));
+    const flags = [];
+    let done = 0, touched = 0;
+    caseIds.forEach(caseId => {
+      const rec = mine.find(x => x.caseId === caseId);
+      const sum = (rec && rec.p && rec.p.summary) || null;
+      const checklist = (sum && sum.checklist) || [];
+      const doneSteps = checklist.filter(c => c.done).length;
+      const missing = checklist.filter(c => !c.done).map(c => c.label);
+      const res = research.filter(x => x.sid === s.id && x.caseId === caseId);
+      const subs = submissions.filter(x => x.sid === s.id && x.caseId === caseId);
+      const count = ch => res.filter(x => x.channel === ch).length;
+      const researchText = !rec && !res.length ? '' :
+        [[count('portal'), 'portal'], [count('phone'), 'call'], [count('chat'), 'chat'], [subs.length, 'submission']]
+          .filter(x => x[0]).map(x => x[0] + ' ' + x[1]).join(', ') || 'None';
+      const closed = !!(sum && sum.closed);
+      const wrong = (sum && sum.wrongAttempts) || 0;
+      if (closed && req.indexOf(caseId) >= 0) done++;
+      if (rec) touched++;
+      if (wrong >= 3) flags.push(wrong + ' wrong resolution attempts on ' + caseId);
+      const status = !rec ? '⚪ Not started' : closed ? '🟢 Completed' : null;
+      accountRows.push({
+        status, last: rec ? rec.updated : null,
+        values: [s.name, (sum && sum.module) || (caseId.indexOf('DM-') === 0 ? 'Denial Management' : 'Insurance Follow-up'),
+          caseId, req.indexOf(caseId) >= 0 ? 'Yes' : 'No', '',
+          sum ? doneSteps + ' of ' + checklist.length : (rec ? 'Opened' : ''),
+          closed ? '—' : missing.join(', '), researchText,
+          (sum && sum.resolution) || '', rec ? wrong : '', sum ? (sum.notePosted ? '✔' : '✘') : '',
+          (sum && sum.score != null) ? sum.score : '', rec ? rec.updated : '', '']
+      });
+    });
+    const last = s.updated || s.created;
+    const base = done >= req.length ? '🟢 Completed' : touched ? '🟡 In progress' : '⚪ Not started';
+    learnerRows.push({ base, values: [s.name, required[s.id] || '', done + ' of ' + req.length, '', s.created, last, '', flags.join('; ') || '—', s.id] });
+  });
+
+  // ---- Write Learners
+  const LH = ['Learner','Required accounts','Done','Status','Started','Last active','Idle','Needs attention','Learner ID'];
+  rcmWriteTab_(learnersSheet, LH, learnerRows.map((r, i) => {
+    const row = i + 2, v = r.values.slice();
+    v[3] = r.base === '🟢 Completed' ? r.base : stalledFormula('F' + row, r.base);
+    v[6] = r.base === '🟢 Completed' ? '—' : idleFormula('F' + row);
+    return v;
+  }), {dates:[5,6], widths:[170,190,80,130,130,150,80,320,10]});
+  learnersSheet.getRange(1, 2).setNote('Type the accounts this learner must complete, e.g. AR-3106, AR-3119. Leave blank for all 5 Insurance Follow-up accounts. Kept when the tab refreshes.');
+  learnersSheet.hideColumns(9);
+  if (learnerRows.length) learnersSheet.getRange(2, 2, learnerRows.length, 1).setBackground('#fff8e1');
+
+  // ---- Write Account Progress
+  const AH = ['Learner','Module','Account','Required','Status','Checklist','Missing steps','Payer research','Resolution chosen','Wrong attempts','Note posted','Score','Last active'];
+  const accountSheet = book.getSheetByName('Account Progress') || book.insertSheet('Account Progress');
+  rcmWriteTab_(accountSheet, AH, accountRows.map((r, i) => {
+    const row = i + 2, v = r.values.slice(0, AH.length);
+    v[4] = r.status || stalledFormula('M' + row, '🟡 In progress');
+    return v;
+  }), {dates:[13], widths:[170,150,90,80,130,90,360,200,200,110,100,70,150], wrap:[7]});
+
+  // ---- Write Activity Log (newest first)
+  const activity = research.map(x => [x.at, nameOf[x.sid] || '', x.caseId, {portal:'Portal',phone:'Call',chat:'Chat',lab:'Lab'}[x.channel] || x.channel, x.type, (x.details && x.details.text) || ''])
+    .concat(submissions.map(x => [x.at, nameOf[x.sid] || '', x.caseId, 'Submission', x.type, 'Receipt ' + x.ref]))
+    .sort((a, b) => (b[0] || 0) - (a[0] || 0));
+  const activitySheet = book.getSheetByName('Activity Log') || book.insertSheet('Activity Log');
+  rcmWriteTab_(activitySheet, ['When','Learner','Account','Channel','Activity','Details'], activity,
+    {dates:[1], widths:[150,170,90,100,180,520], wrap:[6]});
+
+  // Facilitator tabs first, raw tabs after.
+  ['Learners','Account Progress','Activity Log'].forEach((name, i) => { book.setActiveSheet(book.getSheetByName(name)); book.moveActiveSheet(i + 1); });
+}
+
+function rcmWriteTab_(sh, header, rows, opts) {
+  sh.clearContents(); sh.clearFormats();
+  sh.getRange(1, 1, 1, header.length).setValues([header]).setFontWeight('bold').setBackground('#1b6168').setFontColor('#ffffff');
+  sh.setFrozenRows(1);
+  if (sh.getMaxRows() < rows.length + 1) sh.insertRowsAfter(sh.getMaxRows(), rows.length + 1 - sh.getMaxRows());
+  if (rows.length) {
+    sh.getRange(2, 1, rows.length, header.length).setValues(rows).setVerticalAlignment('top');
+    (opts.dates || []).forEach(c => sh.getRange(2, c, rows.length, 1).setNumberFormat('mmm d, h:mm am/pm'));
+    (opts.wrap || []).forEach(c => sh.getRange(2, c, rows.length, 1).setWrap(true));
+  }
+  (opts.widths || []).forEach((w, i) => sh.setColumnWidth(i + 1, w));
+  const extra = sh.getMaxRows() - Math.max(rows.length + 1, 50);
+  if (extra > 0) sh.deleteRows(Math.max(rows.length + 1, 50) + 1, extra);
 }

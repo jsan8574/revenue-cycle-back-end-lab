@@ -743,6 +743,19 @@ export function ARCollectionsLab({
   ];
 
   const completedCount = checklist.filter((item) => item.done).length;
+  // Compact, facilitator-readable summary synced to the training Sheet.
+  const facilitatorSummary = JSON.stringify({
+    module: mode === "denial" ? "Denial Management" : "Insurance Follow-up",
+    checklist: checklist.map((item) => ({ label: item.label, done: item.done })),
+    resolution: actionValid ? resolutionActions.find((action) => action.id === selectedAction)?.label || "" : "",
+    wrongAttempts: Math.max(0, decisionAttempts - (actionValid ? 1 : 0)),
+    notePosted,
+    closed,
+    score: closed ? Math.max(74, 100 - decisionAttempts * 4 - ((priorityOrderCorrect ? 0 : 4) + (priorityRationaleMeetsCriteria ? 0 : 4))) : null,
+  });
+  useEffect(() => {
+    if (workLoaded) saveWork(scenario.id, "summary", JSON.parse(facilitatorSummary));
+  }, [workLoaded, scenario.id, facilitatorSummary]);
   const canPostNote =
     notesComplete &&
     priorityRationaleSubmitted &&

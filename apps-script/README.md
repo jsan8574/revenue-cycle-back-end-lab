@@ -38,6 +38,21 @@ the Lab's server, which adds a private key and forwards the request.
 3. Within a few seconds the sidebar shows **Saved online · time**, and rows
    appear in the Sheet.
 
+## Facilitator view
+
+Three tabs are rebuilt automatically every time a learner saves:
+
+- **Learners** – one row per learner: required accounts, done, status
+  (Not started / In progress / Stalled after 3 idle days / Completed), started,
+  last active, idle time, and anything that needs attention.
+  Type in the yellow **Required accounts** column (e.g. `AR-3106, AR-3119`);
+  blank means all 5 Insurance Follow-up accounts. Your entries are kept.
+- **Account Progress** – one row per learner per account: 12-step checklist,
+  missing steps, payer research, resolution, wrong attempts, note, score.
+- **Activity Log** – every portal search, call, chat and submission, newest first.
+
+Use the **RCM Lab → Refresh facilitator view** menu after editing Required accounts.
+
 ## What gets logged
 
 | Tab | One row per |

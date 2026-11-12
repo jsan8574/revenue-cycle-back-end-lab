@@ -30,7 +30,8 @@ export async function saveOnline() {
       const priority=readWork("workspace","priority");
       const workspace=readWork("workspace","work");
       const portalDraft=readWork(c.id,"portalDraft");
-      const progress={work,research:researchState,priority,workspace,portalDraft};
+      const summary=readWork(c.id,"summary");
+      const progress={work,research:researchState,priority,workspace,portalDraft,summary};
       const fingerprint=JSON.stringify({progress,events,receipts});
       const meta=readWork<{revision:number;fingerprint:string}>(c.id,"cloud")||{revision:0,fingerprint:""};
       if (meta.fingerprint===fingerprint) continue;

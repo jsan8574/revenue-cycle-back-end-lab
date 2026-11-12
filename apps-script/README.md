@@ -42,7 +42,7 @@ the Lab's server, which adds a private key and forwards the request.
 
 Three tabs are rebuilt automatically every time a learner saves:
 
-- **Learners** – one row per learner: required accounts, done, status
+- **Learners** – one row per learner: email, required accounts, done, status
   (Not started / In progress / Stalled after 3 idle days / Completed), started,
   last active, idle time, and anything that needs attention.
   Type in the yellow **Required accounts** column (e.g. `AR-3106, AR-3119`);
@@ -57,7 +57,7 @@ Use the **RCM Lab → Refresh facilitator view** menu after editing Required acc
 
 | Tab | One row per |
 | --- | --- |
-| Sessions | learner session: name, start time, last update |
+| Sessions | learner session: name, email, start time, last update |
 | Case Progress | learner × account: latest saved work (JSON) |
 | Research Log | payer portal, phone and chat interaction |
 | Submissions | appeal / document packet submitted to the payer |

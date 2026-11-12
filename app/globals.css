@@ -2669,6 +2669,10 @@ button {
   margin-bottom: 8px;
 }
 
+.learner-welcome-card input + label {
+  margin-top: 16px;
+}
+
 .learner-welcome-card input {
   background: #fff;
   border: 1px solid #c7d5d2;

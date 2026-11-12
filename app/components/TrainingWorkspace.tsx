@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { session, startSession, readWork, saveWork } from "../lib/researchStore";
+import { session, startSession, readWork, saveWork, EMAIL_PATTERN } from "../lib/researchStore";
 import { SessionStoragePanel } from "./SessionStoragePanel";
 import { ARCollectionsLab } from "./ARCollectionsLab";
 import { BillingLab } from "./BillingLab";
@@ -90,10 +90,14 @@ function moduleScenarioCount(module: TrainingModule) {
 function LearnerWelcome({
   value,
   onChange,
+  email,
+  onEmailChange,
   onStart,
 }: {
   value: string;
   onChange: (value: string) => void;
+  email: string;
+  onEmailChange: (value: string) => void;
   onStart: () => void;
 }) {
   return (
@@ -105,9 +109,9 @@ function LearnerWelcome({
         <span className="section-kicker">Revenue Cycle Back End Training Lab</span>
         <h1>Welcome to your practice session.</h1>
         <p>
-          Enter your name before opening the workstations. It will appear on
-          every PDF activity, decision worksheet, and completion report you
-          create.
+          Enter your name and email before opening the workstations. Your
+          name will appear on every PDF activity, decision worksheet, and
+          completion report you create.
         </p>
         <form
           onSubmit={(event) => {
@@ -125,7 +129,17 @@ function LearnerWelcome({
             onChange={(event) => onChange(event.target.value)}
             placeholder="Enter your full name"
           />
-          <button type="submit" disabled={value.trim().length < 2}>
+          <label htmlFor="learner-email">Email address</label>
+          <input
+            id="learner-email"
+            type="email"
+            maxLength={200}
+            autoComplete="email"
+            value={email}
+            onChange={(event) => onEmailChange(event.target.value)}
+            placeholder="Enter your email address"
+          />
+          <button type="submit" disabled={value.trim().length < 2 || !EMAIL_PATTERN.test(email.trim())}>
             Begin learner session <span aria-hidden="true">→</span>
           </button>
         </form>
@@ -139,6 +153,7 @@ function LearnerWelcome({
 export function TrainingWorkspace() {
   const [learnerName, setLearnerName] = useState("");
   const [nameEntry, setNameEntry] = useState("");
+  const [emailEntry, setEmailEntry] = useState("");
   const [screen, setScreen] = useState<Screen>("dashboard");
   const [activeScenario, setActiveScenario] = useState<Record<ModuleId, number>>({
     billing: 0,
@@ -269,9 +284,12 @@ export function TrainingWorkspace() {
       <LearnerWelcome
         value={nameEntry}
         onChange={setNameEntry}
+        email={emailEntry}
+        onEmailChange={setEmailEntry}
         onStart={() => {
           const normalized = nameEntry.trim().replace(/\s+/g, " ");
-          if (normalized.length >= 2) { startSession(normalized); setLearnerName(normalized); }
+          const email = emailEntry.trim();
+          if (normalized.length >= 2 && EMAIL_PATTERN.test(email)) { startSession(normalized, undefined, email); setLearnerName(normalized); }
         }}
       />
     );

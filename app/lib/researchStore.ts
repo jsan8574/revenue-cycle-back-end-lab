@@ -16,7 +16,8 @@ export type ResearchRecord = {
   verified: boolean; views: string[]; events: ResearchEvent[];
   receipts: ResearchReceipt[]; closedChannels: string[];
 };
-export type LearnerSession = { code: string; name: string; createdAt: string };
+export type LearnerSession = { code: string; name: string; email?: string; createdAt: string };
+export const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 export const DATA_VERSION = "rcm-payer-2026-07-26-v1";
 const SESSION_KEY = "rcm:active-session:v1";
 const CHANGE_EVENT = "rcm-research-change";
@@ -26,8 +27,8 @@ export function session(): LearnerSession | null {
   if (typeof window === "undefined") return null;
   try { return JSON.parse(localStorage.getItem(SESSION_KEY) || "null"); } catch { return null; }
 }
-export function startSession(name: string, code?: string) {
-  const value = { name, code: code || Array.from(crypto.getRandomValues(new Uint8Array(24)), x => x.toString(16).padStart(2, "0")).join(""), createdAt: new Date().toISOString() };
+export function startSession(name: string, code?: string, email = "") {
+  const value = { name, email: email.trim(), code: code || Array.from(crypto.getRandomValues(new Uint8Array(24)), x => x.toString(16).padStart(2, "0")).join(""), createdAt: new Date().toISOString() };
   localStorage.setItem(SESSION_KEY, JSON.stringify(value));
   localStorage.setItem(`rcm:session:${value.code}`, JSON.stringify(value));
   window.dispatchEvent(new Event(CHANGE_EVENT));

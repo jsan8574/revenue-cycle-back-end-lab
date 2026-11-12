@@ -5,7 +5,7 @@ const cases=[...arScenarios,...denialScenarios];
 type OnlineCase={case_id:string;revision:number;progress:{work:unknown;research:Omit<ResearchRecord,"events"|"receipts">;priority:unknown;workspace:unknown;portalDraft:unknown}};
 type OnlineEvent={case_id:string;event_id:string;occurred_at_utc:string;channel:"portal"|"phone"|"chat";event_type:string;details:{text:string}};
 type OnlineReceipt={case_id:string;submission_id:string;submitted_at_utc:string;submission_type:string;receipt_reference:string;document_ids:string[];details:{recipient:string;subject:string;letter:string;followUp:string}};
-type ApiResponse={ok:boolean;error?:string;revision:number;session:{data_version:string;learner_name:string};cases:OnlineCase[];research:OnlineEvent[];submissions:OnlineReceipt[]};
+type ApiResponse={ok:boolean;error?:string;revision:number;session:{data_version:string;learner_name:string;learner_email?:string};cases:OnlineCase[];research:OnlineEvent[];submissions:OnlineReceipt[]};
 async function api(data:unknown) {
   const response=await fetch("/api/training-storage",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)});
   const result=await response.json() as ApiResponse;
@@ -15,7 +15,7 @@ async function api(data:unknown) {
 export async function saveOnline() {
   const learner=session(); if (!learner) return;
   const run=async()=>{
-    await api({action:"create_session",resume_code:learner.code,learner_name:learner.name,data_version:DATA_VERSION});
+    await api({action:"create_session",resume_code:learner.code,learner_name:learner.name,learner_email:learner.email||"",data_version:DATA_VERSION});
     for (const c of cases) {
       const pendingKey=`rcm:${learner.code}:${c.id}:pending-cloud`;
       const pending=localStorage.getItem(pendingKey);
@@ -55,7 +55,7 @@ export async function saveOnline() {
 export async function resumeOnline(code:string) {
   const result=await api({action:"load_session",resume_code:code.trim()});
   if (result.session.data_version!==DATA_VERSION) throw new Error("DATA_VERSION_MISMATCH");
-  startSession(result.session.learner_name,code.trim());
+  startSession(result.session.learner_name,code.trim(),result.session.learner_email||"");
   for(const item of result.cases as OnlineCase[]) {
     if (!cases.some(c=>c.id===item.case_id)) continue;
     if(item.progress.work) saveWork(item.case_id,"work",item.progress.work);

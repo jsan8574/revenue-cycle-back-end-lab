@@ -3,7 +3,7 @@
 const RCM_SHEET_ID = '1c6k6g88ankOOOtRns1buITb1LkbNk4jVKq3mum75Dxo';
 const RCM_CASES = ['AR-3106','AR-3119','AR-3142','AR-3160','AR-3174','DM-5101','DM-5102','DM-5103','DM-5104','DM-5105'];
 const RCM_HEADERS = {
-  Sessions: ['session_id','resume_code_hash','learner_name','created_at_utc','updated_at_utc','status','data_version','revision'],
+  Sessions: ['session_id','resume_code_hash','learner_name','created_at_utc','updated_at_utc','status','data_version','revision','learner_email'],
   'Case Progress': ['session_id','case_id','module_id','updated_at_utc','revision','progress_json'],
   'Research Log': ['event_id','session_id','case_id','occurred_at_utc','channel','event_type','details_json'],
   Submissions: ['submission_id','session_id','case_id','submitted_at_utc','submission_type','channel','document_ids_json','receipt_reference','status','follow_up_date','details_json']
@@ -31,10 +31,14 @@ function doPost(e) {
     const db = rcmDb_();
     let session = rcmRows_(db.Sessions).find(r => r.values[1] === hash);
     if (action === 'create_session') {
+      const email = rcmEmail_(req.learner_email);
       if (!session) {
         const now = new Date().toISOString();
-        db.Sessions.appendRow([Utilities.getUuid(),hash,rcmText_(req.learner_name,100),now,now,'active',rcmText_(req.data_version,100),0]);
+        db.Sessions.appendRow([Utilities.getUuid(),hash,rcmText_(req.learner_name,100),now,now,'active',rcmText_(req.data_version,100),0,email]);
         session = rcmRows_(db.Sessions).find(r => r.values[1] === hash);
+        rcmSafeRefresh_(db);
+      } else if (email && !session.values[8]) {
+        db.Sessions.getRange(session.row,9).setValue(email);
         rcmSafeRefresh_(db);
       }
       return rcmReply_({ok:true,session_id:session.values[0]});
@@ -42,7 +46,7 @@ function doPost(e) {
     if (!session) rcmFail_('SESSION_NOT_FOUND');
     const sid = session.values[0];
     if (action === 'load_session') {
-      return rcmReply_({ok:true,session:{session_id:sid,learner_name:session.values[2],updated_at_utc:session.values[4],data_version:session.values[6]},
+      return rcmReply_({ok:true,session:{session_id:sid,learner_name:session.values[2],learner_email:session.values[8],updated_at_utc:session.values[4],data_version:session.values[6]},
         cases:rcmRows_(db['Case Progress']).filter(r=>r.values[0]===sid).map(r=>({case_id:r.values[1],module_id:r.values[2],revision:Number(r.values[4]),progress:rcmPublicProgress_(r.values[5])})),
         research:rcmRows_(db['Research Log']).filter(r=>r.values[1]===sid).map(r=>({event_id:r.values[0],case_id:r.values[2],occurred_at_utc:r.values[3],channel:r.values[4],event_type:r.values[5],details:JSON.parse(r.values[6])})),
         submissions:rcmRows_(db.Submissions).filter(r=>r.values[1]===sid).map(r=>({submission_id:r.values[0],case_id:r.values[2],submitted_at_utc:r.values[3],submission_type:r.values[4],channel:r.values[5],document_ids:JSON.parse(r.values[6]),receipt_reference:r.values[7],status:r.values[8],follow_up_date:r.values[9],details:JSON.parse(r.values[10])}))});
@@ -104,6 +108,8 @@ function rcmDb_() {
   const book=SpreadsheetApp.openById(RCM_SHEET_ID),db={};
   Object.keys(RCM_HEADERS).forEach(name=>{
     const sh=book.getSheetByName(name),header=RCM_HEADERS[name];
+    // Columns added in later versions are appended to an existing header row.
+    if(sh){const cur=sh.getRange(1,1,1,header.length).getValues()[0];header.forEach((h,i)=>{if(cur[i]===''&&cur.slice(0,i).every((v,j)=>v===header[j]))sh.getRange(1,i+1).setValue(h);});}
     if(!sh || JSON.stringify(sh.getRange(1,1,1,header.length).getValues()[0])!==JSON.stringify(header))rcmFail_('SCHEMA_MISMATCH');
     db[name]=sh;
   });return db;
@@ -127,6 +133,7 @@ function rcmText_(s,max){if(typeof s!=='string'||s.length>max||/^[=+@]/.test(s))
 function rcmJson_(value,max){const s=JSON.stringify(value);if(!s||s.length>max)rcmFail_('RECORD_TOO_LARGE');return s;}
 function rcmList_(value,max){if(value===undefined)return [];if(!Array.isArray(value)||value.length>max)rcmFail_('INVALID_LIST');return value;}
 function rcmTimestamp_(s){if(typeof s!=='string'||!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$/.test(s)||!Number.isFinite(Date.parse(s)))rcmFail_('INVALID_TIMESTAMP');return s;}
+function rcmEmail_(s){if(s===undefined||s==='')return '';const e=rcmText_(s,200).trim();if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e))rcmFail_('INVALID_TEXT');return e;}
 function rcmFail_(code){throw new Error(code);}
 function rcmReply_(obj){return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);}
 
@@ -175,7 +182,7 @@ function rcmRefreshDashboard_(db) {
   const toDate = v => v instanceof Date ? v : (v ? new Date(v) : null);
   const parse = v => { try { return JSON.parse(v); } catch (e) { return {}; } };
 
-  const sessions = rcmRows_(db.Sessions).map(r => ({id:r.values[0], name:String(r.values[2]), created:toDate(r.values[3]), updated:toDate(r.values[4])}));
+  const sessions = rcmRows_(db.Sessions).map(r => ({id:r.values[0], name:String(r.values[2]), email:String(r.values[8] || ''), created:toDate(r.values[3]), updated:toDate(r.values[4])}));
   const progress = rcmRows_(db['Case Progress']).map(r => ({sid:r.values[0], caseId:r.values[1], module:r.values[2], updated:toDate(r.values[3]), p:parse(r.values[5])}));
   const research = rcmRows_(db['Research Log']).map(r => ({sid:r.values[1], caseId:r.values[2], at:toDate(r.values[3]), channel:r.values[4], type:r.values[5], details:parse(r.values[6])}));
   const submissions = rcmRows_(db.Submissions).map(r => ({sid:r.values[1], caseId:r.values[2], at:toDate(r.values[3]), type:r.values[4], ref:r.values[7]}));
@@ -240,20 +247,21 @@ function rcmRefreshDashboard_(db) {
     });
     const last = s.updated || s.created;
     const base = done >= req.length ? '🟢 Completed' : touched ? '🟡 In progress' : '⚪ Not started';
-    learnerRows.push({ base, values: [s.name, required[s.id] || '', done + ' of ' + req.length, '', s.created, last, '', flags.join('; ') || '—', s.id] });
+    learnerRows.push({ base, values: [s.name, s.email, required[s.id] || '', done + ' of ' + req.length, '', s.created, last, '', flags.join('; ') || '—', s.id] });
   });
 
   // ---- Write Learners
-  const LH = ['Learner','Required accounts','Done','Status','Started','Last active','Idle','Needs attention','Learner ID'];
+  const LH = ['Learner','Email','Required accounts','Done','Status','Started','Last active','Idle','Needs attention','Learner ID'];
   rcmWriteTab_(learnersSheet, LH, learnerRows.map((r, i) => {
     const row = i + 2, v = r.values.slice();
-    v[3] = r.base === '🟢 Completed' ? r.base : stalledFormula('F' + row, r.base);
-    v[6] = r.base === '🟢 Completed' ? '—' : idleFormula('F' + row);
+    v[4] = r.base === '🟢 Completed' ? r.base : stalledFormula('G' + row, r.base);
+    v[7] = r.base === '🟢 Completed' ? '—' : idleFormula('G' + row);
     return v;
-  }), {dates:[5,6], widths:[170,190,80,130,130,150,80,320,10]});
-  learnersSheet.getRange(1, 2).setNote('Type the accounts this learner must complete, e.g. AR-3106, AR-3119. Leave blank for all 5 Insurance Follow-up accounts. Kept when the tab refreshes.');
-  learnersSheet.hideColumns(9);
-  if (learnerRows.length) learnersSheet.getRange(2, 2, learnerRows.length, 1).setBackground('#fff8e1');
+  }), {dates:[6,7], widths:[170,220,190,80,130,130,150,80,320,10]});
+  learnersSheet.getRange(1, 3).setNote('Type the accounts this learner must complete, e.g. AR-3106, AR-3119. Leave blank for all 5 Insurance Follow-up accounts. Kept when the tab refreshes.');
+  learnersSheet.showColumns(1, learnersSheet.getMaxColumns());
+  learnersSheet.hideColumns(10);
+  if (learnerRows.length) learnersSheet.getRange(2, 3, learnerRows.length, 1).setBackground('#fff8e1');
 
   // ---- Write Account Progress
   const AH = ['Learner','Module','Account','Required','Status','Checklist','Missing steps','Payer research','Resolution chosen','Wrong attempts','Note posted','Score','Last active'];

@@ -1129,7 +1129,7 @@ export function ARCollectionsLab({
                   <span className="system-kicker">Payer research hub</span>
                   <h3>Investigate in the payer workspace</h3>
                   <p>Open a separate tab to research benefits, accumulators, authorization and claims, contact the payer by phone or chat, and submit simulated documents when the case supports that action.</p>
-                  <a className="system-primary-button" href={`/research?case=${encodeURIComponent(scenario.id)}`} target="_blank" rel="noopener noreferrer">Open payer research hub ↗</a>
+                  <p><a className="payer-handoff-link" href={`/research?case=${encodeURIComponent(scenario.id)}`} target="_blank" rel="noopener noreferrer">Open payer research hub ↗</a></p>
                   <p><strong>{investigationComplete ? "Research evidence captured ✓" : "Research remains incomplete"}</strong></p>
                   <p>{["AR-3119","AR-3174"].includes(scenario.id) ? "This case requires a verified payer contact for a payer-side action. Portal research is also available." : "Review the verified claim and approval records, or finish a verified payer contact. Both channels are available to explore."}</p>
                   <p>{research.events.length} recorded interactions · {research.receipts.length} document packet acknowledgment(s)</p>

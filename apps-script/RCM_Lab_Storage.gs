@@ -134,3 +134,15 @@ function initializeStorage() {
   if (!properties.getProperty('RCM_STORAGE_KEY')) properties.setProperty('RCM_STORAGE_KEY', Utilities.getUuid() + Utilities.getUuid());
   console.log('Private connection key is ready. No key is printed in this log.');
 }
+
+// Run once from the Google editor: creates any missing tabs with the expected headers.
+function setupSheets() {
+  const book = SpreadsheetApp.openById(RCM_SHEET_ID);
+  Object.keys(RCM_HEADERS).forEach(name => {
+    const header = RCM_HEADERS[name];
+    const sh = book.getSheetByName(name) || book.insertSheet(name);
+    if (sh.getLastRow() === 0) sh.getRange(1, 1, 1, header.length).setValues([header]).setFontWeight('bold');
+    sh.setFrozenRows(1);
+  });
+  console.log('Tabs ready: ' + Object.keys(RCM_HEADERS).join(', '));
+}

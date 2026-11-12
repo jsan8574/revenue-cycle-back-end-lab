@@ -14,7 +14,7 @@ export function SessionStoragePanel({compact=false}:{compact?:boolean}) {
   useEffect(()=>{fetch("/api/training-storage").then(r=>r.json()).then(r=>setConfigured((r as {configured:boolean}).configured)).catch(()=>setConfigured(false));
     const error=()=>setStatus("Device saving failed. Export your PDF before leaving this page.");window.addEventListener("rcm-storage-error",error);return()=>window.removeEventListener("rcm-storage-error",error);
   },[]);
-  const save=async()=>{if(!configured||!session())return;setBusy(true);try{const at=await saveOnline();setStatus(`Saved online · ${new Date(at!).toLocaleTimeString()}`);}catch(e){setStatus(e instanceof Error&&e.message==="REVISION_CONFLICT"?"Online work changed on another device. Export this PDF before resuming online.":"Online saving did not complete. Your device copy and PDF remain available.");}finally{setBusy(false);}};
+  const save=async()=>{if(!configured||!session())return;setBusy(true);try{const at=await saveOnline();setStatus(`Saved online · ${new Date(at!).toLocaleTimeString()}`);}catch(e){setStatus(e instanceof Error&&e.message==="REVISION_CONFLICT"?"Online work changed on another device. Export this PDF before resuming online.":`Online saving did not complete${e instanceof Error&&e.message?` (${e.message})`:""}. Your device copy and PDF remain available.`);}finally{setBusy(false);}};
   useEffect(()=>{
     if(!configured||!learner)return;
     let timer:ReturnType<typeof setTimeout>;

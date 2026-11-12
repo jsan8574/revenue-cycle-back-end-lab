@@ -8,7 +8,7 @@ type OnlineReceipt={case_id:string;submission_id:string;submitted_at_utc:string;
 type ApiResponse={ok:boolean;error?:string;revision:number;session:{data_version:string;learner_name:string;learner_email?:string};cases:OnlineCase[];research:OnlineEvent[];submissions:OnlineReceipt[]};
 async function api(data:unknown) {
   const response=await fetch("/api/training-storage",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)});
-  const result=await response.json() as ApiResponse;
+  const result=await response.json().catch(()=>({ok:false,error:`HTTP_${response.status}`})) as ApiResponse;
   if (!result.ok) throw new Error(result.error||"GOOGLE_CONNECTION_ERROR");
   return result;
 }
